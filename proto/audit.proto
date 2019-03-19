@@ -1,0 +1,46 @@
+// Copyright (C) 2018 Bluzelle
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License, version 3,
+// as published by the Free Software Foundation.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+syntax = "proto3";
+
+message audit_message {
+    oneof msg {
+        pbft_commit_notification pbft_commit = 1;
+        primary_status primary_status = 2;
+
+        failure_detected failure_detected = 3;
+    }
+}
+
+message leader_status {
+    uint64 term = 1;
+    string leader = 2;
+    uint64 current_log_index = 3;
+    uint64 current_commit_index = 4;
+}
+
+message primary_status {
+    uint64 view = 1;
+    string primary = 2;
+}
+
+message pbft_commit_notification {
+    string sender_uuid = 1;
+    uint64 sequence_number = 2;
+    bytes operation = 3;
+}
+
+message failure_detected {
+    string sender_uuid = 1;
+}
