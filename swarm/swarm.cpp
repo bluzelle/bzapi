@@ -27,10 +27,13 @@ namespace
     const std::chrono::seconds STATUS_REQUEST_TIME{std::chrono::seconds(60)};
 }
 
-swarm::swarm(std::shared_ptr<node_factory_base> node_factory, std::shared_ptr<bzn::asio::io_context_base> io_context
-    , std::shared_ptr<crypto_base> crypto, const endpoint_t& initial_endpoint)
-: node_factory(std::move(node_factory)), io_context(std::move(io_context)), crypto(std::move(crypto))
-    , initial_endpoint(initial_endpoint)
+swarm::swarm(std::shared_ptr<node_factory_base> node_factory
+    , std::shared_ptr<bzn::beast::websocket_base> ws_factory
+    , std::shared_ptr<bzn::asio::io_context_base> io_context
+    , std::shared_ptr<crypto_base> crypto
+    , const endpoint_t& initial_endpoint)
+: node_factory(std::move(node_factory)), ws_factory(std::move(ws_factory)), io_context(std::move(io_context))
+    , crypto(std::move(crypto)), initial_endpoint(initial_endpoint)
 {
 }
 
@@ -39,16 +42,23 @@ swarm::~swarm()
     node_factory = nullptr;
 }
 
+// TODO: this needs its own unit test
 void
 swarm::has_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
 {
     auto endpoint = this->parse_endpoint(initial_endpoint);
-    auto ws = std::make_shared<bzn::beast::websocket>();
-    auto node = node_factory->create_node(io_context, ws, endpoint.first, endpoint.second);
-    node->register_message_handler([uuid, node, callback](const char *data, uint64_t len)
+    auto uuid_node = node_factory->create_node(io_context, ws_factory, endpoint.first, endpoint.second);
+    node_info info;
+    info.node = uuid_node;
+    info.host = endpoint.first;
+    info.port = endpoint.second;
+    this->nodes = std::make_shared<std::unordered_map<uuid_t, node_info>>();
+    (*this->nodes)[uuid_t{"uuid_node"}] = info;
+
+    // TODO: should this call a static method inside db_impl? Not ideal having the swarm
+    // process a database message
+    uuid_node->register_message_handler([uuid, callback](const char *data, uint64_t len)
     {
-        // TODO: should this be a static method inside db_impl? Not ideal having the swarm
-        // process a database message
         bzn_envelope env;
         database_response response;
         database_has_db_response has_db;
@@ -66,7 +76,29 @@ swarm::has_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
             return true;
         }
 
+        //node->register_message_handler([](const auto, auto){return true;});
         callback(response.has_db().has());
+        return true;
+    });
+
+    bzn_envelope env;
+    database_msg request;
+    database_header header;
+    header.set_db_uuid(uuid);
+    header.set_nonce(1);
+    request.set_allocated_header(new database_header(header));
+    request.set_allocated_has_db(new database_has_db());
+    env.set_database_msg(request.SerializeAsString());
+    env.set_sender("me");
+    auto message = env.SerializeAsString();
+    uuid_node->send_message(message.c_str(), message.size(), [callback, uuid](const auto& ec)
+    {
+        if (ec)
+        {
+            LOG(error) << "Error sending has_db(" << uuid << ") request: " << ec.message();
+            callback(false);
+        }
+
         return true;
     });
 }
@@ -92,8 +124,7 @@ swarm::initialize(completion_handler_t handler)
         });
 
     auto endpoint = this->parse_endpoint(initial_endpoint);
-    ws_factory = std::make_shared<bzn::beast::websocket>();
-    auto initial_node = node_factory->create_node(io_context, ws_factory, endpoint.first, endpoint.second);
+    auto initial_node = node_factory->create_node(this->io_context, this->ws_factory, endpoint.first, endpoint.second);
     initial_node->register_message_handler(std::bind(&swarm::handle_node_message, shared_from_this()
         , INITIAL_NODE, std::placeholders::_1, std::placeholders::_2));
 

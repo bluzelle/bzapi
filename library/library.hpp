@@ -15,12 +15,19 @@
 
 #pragma once
 
-using future = int;
+#include <library/response.hpp>
 
-// temporary?
-bool inititialize(const char *endpoint, const char *private_key);
+namespace bzapi
+{
+    // temporary?
+    bool initialize(const char *private_key, const char *endpoint);
 
-future* has_db(const char *uuid);
-future* create_db(const char *uuid);
-future* open_db(const char *uuid);
-future* remove_db(const char *uuid);
+    std::shared_ptr<response> has_db(const char *uuid);
+
+    std::shared_ptr<response> create_db(const char *uuid);
+
+    std::shared_ptr<response> remove_db(const char *uuid);
+
+    std::shared_ptr<response> open_db(const char *uuid);
+
+}

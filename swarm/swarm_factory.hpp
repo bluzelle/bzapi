@@ -18,13 +18,18 @@
 #include <swarm/swarm_base.hpp>
 #include <crypto/crypto_base.hpp>
 #include <database/db_base.hpp>
+#include <boost_asio_beast.hpp>
 
 namespace bzapi
 {
     class swarm_factory
     {
     public:
-        swarm_factory(std::shared_ptr<bzn::asio::io_context_base> io_context, std::shared_ptr<crypto_base> crypto);
+        swarm_factory(std::shared_ptr<bzn::asio::io_context_base> io_context
+            , std::shared_ptr<bzn::beast::websocket_base> ws_factory
+            , std::shared_ptr<crypto_base> crypto);
+        ~swarm_factory();
+
         void has_db(const uuid_t& uuid, std::function<void(db_error result)>);
         void get_swarm(const uuid_t& uuid, std::function<void(std::shared_ptr<swarm_base>)>);
 
@@ -32,6 +37,7 @@ namespace bzapi
 
     private:
         std::shared_ptr<bzn::asio::io_context_base> io_context;
+        std::shared_ptr<bzn::beast::websocket_base> ws_factory;
         std::shared_ptr<crypto_base> crypto;
         std::map<uuid_t, std::weak_ptr<swarm_base>> uuids;
         std::map<endpoint_t, std::weak_ptr<swarm_base>> swarms;

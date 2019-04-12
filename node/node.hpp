@@ -32,6 +32,7 @@ namespace bzapi
         node(std::shared_ptr<bzn::asio::io_context_base> io_context
             , std::shared_ptr<bzn::beast::websocket_base> ws_factory
             , const std::string& host, uint16_t port);
+        ~node();
 
         void register_message_handler(node_message_handler msg_handler) override;
         void send_message(const char *msg, size_t len, completion_handler_t callback) override;

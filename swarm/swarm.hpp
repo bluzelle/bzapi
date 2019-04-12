@@ -17,6 +17,7 @@
 
 #include <swarm/swarm_base.hpp>
 #include <crypto/crypto_base.hpp>
+#include <node/node_base.hpp>
 
 namespace bzapi
 {
@@ -28,7 +29,9 @@ namespace bzapi
     class swarm : public swarm_base, public std::enable_shared_from_this<swarm>
     {
     public:
-        swarm(std::shared_ptr<node_factory_base> node_factory, std::shared_ptr<bzn::asio::io_context_base> io_context
+        swarm(std::shared_ptr<node_factory_base> node_factory
+            , std::shared_ptr<bzn::beast::websocket_base> ws_factory
+            , std::shared_ptr<bzn::asio::io_context_base> io_context
             , std::shared_ptr<crypto_base> crypto, const endpoint_t& initial_endpoint);
 
         ~swarm();
@@ -59,6 +62,7 @@ namespace bzapi
         };
 
         std::shared_ptr<node_factory_base> node_factory;
+        std::shared_ptr<bzn::beast::websocket_base> ws_factory;
         std::shared_ptr<bzn::asio::io_context_base> io_context;
         std::shared_ptr<crypto_base> crypto;
         endpoint_t initial_endpoint;
@@ -68,7 +72,6 @@ namespace bzapi
         uuid_t fastest_node;
         uuid_t primary_node;
         status_response last_status;
-        std::shared_ptr<bzn::beast::websocket_base> ws_factory;
         completion_handler_t init_handler = nullptr;
         std::string private_key;
 

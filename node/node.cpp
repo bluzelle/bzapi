@@ -26,6 +26,10 @@ node::node(std::shared_ptr<bzn::asio::io_context_base> io_context
     this->endpoint = this->make_tcp_endpoint(host, port);
 }
 
+node::~node()
+{
+}
+
 void
 node::register_message_handler(node_message_handler msg_handler)
 {
@@ -51,8 +55,10 @@ node::send_message(const char *msg, size_t len, completion_handler_t callback)
             return;
         });
     }
-
-    this->send(write_buffer, callback, false);
+    else
+    {
+        this->send(write_buffer, callback, false);
+    }
 }
 
 boost::asio::ip::tcp::endpoint
@@ -94,6 +100,7 @@ node::connect(completion_handler_t callback)
                 return;
             }
 
+            callback(ec);
             this->receive();
         });
     });
@@ -147,8 +154,9 @@ node::receive()
 
         std::stringstream ss;
         ss << boost::beast::buffers(buffer->data());
+        std::string str = ss.str();
 
-        if (this->handler(ss.str().c_str(), ss.str().length()))
+        if (this->handler(str.c_str(), str.length()))
         {
             this->close();
         }

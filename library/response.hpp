@@ -17,10 +17,12 @@
 
 #include <string>
 #include <atomic>
-#include <bits/socket.h>
+#include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <stdexcept>
+#include <database/database.hpp>
+#include <string.h>
 
 namespace bzapi
 {
@@ -33,40 +35,49 @@ namespace bzapi
         int get_signal_id(int theirs)
         {
             this->their_id = theirs;
-            return my_id;
+            return this->my_id;
         }
 
         bool is_ready()
         {
-            return ready;
+            return this->ready;
         }
 
         std::string get_result()
         {
             if (ready)
             {
-                return result_str;
+                return this->result_str;
             }
 
             return {};
         }
 
+        std::shared_ptr<database> get_db()
+        {
+            return this->db;
+        }
+
         // producer
         void set_result(const std::string& result)
         {
-            result_str = result;
+            this->result_str = result;
         }
 
         void set_ready()
         {
-            ready = true;
-            signal(0);
+            this->set_error(0);
         }
 
         void set_error(int error)
         {
-            ready = true;
-            signal(error);
+            this->ready = true;
+            this->signal(error);
+        }
+
+        void set_db(std::shared_ptr<database> db_ptr)
+        {
+            this->db = db_ptr;
         }
 
     protected:
@@ -74,6 +85,7 @@ namespace bzapi
         int their_id = 0;
         std::string result_str;
         std::atomic<bool> ready = false;
+        std::shared_ptr<database> db;
 
         virtual void signal(int error) = 0;
     };
@@ -90,8 +102,9 @@ namespace bzapi
             }
 
             sockaddr_in local;
+            memset(&local, 0, sizeof(sockaddr_in));
             local.sin_family = AF_INET;
-            local.sin_addr.s_addr = INADDR_LOOPBACK;
+            local.sin_addr.s_addr = INADDR_ANY;
             local.sin_port = 0; //randomly selected port
             if (bind(sock, (sockaddr*)&local, sizeof(local)) == -1)
             {

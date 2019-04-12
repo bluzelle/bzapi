@@ -20,10 +20,16 @@
 using namespace bzapi;
 
 swarm_factory::swarm_factory(std::shared_ptr<bzn::asio::io_context_base> io_context
+    , std::shared_ptr<bzn::beast::websocket_base> ws_factory
     , std::shared_ptr<crypto_base> crypto)
-: io_context(std::move(io_context)), crypto(std::move(crypto))
+: io_context(std::move(io_context)), ws_factory(std::move(ws_factory)), crypto(std::move(crypto))
 {
     node_factory = std::make_shared<::node_factory>();
+}
+
+swarm_factory::~swarm_factory()
+{
+
 }
 
 void
@@ -51,7 +57,8 @@ void
 swarm_factory::temporary_set_default_endpoint(const endpoint_t& endpoint)
 {
     this->endpoints.insert(endpoint);
-    this->swarms[endpoint] = std::make_shared<swarm>(this->node_factory, this->io_context, this->crypto, endpoint);
+    this->swarms[endpoint] =
+        std::make_shared<swarm>(this->node_factory, this->ws_factory, this->io_context, this->crypto, endpoint);
 }
 
 void
@@ -69,7 +76,7 @@ swarm_factory::has_db(const uuid_t& uuid, std::function<void(db_error result)> c
         auto sw = elem.second.lock();
         if (!sw)
         {
-            sw = std::make_shared<swarm>(this->node_factory, this->io_context, this->crypto, elem.first);
+            sw = std::make_shared<swarm>(this->node_factory, this->ws_factory, this->io_context, this->crypto, elem.first);
             this->swarms[elem.first] = sw;
         }
 
