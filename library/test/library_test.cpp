@@ -111,11 +111,13 @@ struct mock_websocket
                 }
             }));
 
-        EXPECT_CALL(*websocket, async_write(_, _)).WillOnce(Invoke([&](const boost::asio::mutable_buffers_1& buffer, auto cb)
+        EXPECT_CALL(*websocket, async_write(_, _)).WillRepeatedly(Invoke([&](const boost::asio::mutable_buffers_1& buffer, auto cb)
         {
             if (write_func)
             {
-                write_func(buffer);
+                auto w = write_func;
+                write_func = nullptr;
+                w(buffer);
             }
 
             cb(boost::system::error_code{}, buffer.size());
@@ -361,4 +363,151 @@ TEST_F(integration_test, test_open_db)
 
     this->teardown();
 
+}
+
+TEST_F(integration_test, test_create)
+{
+    uuid_t uuid{"my_uuid"};
+    this->initialize(uuid);
+
+    for (size_t i = 0; i < 4; i++)
+    {
+        mock_websocket s{static_cast<uint16_t>(i)};
+        this->nodes[i] = s;
+    }
+    this->primary_node = "node_0";
+
+    // reverse order is intentional to match most recent expectations first
+    expect_swarm_initialize();
+    expect_has_db();
+
+    auto response = open_db(uuid.c_str());
+    ASSERT_TRUE(response->is_ready());
+    auto db = response->get_db();
+    ASSERT_TRUE(db != nullptr);
+
+    int nonce  = 0;
+
+    for (size_t i = 0; i < 4; i++)
+    {
+        this->nodes[i].write_func = [&nonce](const boost::asio::mutable_buffers_1& buffer)
+        {
+            bzn_envelope env;
+            EXPECT_TRUE(env.ParseFromString(std::string(static_cast<const char *>(buffer.data()), buffer.size())));
+
+            database_msg msg;
+            EXPECT_TRUE(msg.ParseFromString(env.database_msg()));
+            nonce = msg.header().nonce();
+
+            const database_create& create = msg.create();
+            EXPECT_TRUE(create.key() == "test_key");
+            EXPECT_TRUE(create.value() == "test_value");
+        };
+    }
+
+    auto create_response = db->create("test_key", "test_value");
+
+    for (size_t i = 0; i < 4; i++)
+    {
+        database_header header;
+        header.set_nonce(nonce);
+        database_response dr;
+        dr.set_allocated_header(new database_header(header));
+
+        bzn_envelope env2;
+        env2.set_database_response(dr.SerializeAsString());
+        env2.set_sender("node_" + std::to_string(i));
+        auto message = env2.SerializeAsString();
+        this->nodes[i].simulate_read(message);
+    }
+
+    EXPECT_TRUE(create_response->is_ready());
+    auto resp = create_response->get_result();
+    Json::Value resp_json;
+    Json::Reader reader;
+    EXPECT_TRUE(reader.parse(resp, resp_json));
+    EXPECT_EQ(resp_json["result"].asBool(), true);
+    EXPECT_EQ(create_response->get_db(), nullptr);
+
+    this->teardown();
+
+}
+
+TEST_F(integration_test, test_read)
+{
+    uuid_t uuid{"my_uuid"};
+    this->initialize(uuid);
+
+    for (size_t i = 0; i < 4; i++)
+    {
+        mock_websocket s{static_cast<uint16_t>(i)};
+        this->nodes[i] = s;
+    }
+    this->primary_node = "node_0";
+
+    // reverse order is intentional to match most recent expectations first
+    expect_swarm_initialize();
+    expect_has_db();
+
+    auto response = open_db(uuid.c_str());
+    ASSERT_TRUE(response->is_ready());
+    auto db = response->get_db();
+    ASSERT_TRUE(db != nullptr);
+
+    int nonce  = 0;
+
+    for (size_t i = 0; i < 4; i++)
+    {
+        this->nodes[i].write_func = [&nonce](const boost::asio::mutable_buffers_1& buffer)
+        {
+            bzn_envelope env;
+            EXPECT_TRUE(env.ParseFromString(std::string(static_cast<const char *>(buffer.data()), buffer.size())));
+
+            database_msg msg;
+            EXPECT_TRUE(msg.ParseFromString(env.database_msg()));
+            nonce = msg.header().nonce();
+
+            const database_read& read = msg.read();
+            EXPECT_TRUE(read.key() == "test_key");
+        };
+    }
+
+    auto create_response = db->read("test_key");
+
+    for (size_t i = 0; i < 4; i++)
+    {
+        database_header header;
+        header.set_nonce(nonce);
+        database_response dr;
+        dr.set_allocated_header(new database_header(header));
+
+        database_read_response rr;
+        rr.set_key("test_key");
+        rr.set_value("test_value");
+        dr.set_allocated_read(new database_read_response(rr));
+
+        bzn_envelope env2;
+        env2.set_database_response(dr.SerializeAsString());
+        env2.set_sender("node_" + std::to_string(i));
+        auto message = env2.SerializeAsString();
+        this->nodes[i].simulate_read(message);
+    }
+
+    EXPECT_TRUE(create_response->is_ready());
+    auto resp = create_response->get_result();
+    Json::Value resp_json;
+    Json::Reader reader;
+    EXPECT_TRUE(reader.parse(resp, resp_json));
+    EXPECT_EQ(resp_json["result"].asBool(), true);
+    EXPECT_EQ(resp_json["key"].asString(), "test_key");
+    EXPECT_EQ(resp_json["value"].asString(), "test_value");
+    EXPECT_EQ(create_response->get_db(), nullptr);
+
+//    for (size_t i = 0; i < 4; i++)
+//    {
+//        Mock::VerifyAndClearExpectations(this->nodes[i].))
+//    }
+    this->nodes.clear();
+
+    this->teardown();
 }

@@ -14,8 +14,14 @@
 //
 
 #include <database/database.hpp>
+#include <jsoncpp/src/jsoncpp/include/json/value.h>
 
 using namespace bzapi;
+
+namespace bzapi
+{
+    std::shared_ptr<response> make_response();
+}
 
 database::database(std::shared_ptr<db_impl_base> db_impl)
 : db_impl(db_impl)
@@ -50,9 +56,11 @@ database::translate_swarm_response(const database_response& response, const boos
     }
 }
 
-void
-database::create(const key_t& key, const value_t& value, void_handler_t handler)
+std::shared_ptr<response>
+database::create(const key_t& key, const value_t& value)
 {
+    auto resp = make_response();
+
     auto request = new database_create;
     request->set_key(key);
     request->set_value(value);
@@ -62,15 +70,31 @@ database::create(const key_t& key, const value_t& value, void_handler_t handler)
 
     this->db_impl->send_message_to_swarm(msg, send_policy::normal
         , std::bind(&database::translate_swarm_response, shared_from_this(), std::placeholders::_1
-        , std::placeholders::_2, [handler](const auto&, auto err, const auto& msg)
+        , std::placeholders::_2, [resp](const database_response& /*response*/, auto err, const auto& msg)
         {
-            handler(err, msg);
+            Json::Value result;
+            if (err == db_error::success)
+            {
+                result["result"] = 1;
+                resp->set_result(result.toStyledString());
+                resp->set_ready();
+            }
+            else
+            {
+                result["error"] = msg;
+                resp->set_result(result.toStyledString());
+                resp->set_error(static_cast<int>(err));
+            }
         }));
+
+    return resp;
 }
 
-void
-database::read(const key_t& key, value_handler_t handler)
+std::shared_ptr<response>
+database::read(const key_t& key)
 {
+    auto resp = make_response();
+
     auto request = new database_read;
     request->set_key(key);
 
@@ -79,63 +103,80 @@ database::read(const key_t& key, value_handler_t handler)
 
     this->db_impl->send_message_to_swarm(msg, send_policy::normal
         , std::bind(&database::translate_swarm_response, shared_from_this(), std::placeholders::_1
-        , std::placeholders::_2, [handler](const auto &response, auto err, const auto &msg)
+        , std::placeholders::_2, [resp](const database_response &response, auto err, const auto &msg)
         {
-            handler(response.has_error() ? "" : response.read().value(), err, msg);
+            Json::Value result;
+            if (err == db_error::success)
+            {
+                const database_read_response& read_resp = response.read();
+                result["result"] = 1;
+                result["key"] = read_resp.key();
+                result["value"] = read_resp.value();
+                resp->set_result(result.toStyledString());
+                resp->set_ready();
+            }
+            else
+            {
+                result["error"] = msg;
+                resp->set_result(result.toStyledString());
+                resp->set_error(static_cast<int>(err));
+            }
         }));
+
+    return resp;
 }
 
-void
-database::update(const key_t& /*key*/, const value_t& /*value*/, void_handler_t /*handler*/)
+std::shared_ptr<response>
+database::update(const key_t& /*key*/, const value_t& /*value*/)
 {
-
+    return nullptr;
 }
 
-void
-database::remove(const key_t& /*key*/, void_handler_t /*handler*/)
+std::shared_ptr<response>
+database::remove(const key_t& /*key*/)
 {
-
+    return nullptr;
 }
 
-void
-database::quick_read(const key_t& /*key*/, value_handler_t /*handler*/)
+std::shared_ptr<response>
+database::quick_read(const key_t& /*key*/)
 {
-
+    return nullptr;
 }
 
-void
-database::has(const key_t& /*key*/, value_handler_t /*handler*/)
+std::shared_ptr<response>
+database::has(const key_t& /*key*/)
 {
-
+    return nullptr;
 }
 
-void
-database::keys(vector_handler_t /*handler*/)
+std::shared_ptr<response>
+database::keys()
 {
-
+    return nullptr;
 }
 
-void
-database::size(value_handler_t /*handler*/)
+std::shared_ptr<response>
+database::size()
 {
-
+    return nullptr;
 }
 
-void
-database::expire(const key_t& /*key*/, expiry_t /*expiry*/, void_handler_t /*handler*/)
+std::shared_ptr<response>
+database::expire(const key_t& /*key*/, expiry_t /*expiry*/)
 {
-
+    return nullptr;
 }
 
-void
-database::persist(const key_t& /*key*/, void_handler_t /*handler*/)
+std::shared_ptr<response>
+database::persist(const key_t& /*key*/)
 {
-
+    return nullptr;
 }
 
-void
-database::ttl(const key_t& /*key*/, value_handler_t /*handler*/)
+std::shared_ptr<response>
+database::ttl(const key_t& /*key*/)
 {
-
+    return nullptr;
 }
 

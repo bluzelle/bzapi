@@ -20,9 +20,10 @@
 #include <swarm/swarm_factory.hpp>
 #include <bzapi.hpp>
 #include <crypto/crypto.hpp>
-#include <database/db_base.hpp>
+#include <database/database.hpp>
 #include <database/db_impl.hpp>
 #include <jsoncpp/src/jsoncpp/include/json/value.h>
+#include <library/response.hpp>
 
 namespace bzapi
 {

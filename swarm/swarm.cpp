@@ -125,8 +125,22 @@ swarm::initialize(completion_handler_t handler)
 
     auto endpoint = this->parse_endpoint(initial_endpoint);
     auto initial_node = node_factory->create_node(this->io_context, this->ws_factory, endpoint.first, endpoint.second);
-    initial_node->register_message_handler(std::bind(&swarm::handle_node_message, shared_from_this()
-        , INITIAL_NODE, std::placeholders::_1, std::placeholders::_2));
+//    initial_node->register_message_handler(std::bind(&swarm::handle_node_message, shared_from_this()
+//        , INITIAL_NODE, std::placeholders::_1, std::placeholders::_2));
+    initial_node->register_message_handler([weak_this = weak_from_this()](const char *data, uint64_t len)->bool
+    {
+        auto strong_this = weak_this.lock();
+        if (strong_this)
+        {
+            return strong_this->handle_node_message(INITIAL_NODE, data, len);
+        }
+        else
+        {
+            return true;
+        }
+    });
+//        std::bind(&swarm::handle_node_message, shared_from_this()
+//        , INITIAL_NODE, std::placeholders::_1, std::placeholders::_2));
 
     node_info info{initial_node, endpoint.first, endpoint.second};
     info.status_timer = this->io_context->make_unique_steady_timer();
@@ -282,9 +296,23 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
 
                     // re-register with it's real uuid
                     assert(info.node);
-                    info.node->register_message_handler(
-                        std::bind(&swarm::handle_node_message, shared_from_this(), node_uuid, std::placeholders::_1,
-                            std::placeholders::_2));
+
+                    info.node->register_message_handler([weak_this = weak_from_this(), node_uuid](const char *data, uint64_t len)->bool
+                    {
+                        auto strong_this = weak_this.lock();
+                        if (strong_this)
+                        {
+                            return strong_this->handle_node_message(node_uuid, data, len);
+                        }
+                        else
+                        {
+                            return true;
+                        }
+                    });
+
+//                    info.node->register_message_handler(
+//                        std::bind(&swarm::handle_node_message, shared_from_this(), node_uuid, std::placeholders::_1,
+//                            std::placeholders::_2));
                 }
                 else
                 {
@@ -293,9 +321,23 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
                     info.port = node["port"].asUInt();
                     info.node = this->node_factory->create_node(this->io_context, this->ws_factory, info.host,
                         info.port);
-                    info.node->register_message_handler(
-                        std::bind(&swarm::handle_node_message, shared_from_this(), node_uuid, std::placeholders::_1,
-                            std::placeholders::_2));
+
+                    info.node->register_message_handler([weak_this = weak_from_this(), node_uuid](const char *data, uint64_t len)->bool
+                    {
+                        auto strong_this = weak_this.lock();
+                        if (strong_this)
+                        {
+                            return strong_this->handle_node_message(node_uuid, data, len);
+                        }
+                        else
+                        {
+                            return true;
+                        }
+                    });
+
+//                    info.node->register_message_handler(
+//                        std::bind(&swarm::handle_node_message, shared_from_this(), node_uuid, std::placeholders::_1,
+//                            std::placeholders::_2));
                     info.status_timer = this->io_context->make_unique_steady_timer();
 
                     new_uuids.push_back(node_uuid);
