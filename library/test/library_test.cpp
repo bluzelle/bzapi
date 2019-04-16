@@ -351,7 +351,13 @@ TEST_F(integration_test, test_open_db)
     expect_has_db();
 
     auto response = open_db(uuid.c_str());
-
+    EXPECT_TRUE(response->is_ready());
+    auto resp = response->get_result();
+    Json::Value resp_json;
+    Json::Reader reader;
+    EXPECT_TRUE(reader.parse(resp, resp_json));
+    EXPECT_EQ(resp_json["result"].asBool(), true);
+    EXPECT_NE(response->get_db(), nullptr);
 
     this->teardown();
 

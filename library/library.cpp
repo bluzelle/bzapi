@@ -109,6 +109,9 @@ namespace bzapi
                             }
                             else
                             {
+                                Json::Value result;
+                                result["result"] = 1;
+                                resp->set_result(result.toStyledString());
                                 resp->set_db(db);
                                 resp->set_ready();
                             }
