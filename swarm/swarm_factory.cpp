@@ -46,6 +46,22 @@ swarm_factory::get_swarm(const uuid_t& uuid, std::function<void(std::shared_ptr<
         }
     }
 
+    // find the swarm if we don't have it
+    this->has_db(uuid, [&](auto result)
+    {
+        if (result != db_error::success)
+        {
+            callback(nullptr);
+        }
+        else
+        {
+            auto it = this->uuids.find(uuid);
+            assert(it != this->uuids.end());
+            auto swarm = it->second.lock();
+            callback(swarm);
+        }
+    });
+
 //    std::shared_ptr<swarm> the_swarm = std::make_shared<swarm>(this->node_factory, this->io_context, this->crypto
 //        , this->tmp_default_endpoint);
 //    this->swarms[uuid] = the_swarm;
@@ -69,6 +85,8 @@ swarm_factory::has_db(const uuid_t& uuid, std::function<void(db_error result)> c
         callback(db_error::success);
         return;
     }
+
+    // TODO: set a timer to retry if no response
 
     auto count = this->swarms.size();
     for (const auto& elem : this->swarms)

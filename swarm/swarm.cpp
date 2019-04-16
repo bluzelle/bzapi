@@ -289,10 +289,10 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
                 else
                 {
                     // refactor
-                    info.node = this->node_factory->create_node(this->io_context, this->ws_factory, info.host,
-                        info.port);
                     info.host = node["host"].asString();
                     info.port = node["port"].asUInt();
+                    info.node = this->node_factory->create_node(this->io_context, this->ws_factory, info.host,
+                        info.port);
                     info.node->register_message_handler(
                         std::bind(&swarm::handle_node_message, shared_from_this(), node_uuid, std::placeholders::_1,
                             std::placeholders::_2));
