@@ -197,24 +197,17 @@ crypto::log_openssl_errors()
 }
 
 bool
-crypto::load_private_key(const std::string& /*key*/)
+crypto::load_private_key(const std::string& key)
 {
-//    auto filename = this->options->get_simple_options().get<std::string>(bzn::option_names::NODE_PRIVATEKEY_FILE);
-//    std::unique_ptr<FILE, decltype(&fclose)> fp(fopen(filename.c_str(), "r"), &fclose);
-//
-//    bool result =
-//        (bool) (fp)
-//        && (this->private_key_EC = EC_KEY_ptr_t(PEM_read_ECPrivateKey(fp.get(), NULL, NULL, NULL), &EC_KEY_free))
-//        && (1 == EC_KEY_check_key(this->private_key_EC.get()))
-//        && (this->private_key_EVP = EVP_PKEY_ptr_t(EVP_PKEY_new(), &EVP_PKEY_free))
-//        && (1 == EVP_PKEY_set1_EC_KEY(this->private_key_EVP.get(), this->private_key_EC.get()));
-//
-//    if (!result)
-//    {
-//        LOG(error) << "Crypto failed to load private key; will not be able to sign messages";
-//    }
-//
-//    this->log_openssl_errors();
+    BIO *bio = BIO_new_mem_buf((void *)key.c_str(), key.length());
 
-    return false;
+    this->private_key_EVP = EVP_PKEY_ptr_t(PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL), EVP_PKEY_free);
+
+    if (!this->private_key_EVP)
+    {
+        LOG(error) << "error loading private key";
+        return false;
+    }
+
+    return true;
 }

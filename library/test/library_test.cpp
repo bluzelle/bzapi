@@ -18,6 +18,7 @@
 #include <swarm/swarm_factory.hpp>
 #include <bzapi.hpp>
 #include <crypto/null_crypto.hpp>
+#include <crypto/crypto.hpp>
 #include <library/library.hpp>
 #include <jsoncpp/src/jsoncpp/include/json/value.h>
 #include <jsoncpp/src/jsoncpp/include/json/reader.h>
@@ -510,4 +511,37 @@ TEST_F(integration_test, test_read)
     this->nodes.clear();
 
     this->teardown();
+}
+
+const char* priv_key = "-----BEGIN EC PRIVATE KEY-----\n"
+                       "MHQCAQEEIBWDWE/MAwtXaFQp6d2Glm2Uj7ROBlDKFn5RwqQsDEbyoAcGBSuBBAAK\n"
+                       "oUQDQgAEiykQ5A02u+02FR1nftxT5VuUdqLO6lvNoL5aAIyHvn8NS0wgXxbPfpuq\n"
+                       "UPpytiopiS5D+t2cYzXJn19MQmnl/g==\n"
+                       "-----END EC PRIVATE KEY-----";
+
+const char* pub_key = "MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEiykQ5A02u+02FR1nftxT5VuUdqLO6lvN\n"
+                      "oL5aAIyHvn8NS0wgXxbPfpuqUPpytiopiS5D+t2cYzXJn19MQmnl/g==";
+
+TEST_F(integration_test, signing_test)
+{
+    crypto c(priv_key);
+
+    database_create_db db_msg;
+    db_msg.set_eviction_policy(database_create_db::NONE);
+    db_msg.set_max_size(0);
+
+    database_header header;
+    header.set_db_uuid(uuid);
+    header.set_nonce(1);
+
+    database_msg msg;
+    msg.set_allocated_header(new database_header(header));
+    msg.set_allocated_create_db(new database_create_db(db_msg));
+
+    bzn_envelope env;
+    env.set_sender(pub_key);
+    env.set_database_msg(msg.SerializeAsString());
+
+    c.sign(env);
+    EXPECT_TRUE(c.verify(env));
 }
