@@ -38,15 +38,20 @@ message database_msg
 
         database_nullmsg        nullmsg = 11;
 
-        database_request        create_db = 12;
+        database_create_db      create_db = 12;
         database_request        delete_db = 13;
-        database_has_db         has_db = 14;
+        database_create_db      update_db = 14;
+        database_has_db         has_db = 15;
 
         database_request        writers = 16;
         database_writers        add_writers = 17;
         database_writers        remove_writers = 18;
 
         database_read           quick_read = 19;
+
+        database_expire         expire = 20;
+        database_read           persist = 21;
+        database_read           ttl = 22;
     }
 }
 
@@ -54,14 +59,27 @@ message database_header
 {
     string db_uuid = 1;
     uint64 nonce = 2 [jstype = JS_STRING];
-    string  point_of_contact = 3;
+    string point_of_contact = 3;
     bytes  request_hash = 4;
+}
+
+message database_create_db
+{
+    enum eviction_policy_type
+    {
+        NONE = 0;
+        RANDOM = 1;
+    }
+
+    uint64 max_size = 1;
+    eviction_policy_type eviction_policy = 2;
 }
 
 message database_create
 {
     string key = 1;
     bytes value = 2;
+    uint64 expire = 3;
 }
 
 message database_read
@@ -73,6 +91,13 @@ message database_update
 {
     string key = 1;
     bytes value = 2;
+    uint64 expire = 3;
+}
+
+message database_expire
+{
+    string key = 1;
+    uint64 expire = 2;
 }
 
 message database_delete
@@ -114,6 +139,7 @@ message database_subscription_update
     string key = 1;
     bytes value = 2;
     operation_type operation = 3;
+    uint64 seq = 4;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -159,8 +185,10 @@ message database_quick_read_response
 
 message database_size_response
 {
-    int32 bytes = 1;
-    int32 keys = 2;
+    uint64 bytes = 1;
+    uint32 keys = 2;
+    uint64 remaining_bytes = 3;
+    uint64 max_size = 4;
 }
 
 message database_request {}
@@ -169,6 +197,12 @@ message database_writers_response
 {
     string owner = 1;
     repeated string writers = 2;
+}
+
+message database_ttl_response
+{
+    string key = 1;
+    uint64 ttl = 2;
 }
 
 message database_error
@@ -192,6 +226,7 @@ message database_response
         database_error                  error = 9;
         database_has_db_response        has_db = 10;
         database_writers_response       writers = 11;
+        database_ttl_response           ttl = 12;
     }
 }
 

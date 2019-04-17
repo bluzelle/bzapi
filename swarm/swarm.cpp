@@ -18,6 +18,7 @@
 #include <json/json.h>
 #include <bzapi.hpp>
 #include <boost/format.hpp>
+#include <proto/database.pb.h>
 
 using namespace bzapi;
 
@@ -90,6 +91,67 @@ swarm::has_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
     request.set_allocated_has_db(new database_has_db());
     env.set_database_msg(request.SerializeAsString());
     env.set_sender("me");
+    this->crypto->sign(env);
+    auto message = env.SerializeAsString();
+    uuid_node->send_message(message.c_str(), message.size(), [callback, uuid](const auto& ec)
+    {
+        if (ec)
+        {
+            LOG(error) << "Error sending has_db(" << uuid << ") request: " << ec.message();
+            callback(false);
+        }
+
+        return true;
+    });
+}
+
+// TODO: refactor
+void
+swarm::create_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
+{
+    auto endpoint = this->parse_endpoint(initial_endpoint);
+    auto uuid_node = node_factory->create_node(io_context, ws_factory, endpoint.first, endpoint.second);
+    node_info info;
+    info.node = uuid_node;
+    info.host = endpoint.first;
+    info.port = endpoint.second;
+    this->nodes = std::make_shared<std::unordered_map<uuid_t, node_info>>();
+    (*this->nodes)[uuid_t{"uuid_node"}] = info;
+
+    // TODO: should this call a static method inside db_impl? Not ideal having the swarm
+    // process a database message
+    uuid_node->register_message_handler([uuid, callback](const char *data, uint64_t len)
+    {
+        bzn_envelope env;
+        database_response response;
+        if (!env.ParseFromString(std::string(data, len)) || !response.ParseFromString(env.database_response()))
+        {
+            LOG(error) << "Dropping invalid response to has_db: " << std::string(data, MAX_MESSAGE_SIZE);
+            callback(false);
+            return true;
+        }
+
+        callback(response.has_error());
+        return true;
+    });
+
+    database_create_db db_msg;
+    db_msg.set_eviction_policy(database_create_db::NONE);
+    db_msg.set_max_size(0);
+
+    database_header header;
+    header.set_db_uuid(uuid);
+    header.set_nonce(1);
+
+    database_msg msg;
+    msg.set_allocated_header(new database_header(header));
+    msg.set_allocated_create_db(new database_create_db(db_msg));
+
+    bzn_envelope env;
+    env.set_database_msg(msg.SerializeAsString());
+    //env.set_sender("me");
+    this->crypto->sign(env);
+
     auto message = env.SerializeAsString();
     uuid_node->send_message(message.c_str(), message.size(), [callback, uuid](const auto& ec)
     {
@@ -104,9 +166,16 @@ swarm::has_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
 }
 
 // this should be void and send the result later when we have status
-bool
+void
 swarm::initialize(completion_handler_t handler)
 {
+    if (this->init_called)
+    {
+        handler(boost::system::error_code{});
+        return;
+    }
+    this->init_called = true;
+
     this->init_handler = handler;
     this->nodes = std::make_shared<std::unordered_map<uuid_t, node_info>>();
 
@@ -149,8 +218,6 @@ swarm::initialize(completion_handler_t handler)
     this->fastest_node = INITIAL_NODE;
 
     this->send_status_request(INITIAL_NODE);
-
-    return true;
 }
 
 int

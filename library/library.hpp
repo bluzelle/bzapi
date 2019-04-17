@@ -26,8 +26,6 @@ namespace bzapi
 
     std::shared_ptr<response> create_db(const char *uuid);
 
-    std::shared_ptr<response> remove_db(const char *uuid);
-
     std::shared_ptr<response> open_db(const char *uuid);
 
 }

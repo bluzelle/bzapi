@@ -70,6 +70,42 @@ swarm_factory::get_swarm(const uuid_t& uuid, std::function<void(std::shared_ptr<
 }
 
 void
+swarm_factory::create_db(const uuid_t& uuid, std::function<void(std::shared_ptr<swarm_base>)> callback)
+{
+    // for now we will just use the first (only) swarm in our list
+    // TODO: find best swarm for the new db
+
+    auto sw_info = this->swarms.begin();
+    if (sw_info == this->swarms.end())
+    {
+        LOG(error) << "No swarm endpoints configured";
+        callback(nullptr);
+        return;
+    }
+
+    auto sw = sw_info->second.lock();
+    if (!sw)
+    {
+        sw = std::make_shared<swarm>(this->node_factory, this->ws_factory, this->io_context, this->crypto, sw_info->first);
+        this->swarms[sw_info->first] = sw;
+    }
+
+    sw->create_uuid(uuid, [callback, sw, this, uuid](auto res)
+    {
+        if (res)
+        {
+            this->uuids[uuid] = sw;
+            callback(sw);
+        }
+        else
+        {
+            // TODO: needs error code/message
+            callback(nullptr);
+        }
+    });
+}
+
+void
 swarm_factory::temporary_set_default_endpoint(const endpoint_t& endpoint)
 {
     this->endpoints.insert(endpoint);

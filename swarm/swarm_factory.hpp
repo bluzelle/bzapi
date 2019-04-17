@@ -30,8 +30,9 @@ namespace bzapi
             , std::shared_ptr<crypto_base> crypto);
         ~swarm_factory();
 
-        void has_db(const uuid_t& uuid, std::function<void(db_error result)>);
         void get_swarm(const uuid_t& uuid, std::function<void(std::shared_ptr<swarm_base>)>);
+        void has_db(const uuid_t& uuid, std::function<void(db_error result)>);
+        void create_db(const uuid_t& uuid, std::function<void(std::shared_ptr<swarm_base>)>);
 
         void temporary_set_default_endpoint(const endpoint_t& endpoint);
 

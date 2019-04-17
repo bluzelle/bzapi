@@ -59,8 +59,10 @@ namespace bzapi
 
         std::shared_ptr<db_impl_base> db_impl;
 
-        void translate_swarm_response(const database_response& response, const boost::system::error_code& ec
-            , std::function<void(const database_response& response, db_error err, const std::string& msg)> handler);
+        void translate_swarm_response(const database_response& db_response, const boost::system::error_code& ec
+            , std::shared_ptr<response> resp
+            , std::function<void(const database_response& response)> handler);
 
+        void send_message_with_basic_response(database_msg& msg, std::shared_ptr<response> resp);
     };
 }

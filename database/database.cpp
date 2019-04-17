@@ -34,33 +34,51 @@ database::open(completion_handler_t handler)
     this->db_impl->initialize(handler);
 }
 
-// TODO: possibly move this into handle_swarm_response
 void
-database::translate_swarm_response(const database_response& response, const boost::system::error_code& ec
-    , std::function<void(const database_response& response, db_error err, const std::string& msg)> handler)
+database::translate_swarm_response(const database_response& db_response, const boost::system::error_code& ec
+    , std::shared_ptr<response> resp
+    , std::function<void(const database_response& response)> handler)
 {
+    Json::Value result;
     if (ec)
     {
-        handler(response, db_error::connection_error, ec.message());
+        result["error"] = ec.message();
+        resp->set_result(result.toStyledString());
+        resp->set_error(static_cast<int>(db_error::connection_error));
     }
     else
     {
-        if (response.has_error())
+        if (db_response.has_error())
         {
-            handler(response, db_error::database_error, response.error().message());
+            result["error"] = db_response.error().message();
+            resp->set_result(result.toStyledString());
+            resp->set_error(static_cast<int>(db_error::database_error));
         }
         else
         {
-            handler(response, db_error::success, "");
+            handler(db_response);
         }
     }
+}
+
+void
+database::send_message_with_basic_response(database_msg& msg, std::shared_ptr<response> resp)
+{
+    this->db_impl->send_message_to_swarm(msg, send_policy::normal,
+        std::bind(&database::translate_swarm_response, shared_from_this(), std::placeholders::_1, std::placeholders::_2
+        , resp, [resp](const database_response & /*response*/)
+        {
+            Json::Value result;
+            result["result"] = 1;
+            resp->set_result(result.toStyledString());
+            resp->set_ready();
+        }));
 }
 
 std::shared_ptr<response>
 database::create(const key_t& key, const value_t& value)
 {
     auto resp = make_response();
-
     auto request = new database_create;
     request->set_key(key);
     request->set_value(value);
@@ -68,25 +86,7 @@ database::create(const key_t& key, const value_t& value)
     database_msg msg;
     msg.set_allocated_create(request);
 
-    this->db_impl->send_message_to_swarm(msg, send_policy::normal
-        , std::bind(&database::translate_swarm_response, shared_from_this(), std::placeholders::_1
-        , std::placeholders::_2, [resp](const database_response& /*response*/, auto err, const auto& msg)
-        {
-            Json::Value result;
-            if (err == db_error::success)
-            {
-                result["result"] = 1;
-                resp->set_result(result.toStyledString());
-                resp->set_ready();
-            }
-            else
-            {
-                result["error"] = msg;
-                resp->set_result(result.toStyledString());
-                resp->set_error(static_cast<int>(err));
-            }
-        }));
-
+    send_message_with_basic_response(msg, resp);
     return resp;
 }
 
@@ -94,7 +94,6 @@ std::shared_ptr<response>
 database::read(const key_t& key)
 {
     auto resp = make_response();
-
     auto request = new database_read;
     request->set_key(key);
 
@@ -103,80 +102,213 @@ database::read(const key_t& key)
 
     this->db_impl->send_message_to_swarm(msg, send_policy::normal
         , std::bind(&database::translate_swarm_response, shared_from_this(), std::placeholders::_1
-        , std::placeholders::_2, [resp](const database_response &response, auto err, const auto &msg)
+        , std::placeholders::_2, resp, [resp](const database_response &response)
         {
             Json::Value result;
-            if (err == db_error::success)
-            {
-                const database_read_response& read_resp = response.read();
-                result["result"] = 1;
-                result["key"] = read_resp.key();
-                result["value"] = read_resp.value();
-                resp->set_result(result.toStyledString());
-                resp->set_ready();
-            }
-            else
-            {
-                result["error"] = msg;
-                resp->set_result(result.toStyledString());
-                resp->set_error(static_cast<int>(err));
-            }
+            const database_read_response& read_resp = response.read();
+            result["result"] = 1;
+            result["key"] = read_resp.key();
+            result["value"] = read_resp.value();
+            resp->set_result(result.toStyledString());
+            resp->set_ready();
         }));
 
     return resp;
 }
 
 std::shared_ptr<response>
-database::update(const key_t& /*key*/, const value_t& /*value*/)
+database::update(const key_t& key, const value_t& value)
 {
-    return nullptr;
+    auto resp = make_response();
+    auto request = new database_update;
+    request->set_key(key);
+    request->set_value(value);
+
+    database_msg msg;
+    msg.set_allocated_update(request);
+
+    send_message_with_basic_response(msg, resp);
+    return resp;
 }
 
 std::shared_ptr<response>
-database::remove(const key_t& /*key*/)
+database::remove(const key_t& key)
 {
-    return nullptr;
+    auto resp = make_response();
+    auto request = new database_delete;
+    request->set_key(key);
+
+    database_msg msg;
+    msg.set_allocated_delete_(request);
+
+    send_message_with_basic_response(msg, resp);
+    return resp;
 }
 
 std::shared_ptr<response>
-database::quick_read(const key_t& /*key*/)
+database::quick_read(const key_t& key)
 {
-    return nullptr;
+    auto resp = make_response();
+    auto request = new database_read;
+    request->set_key(key);
+
+    database_msg msg;
+    msg.set_allocated_quick_read(request);
+
+    this->db_impl->send_message_to_swarm(msg, send_policy::fastest
+        , [resp](const database_response &response, const boost::system::error_code &ec)
+        {
+            Json::Value result;
+            if (ec)
+            {
+                result["error"] = ec.message();
+                resp->set_result(result.toStyledString());
+                resp->set_error(static_cast<int>(db_error::connection_error));
+            }
+            else
+            {
+                const database_quick_read_response& rr = response.quick_read();
+                if (!rr.error().empty())
+                {
+                    result["error"] = rr.error();
+                    resp->set_result(result.toStyledString());
+                    resp->set_error(static_cast<int>(db_error::database_error));
+                }
+                else
+                {
+                    result["result"] = 1;
+                    result["key"] = rr.key();
+                    result["value"] = rr.value();
+                    resp->set_result(result.toStyledString());
+                    resp->set_ready();
+                }
+            }
+        });
+
+    return resp;
 }
 
 std::shared_ptr<response>
-database::has(const key_t& /*key*/)
+database::has(const key_t& key)
 {
-    return nullptr;
+    auto resp = make_response();
+    auto request = new database_has;
+    request->set_key(key);
+
+    database_msg msg;
+    msg.set_allocated_has(request);
+
+    send_message_with_basic_response(msg, resp);
+    return resp;
 }
 
 std::shared_ptr<response>
 database::keys()
 {
-    return nullptr;
+    auto resp = make_response();
+    auto request = new database_request;
+
+    database_msg msg;
+    msg.set_allocated_keys(request);
+
+    this->db_impl->send_message_to_swarm(msg, send_policy::normal
+        , std::bind(&database::translate_swarm_response, shared_from_this(), std::placeholders::_1
+        , std::placeholders::_2, resp, [resp](const database_response &response)
+        {
+            Json::Value result;
+            const database_keys_response& keys_resp = response.keys();
+            Json::Value keys;
+            for (int i = 0; i < keys_resp.keys_size(); i++)
+            {
+                keys.append(keys_resp.keys(i));
+            }
+            result["keys"] = keys;
+
+            resp->set_result(result.toStyledString());
+            resp->set_ready();
+        }));
+
+    return resp;
 }
 
 std::shared_ptr<response>
 database::size()
 {
-    return nullptr;
+    auto resp = make_response();
+    auto request = new database_request;
+
+    database_msg msg;
+    msg.set_allocated_size(request);
+
+    this->db_impl->send_message_to_swarm(msg, send_policy::normal
+        , std::bind(&database::translate_swarm_response, shared_from_this(), std::placeholders::_1
+        , std::placeholders::_2, resp, [resp](const database_response &response)
+        {
+            Json::Value result;
+            const database_size_response& size_resp = response.size();
+            result["result"] = 1;
+            result["bytes"] = size_resp.bytes();
+            result["keys"] = size_resp.keys();
+            result["remaining_bytes"] = size_resp.remaining_bytes();
+            result["max_size"] = size_resp.max_size();
+            resp->set_result(result.toStyledString());
+            resp->set_ready();
+        }));
+
+    return resp;
 }
 
 std::shared_ptr<response>
-database::expire(const key_t& /*key*/, expiry_t /*expiry*/)
+database::expire(const key_t& key, expiry_t expiry)
 {
-    return nullptr;
+    auto resp = make_response();
+    auto request = new database_expire;
+    request->set_key(key);
+    request->set_expire(expiry);
+
+    database_msg msg;
+    msg.set_allocated_expire(request);
+
+    send_message_with_basic_response(msg, resp);
+    return resp;
 }
 
 std::shared_ptr<response>
-database::persist(const key_t& /*key*/)
+database::persist(const key_t& key)
 {
-    return nullptr;
+    auto resp = make_response();
+    auto request = new database_read;
+    request->set_key(key);
+
+    database_msg msg;
+    msg.set_allocated_persist(request);
+
+    send_message_with_basic_response(msg, resp);
+    return resp;
 }
 
 std::shared_ptr<response>
-database::ttl(const key_t& /*key*/)
+database::ttl(const key_t& key)
 {
-    return nullptr;
-}
+    auto resp = make_response();
+    auto request = new database_read;
+    request->set_key(key);
 
+    database_msg msg;
+    msg.set_allocated_ttl(request);
+
+    this->db_impl->send_message_to_swarm(msg, send_policy::normal
+        , std::bind(&database::translate_swarm_response, shared_from_this(), std::placeholders::_1
+        , std::placeholders::_2, resp, [resp](const database_response &response)
+        {
+            Json::Value result;
+            const database_ttl_response& read_resp = response.ttl();
+            result["result"] = 1;
+            result["key"] = read_resp.key();
+            result["ttl"] = read_resp.ttl();
+            resp->set_result(result.toStyledString());
+            resp->set_ready();
+        }));
+
+    return resp;
+}
