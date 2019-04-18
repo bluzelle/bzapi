@@ -20,7 +20,7 @@ ExternalProject_Add(jsoncpp
     URL_HASH SHA256=c49deac9e0933bcb7044f08516861a2d560988540b23de2ac1ad443b219afdb6
     TIMEOUT 30
     INSTALL_COMMAND ""
-    CMAKE_ARGS -DJSONCPP_WITH_PKGCONFIG_SUPPORT=OFF -DJSONCPP_WITH_POST_BUILD_UNITTEST=OFF -DJSONCPP_WITH_TESTS=OFF -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+    CMAKE_ARGS -DJSONCPP_WITH_PKGCONFIG_SUPPORT=OFF -DJSONCPP_WITH_POST_BUILD_UNITTEST=OFF -DJSONCPP_WITH_TESTS=OFF -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DBUILD_SHARED_LIBS=ON
     DOWNLOAD_NO_PROGRESS true
     )
 
@@ -35,4 +35,4 @@ add_compile_options("-fPIC")
 ExternalProject_Get_Property(jsoncpp binary_dir)
 link_directories(${binary_dir}/src/lib_json/)
 
-set(JSONCPP_LIBRARIES ${binary_dir}/src/lib_json/libjsoncpp.a)
+set(JSONCPP_LIBRARIES ${binary_dir}/src/lib_json/libjsoncpp.so)

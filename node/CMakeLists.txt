@@ -1,5 +1,5 @@
 add_library(node node_base.hpp node.cpp node.hpp ../include/boost_asio_beast.hpp node_factory_base.hpp node_factory.hpp node_factory.cpp)
-add_dependencies(boost jsoncpp openssl)
+add_dependencies(jsoncpp openssl)
 target_include_directories(node PRIVATE . ${JSONCPP_INCLUDE_DIRS})
-target_link_libraries(node ${Protobuf_LIBRARIES} ${Boost_LIBRARIES} ${JSONCPP_LIBRARIES} ${OPENSSL_LIBRARIES} pthread)
+target_link_libraries(node ${Protobuf_LIBRARIES} ${JSONCPP_LIBRARIES} ${OPENSSL_LIBRARIES} ${Boost_LIBRARIES} pthread )
 add_subdirectory(test)
