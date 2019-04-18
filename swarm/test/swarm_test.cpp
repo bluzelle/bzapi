@@ -264,5 +264,5 @@ TEST_F(swarm_test, test_bad_status)
         }));
 
     auto l = [](auto& /*ec*/){};
-    EXPECT_EQ(this->the_swarm->initialize(l), false);
+    this->the_swarm->initialize(l);
 }
