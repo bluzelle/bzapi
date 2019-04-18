@@ -5,7 +5,7 @@
 #include "boost/asio.hpp"
 #include "library/library.hpp"
 #include "library/response.hpp"
-#include "library/database.hpp"
+#include "database/database.hpp"
 
 %}
 %shared_ptr(response)
@@ -15,4 +15,4 @@
 }
 #include "library/library.hpp"
 #include "library/response.hpp"
-#include "library/database.hpp"
+#include "database/database.hpp"

@@ -1,0 +1,46 @@
+cmake_minimum_required(VERSION 3.0)
+
+project(blzpy LANGUAGES CXX C)
+
+find_package(PythonLibs 3 REQUIRED)
+find_package(PythonInterp ${PYTHONLIBS_VERSION_STRING} REQUIRED)
+
+if(PYTHONLIBS_VERSION_STRING MATCHES "^2.*$" )
+    set(CMAKE_SWIG_FLAGS -classic)
+else()
+    set(CMAKE_SWIG_FLAGS -py3)
+endif()
+
+
+find_package(Boost 1.69.0 REQUIRED)
+set(Boost_USE_STATIC_LIBS OFF)
+set(Boost_USE_MULTITHREADED ON)
+set(Boost_USE_STATIC_RUNTIME OFF)
+
+find_package(SWIG REQUIRED)
+include(${SWIG_USE_FILE})
+
+set(SWIG_MODULE_NAME blzpy)
+
+add_compile_options("-fdiagnostics-color=auto")
+add_compile_options("-fPIC")
+add_compile_options("-pthread")
+add_compile_options("-Wall")
+add_compile_options("-Wextra")
+add_compile_options("-Wno-unused-parameter")
+
+message("CMAKE_SWIG_FLAGS: ${CMAKE_SWIG_FLAGS}")
+
+
+include_directories(blzpy ${PYTHON_INCLUDE_PATH} ${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${Boost_INCLUDE_DIRS})
+
+
+add_library(blzpyImpl SHARED ??????? library/library.cpp library/library.hpp library/response.cpp library/response.hpp database/database.cpp database/database.hpp)
+set_source_files_properties(swig/py/blzpy.i PROPERTIES CPLUSPLUS ON)
+include_directories(blzpy ${CMAKE_CURRENT_SOURCE_DIR}/???????)
+target_compile_features(blzpyImpl PUBLIC cxx_std_17)
+
+swig_add_library(blzpy TYPE SHARED LANGUAGE python SOURCES swig/py/blzpy.i)
+swig_link_libraries(blzpy ${PYTHON_LIBRARIES} blzpyImpl)
+set_target_properties(_blzpy PROPERTIES SUFFIX ".so")

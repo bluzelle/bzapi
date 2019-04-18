@@ -13,7 +13,7 @@ all:
 	$(shell mkdir -p $(LIB))
 	#$(#shell cp $(SRC)/libdb.h $(LIB))
 	$(shell mkdir -p $(LIB))
-	swig -c++ -python -o $(LIB)/libdb_wrap.cxx swig/py/pyapi.i
+	swig -c++ -python -o $(LIB)/libdb_wrap.cxx swig/py/blzpy.i
 	#$(CC) $(FLAGS) $(BOOSTI) -c $(SRC)/libdb.cpp -o $(LIB)/libdb.o
 	#$(CC) $(FLAGS) $(PYTHONI) $(BOOSTI) -c $(LIB)/libdb_wrap.cxx -o $(LIB)/libdb_wrap.o
 	#$(CC) $(PYTHONL) $(LIBFLAGS) -shared $(LIB)/libdb.o $(LIB)/libdb_wrap.o -o $(LIB)/_libdb.so
