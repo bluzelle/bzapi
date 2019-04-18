@@ -27,8 +27,9 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/output)
 set(CMAKE_CXX_STANDARD 17)
 add_compile_options("-fdiagnostics-color=auto")
 add_compile_options("-fPIC")
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-add_definitions(-DBOOST_ERROR_CODE_HEADER_ONLY)
+add_definitions(-DBOOST_ERROR_CODE_HEADER_ONLY -DBOOST_LOG_DYN_LINK)
 
 set(warnings "-Wno-deprecated-declarations -Wall -Wextra -Werror -Wpedantic")
 if (APPLE)
@@ -47,10 +48,8 @@ include_directories(SYSTEM ${PROTOBUF_INCLUDE_DIR})
 
 find_package(CURL REQUIRED)
 
-set(REQUIRED_BOOST "1.68.0")
-set(BOOST_URL_HASH "da3411ea45622579d419bfda66f45cd0f8c32a181d84adfa936f5688388995cf")
+find_package(Boost     REQUIRED filesystem system log thread)
 
-include(cmake/boost.cmake)
 include(cmake/jsoncpp.cmake)
 #include(cmake/rocksdb.cmake)
 include(cmake/googletest.cmake)

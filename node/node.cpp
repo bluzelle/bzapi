@@ -82,12 +82,14 @@ node::connect(completion_handler_t callback)
             return;
         }
 
+        this->connected = true;
+
         // set tcp_nodelay option
         boost::system::error_code option_ec;
         socket->get_tcp_socket().set_option(boost::asio::ip::tcp::no_delay(true), option_ec);
         if (option_ec)
         {
-            //LOG(error) << "failed to set socket option: " << option_ec.message();
+            LOG(error) << "failed to set socket option: " << option_ec.message();
         }
 
         this->websocket = ws_factory->make_unique_websocket_stream(socket->get_tcp_socket());
@@ -172,6 +174,8 @@ node::close()
 {
     if (this->websocket && this->websocket->is_open())
     {
+        this->connected = false;
+
         // ignoring close errors for now
         this->websocket->async_close(boost::beast::websocket::close_code::normal, [](auto) {});
     }

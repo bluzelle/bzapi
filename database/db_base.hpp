@@ -19,6 +19,7 @@
 #include <boost_asio_beast.hpp>
 #include <bzapi.hpp>
 #include <proto/database.pb.h>
+#include <library/response.hpp>
 
 namespace bzapi
 {

@@ -41,7 +41,9 @@ namespace bzapi
 
         virtual void has_uuid(const uuid_t& uuid, std::function<void(bool)> callback) = 0;
 
-        virtual bool initialize(completion_handler_t handler) = 0;
+        virtual void create_uuid(const uuid_t& uuid, std::function<void(bool)> callback) = 0;
+
+        virtual void initialize(completion_handler_t handler) = 0;
 
         virtual int send_request(std::shared_ptr<bzn_envelope> request, send_policy policy) = 0;
 

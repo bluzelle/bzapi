@@ -38,7 +38,9 @@ namespace bzapi
 
         void has_uuid(const uuid_t& uuid, std::function<void(bool)> callback) override;
 
-        bool initialize(completion_handler_t handler) override;
+        void create_uuid(const uuid_t& uuid, std::function<void(bool)> callback) override;
+
+        void initialize(completion_handler_t handler) override;
 
         int send_request(std::shared_ptr<bzn_envelope> request, send_policy policy) override;
 
@@ -69,6 +71,7 @@ namespace bzapi
         std::shared_ptr<std::unordered_map<uuid_t, node_info>> nodes;
         std::unordered_map<payload_t, swarm_response_handler_t> response_handlers;
 
+        bool init_called = false;
         uuid_t fastest_node;
         uuid_t primary_node;
         status_response last_status;

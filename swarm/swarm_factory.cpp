@@ -46,11 +46,63 @@ swarm_factory::get_swarm(const uuid_t& uuid, std::function<void(std::shared_ptr<
         }
     }
 
+    // find the swarm if we don't have it
+    this->has_db(uuid, [&](auto result)
+    {
+        if (result != db_error::success)
+        {
+            callback(nullptr);
+        }
+        else
+        {
+            auto it = this->uuids.find(uuid);
+            assert(it != this->uuids.end());
+            auto swarm = it->second.lock();
+            callback(swarm);
+        }
+    });
+
 //    std::shared_ptr<swarm> the_swarm = std::make_shared<swarm>(this->node_factory, this->io_context, this->crypto
 //        , this->tmp_default_endpoint);
 //    this->swarms[uuid] = the_swarm;
 //
 //    return the_swarm;
+}
+
+void
+swarm_factory::create_db(const uuid_t& uuid, std::function<void(std::shared_ptr<swarm_base>)> callback)
+{
+    // for now we will just use the first (only) swarm in our list
+    // TODO: find best swarm for the new db
+
+    auto sw_info = this->swarms.begin();
+    if (sw_info == this->swarms.end())
+    {
+        LOG(error) << "No swarm endpoints configured";
+        callback(nullptr);
+        return;
+    }
+
+    auto sw = sw_info->second.lock();
+    if (!sw)
+    {
+        sw = std::make_shared<swarm>(this->node_factory, this->ws_factory, this->io_context, this->crypto, sw_info->first);
+        this->swarms[sw_info->first] = sw;
+    }
+
+    sw->create_uuid(uuid, [callback, sw, this, uuid](auto res)
+    {
+        if (res)
+        {
+            this->uuids[uuid] = sw;
+            callback(sw);
+        }
+        else
+        {
+            // TODO: needs error code/message
+            callback(nullptr);
+        }
+    });
 }
 
 void
@@ -69,6 +121,8 @@ swarm_factory::has_db(const uuid_t& uuid, std::function<void(db_error result)> c
         callback(db_error::success);
         return;
     }
+
+    // TODO: set a timer to retry if no response
 
     auto count = this->swarms.size();
     for (const auto& elem : this->swarms)

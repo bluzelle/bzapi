@@ -20,9 +20,10 @@
 #include <swarm/swarm_factory.hpp>
 #include <bzapi.hpp>
 #include <crypto/crypto.hpp>
-#include <database/db_base.hpp>
+#include <database/database.hpp>
 #include <database/db_impl.hpp>
 #include <jsoncpp/src/jsoncpp/include/json/value.h>
+#include <library/response.hpp>
 
 namespace bzapi
 {
@@ -60,10 +61,11 @@ namespace bzapi
     has_db(const char *uuid)
     {
         auto resp = make_response();
-        the_swarm_factory->has_db(uuid, [resp](auto res)
+        the_swarm_factory->has_db(uuid, [resp, uuid](auto res)
         {
             Json::Value result;
             result["result"] = res == db_error::success ? 1 : 0;
+            result["uuid"] = std::string(uuid);
             resp->set_result(result.toStyledString());
             resp->set_ready();
         });
@@ -72,16 +74,66 @@ namespace bzapi
     }
 
     std::shared_ptr<response>
-    create_db(const char */*uuid*/)
+    create_db(const char *uuid)
     {
+        auto resp = make_response();
+        the_swarm_factory->has_db(uuid, [&](auto res)
+        {
+            if (res == db_error::no_database)
+            {
+                the_swarm_factory->create_db(uuid, [&](auto sw)
+                {
+                    if (sw)
+                    {
+                        auto dbi = std::make_shared<db_impl>(io_context, sw, uuid);
+                        auto db = std::make_shared<database>(dbi);
+                        db->open([&](auto ec)
+                        {
+                            if (ec)
+                            {
+                                LOG(error) << "Error initializing database: " << ec.message();
+                                Json::Value result;
+                                result["error"] = ec.message();
+                                resp->set_error(static_cast<int>(db_error::connection_error));
+                            }
+                            else
+                            {
+                                Json::Value result;
+                                result["result"] = 1;
+                                resp->set_result(result.toStyledString());
+                                resp->set_db(db);
+                                resp->set_ready();
+                            }
+                        });
+                    }
+                    else
+                    {
+                        LOG(error) << "Error creating database for: " << std::string(uuid);
+                        Json::Value result;
+                        result["error"] = "Error creating database";
+                        result["uuid"] = uuid;
+                        resp->set_error(static_cast<int>(db_error::no_database));
+                    }
+                });
+            }
+            else if (res == db_error::success)
+            {
+                LOG(debug) << "Unable to create existing database: " << std::string(uuid);
+                Json::Value result;
+                result["error"] = "UUID already exists";
+                result["uuid"] = uuid;
+                resp->set_error(static_cast<int>(db_error::database_error));
+            }
+            else
+            {
+                Json::Value result;
+                result["error"] = "Connection error";
+                result["uuid"] = uuid;
+                resp->set_error(static_cast<int>(db_error::connection_error));
+            }
+        });
 
-        return nullptr;
-    }
-
-    std::shared_ptr<response>
-    remove_db(const char */*uuid*/)
-    {
-        return nullptr;
+        return resp;
     }
 
     std::shared_ptr<response>
@@ -109,6 +161,9 @@ namespace bzapi
                             }
                             else
                             {
+                                Json::Value result;
+                                result["result"] = 1;
+                                resp->set_result(result.toStyledString());
                                 resp->set_db(db);
                                 resp->set_ready();
                             }
@@ -119,6 +174,7 @@ namespace bzapi
                         LOG(error) << "Error getting swarm for: " << std::string(uuid);
                         Json::Value result;
                         result["error"] = "Error getting swarm";
+                        result["uuid"] = uuid;
                         resp->set_error(static_cast<int>(db_error::no_database));
                     }
                 });

@@ -21,11 +21,13 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <stdexcept>
-#include <database/database.hpp>
 #include <string.h>
+#include <memory>
 
 namespace bzapi
 {
+    class database;
+
     class response
     {
     public:
