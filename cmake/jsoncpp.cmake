@@ -24,6 +24,13 @@ ExternalProject_Add(jsoncpp
     DOWNLOAD_NO_PROGRESS true
     )
 
+set_target_properties(jsoncpp PROPERTIES SUFFIX ".so")
+
+set_property(TARGET PROPERTY SUFFIX ".so")
+set(CMAKE_SHARED_LIBRARY_SUFFIX ".so")
+set(CMAKE_SHARED_MODULE_SUFFIX ".so")
+
+
 set_property(DIRECTORY PROPERTY CLEAN_NO_CUSTOM
     "${CMAKE_CURRENT_BINARY_DIR}/jsoncpp")
 
@@ -36,3 +43,4 @@ ExternalProject_Get_Property(jsoncpp binary_dir)
 link_directories(${binary_dir}/src/lib_json/)
 
 set(JSONCPP_LIBRARIES ${binary_dir}/src/lib_json/libjsoncpp.so)
+

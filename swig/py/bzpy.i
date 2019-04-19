@@ -1,4 +1,4 @@
-%module libdb
+%module bzpy
 
 %include <std_shared_ptr.i>
 %{
@@ -9,7 +9,6 @@
 
 %}
 %shared_ptr(response)
-%shared_ptr(test)
 %typemap(out) std::string {
         $result = PyString_FromString($1.c_str());
 }

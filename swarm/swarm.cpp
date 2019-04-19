@@ -325,8 +325,8 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
     std::chrono::microseconds this_node_duration = std::chrono::duration_cast<std::chrono::microseconds>(
         std::chrono::steady_clock::now() - (*this->nodes)[uuid].last_status_request_sent);
 
-    auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>( std::chrono::steady_clock::now()
-    - (*this->nodes)[uuid].last_status_request_sent);
+//    auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>( std::chrono::steady_clock::now()
+//    - (*this->nodes)[uuid].last_status_request_sent);
     auto fastest_time = this_node_duration;
     auto fastest_node_so_far = uuid;
 

@@ -59,7 +59,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(SYSTEM ${OPENSSL_INCLUDE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
-enable_testing()
+#enable_testing()
 
 # coverage?
 if (ENABLE_GCOV)

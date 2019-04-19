@@ -20,7 +20,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
-#include <stdexcept>
+
 #include <string.h>
 #include <memory>
 

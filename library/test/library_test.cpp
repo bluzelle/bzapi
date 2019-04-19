@@ -152,7 +152,7 @@ struct mock_websocket
 class integration_test : public Test
 {
 public:
-    void initialize(uuid_t _uuid)
+    void initialize(bzapi::uuid_t _uuid)
     {
         this->uuid = _uuid;
         mock_io_context = std::make_shared<bzn::asio::Mockio_context_base>();
@@ -311,8 +311,8 @@ protected:
         completion_handler_t timer_callback;
     };
 
-    uuid_t uuid;
-    uuid_t primary_node;
+    bzapi::uuid_t uuid;
+    bzapi::uuid_t primary_node;
     std::map<uint16_t, mock_websocket> nodes;
     std::set<my_mock_tcp_socket*> sockets;
     std::shared_ptr<bzn::asio::Mockio_context_base> mock_io_context;
@@ -321,7 +321,7 @@ protected:
 
 TEST_F(integration_test, test_has_db)
 {
-    uuid_t uuid{"my_uuid"};
+    bzapi::uuid_t uuid{"my_uuid"};
     this->initialize(uuid);
 
     expect_has_db();
@@ -339,7 +339,7 @@ TEST_F(integration_test, test_has_db)
 
 TEST_F(integration_test, test_open_db)
 {
-    uuid_t uuid{"my_uuid"};
+    bzapi::uuid_t uuid{"my_uuid"};
     this->initialize(uuid);
 
     for (size_t i = 0; i < 4; i++)
@@ -368,7 +368,7 @@ TEST_F(integration_test, test_open_db)
 
 TEST_F(integration_test, test_create)
 {
-    uuid_t uuid{"my_uuid"};
+    bzapi::uuid_t uuid{"my_uuid"};
     this->initialize(uuid);
 
     for (size_t i = 0; i < 4; i++)
@@ -436,7 +436,7 @@ TEST_F(integration_test, test_create)
 
 TEST_F(integration_test, test_read)
 {
-    uuid_t uuid{"my_uuid"};
+    bzapi::uuid_t uuid{"my_uuid"};
     this->initialize(uuid);
 
     for (size_t i = 0; i < 4; i++)
