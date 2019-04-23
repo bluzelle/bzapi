@@ -125,7 +125,7 @@ struct mock_websocket
             cb(boost::system::error_code{}, buffer.size());
         }));
 
-        EXPECT_CALL(*websocket, is_open()).Times(Exactly(1)).WillOnce(Return(false));
+//        EXPECT_CALL(*websocket, is_open()).Times(Exactly(1)).WillOnce(Return(false));
 
         return websocket;
     }
@@ -150,7 +150,7 @@ struct mock_websocket
 };
 
 
-class integration_test : public Test
+class integration_test : public Test, public std::enable_shared_from_this<integration_test>
 {
 public:
     void initialize(uuid_t _uuid)
@@ -161,8 +161,10 @@ public:
         the_crypto = std::make_shared<null_crypto>();
         mock_ws_factory = std::make_shared<bzn::beast::Mockwebsocket_base>();
         ws_factory = mock_ws_factory;
-        the_swarm_factory = std::make_shared<swarm_factory>(io_context, ws_factory, the_crypto);
-        the_swarm_factory->temporary_set_default_endpoint("ws://127.0.0.1:50000");
+        the_swarm_factory = std::make_shared<swarm_factory>(io_context, ws_factory, the_crypto, this->uuid);
+        auto swf = the_swarm_factory;
+        swf->temporary_set_default_endpoint("ws://127.0.0.1:50000");
+//        the_swarm_factory->temporary_set_default_endpoint("ws://127.0.0.1:50000");
     }
 
     void teardown()
@@ -207,17 +209,17 @@ public:
 //        return std::make_unique<NiceMock<bzn::asio::Mocksteady_timer_base>>();
 //    }));
 
-        EXPECT_CALL(*mock_io_context, make_unique_tcp_socket()).Times(Exactly(1)).WillOnce(Invoke([&]()
+        EXPECT_CALL(*mock_io_context, make_unique_tcp_socket()).Times(Exactly(1)).WillOnce(Invoke([]()
         {
             auto tcp_sock = std::make_unique<my_mock_tcp_socket>();
             return tcp_sock;
         })).RetiresOnSaturation();
 
-        EXPECT_CALL(*mock_ws_factory, make_unique_websocket_stream(_)).Times(Exactly(1)).WillOnce(Invoke([&](auto&)
+        EXPECT_CALL(*mock_ws_factory, make_unique_websocket_stream(_)).Times(Exactly(1)).WillOnce(Invoke([uuid = this->uuid](auto&)
         {
             static mock_websocket ws{0};
 
-            ws.write_func = [this](const boost::asio::mutable_buffers_1& buffer)
+            ws.write_func = [uuid](const boost::asio::mutable_buffers_1& buffer)
             {
                 bzn_envelope env;
                 EXPECT_TRUE(env.ParseFromString(std::string(static_cast<const char *>(buffer.data()), buffer.size())));
@@ -226,11 +228,11 @@ public:
                 EXPECT_TRUE(db_msg.ParseFromString(env.database_msg()));
 
                 EXPECT_TRUE(db_msg.has_has_db());
-                EXPECT_TRUE(db_msg.header().db_uuid() == this->uuid);
+                EXPECT_TRUE(db_msg.header().db_uuid() == uuid);
 
             };
 
-            ws.read_func = [&](const auto& /*buffer*/)
+            ws.read_func = [uuid](const auto& /*buffer*/)
             {
                 database_has_db_response has_db;
                 has_db.set_uuid(uuid);
@@ -257,7 +259,7 @@ public:
 
     void expect_swarm_initialize()
     {
-        EXPECT_CALL(*mock_io_context, make_unique_tcp_socket()).Times(Exactly(this->nodes.size())).WillRepeatedly(Invoke([&]()
+        EXPECT_CALL(*mock_io_context, make_unique_tcp_socket()).Times(Exactly(this->nodes.size())).WillRepeatedly(Invoke([]()
         {
             auto tcp_sock = std::make_unique<my_mock_tcp_socket>();
             return tcp_sock;
@@ -280,7 +282,8 @@ public:
                     {
                         bzn_envelope env;
                         EXPECT_TRUE(
-                            env.ParseFromString(std::string(static_cast<const char *>(buffer.data()), buffer.size())));
+                            env.ParseFromString(
+                                std::string(static_cast<const char *>(buffer.data()), buffer.size())));
 
                         status_request sr;
                         EXPECT_TRUE(sr.ParseFromString(env.status_request()));
@@ -293,7 +296,8 @@ public:
                         env.set_status_response(sr.SerializeAsString());
                         env.set_sender("node_" + std::to_string(node_id));
                         auto message = env.SerializeAsString();
-                        boost::asio::buffer_copy(ws.read_buffer->prepare(message.size()), boost::asio::buffer(message));
+                        boost::asio::buffer_copy(ws.read_buffer->prepare(message.size()), boost::asio::buffer(
+                            message));
                         ws.read_buffer->commit(message.size());
                         ws.read_handler(boost::system::error_code{}, message.size());
                     };

@@ -32,9 +32,10 @@ swarm::swarm(std::shared_ptr<node_factory_base> node_factory
     , std::shared_ptr<bzn::beast::websocket_base> ws_factory
     , std::shared_ptr<bzn::asio::io_context_base> io_context
     , std::shared_ptr<crypto_base> crypto
-    , const endpoint_t& initial_endpoint)
+    , const endpoint_t& initial_endpoint
+    , const uuid_t& uuid)
 : node_factory(std::move(node_factory)), ws_factory(std::move(ws_factory)), io_context(std::move(io_context))
-    , crypto(std::move(crypto)), initial_endpoint(initial_endpoint)
+    , crypto(std::move(crypto)), initial_endpoint(initial_endpoint), my_uuid(uuid)
 {
 }
 
@@ -90,7 +91,7 @@ swarm::has_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
     request.set_allocated_header(new database_header(header));
     request.set_allocated_has_db(new database_has_db());
     env.set_database_msg(request.SerializeAsString());
-    env.set_sender("me");
+    env.set_sender(my_uuid);
     this->crypto->sign(env);
     auto message = env.SerializeAsString();
     uuid_node->send_message(message.c_str(), message.size(), [callback, uuid](const auto& ec)
@@ -120,18 +121,25 @@ swarm::create_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
 
     // TODO: should this call a static method inside db_impl? Not ideal having the swarm
     // process a database message
-    uuid_node->register_message_handler([uuid, callback](const char *data, uint64_t len)
+    uuid_node->register_message_handler([weak_this = weak_from_this(), uuid, callback](const char *data, uint64_t len)->bool
+
+//        [uuid, callback](const char *data, uint64_t len)
     {
-        bzn_envelope env;
-        database_response response;
-        if (!env.ParseFromString(std::string(data, len)) || !response.ParseFromString(env.database_response()))
+        auto strong_this = weak_this.lock();
+        if (strong_this)
         {
-            LOG(error) << "Dropping invalid response to has_db: " << std::string(data, MAX_MESSAGE_SIZE);
-            callback(false);
-            return true;
+            bzn_envelope env;
+            database_response response;
+            if (!env.ParseFromString(std::string(data, len)) || !response.ParseFromString(env.database_response()))
+            {
+                LOG(error) << "Dropping invalid response to has_db: " << std::string(data, MAX_MESSAGE_SIZE);
+                callback(false);
+                return true;
+            }
+
+            callback(response.has_error());
         }
 
-        callback(response.has_error());
         return true;
     });
 
@@ -542,7 +550,8 @@ swarm::handle_node_message(const std::string& uuid, const char *data, uint64_t l
         return true;
     }
 
-    if (!this->crypto->verify(env))
+    // only verify signature if it exists. upper layer will check for existance of signature where required
+    if (env.signature().length() && !this->crypto->verify(env))
     {
         LOG(error) << "Dropping message with invalid signature: " << env.DebugString().substr(0, MAX_MESSAGE_SIZE);
         return true;

@@ -39,14 +39,14 @@ namespace bzapi
     }
 
     bool
-    initialize(const char *private_key, const char *endpoint)
+    initialize(const char *public_key, const char *private_key, const char *endpoint)
     {
         try
         {
             io_context = std::make_shared<bzn::asio::io_context>();
             the_crypto = std::make_shared<crypto>(private_key);
             ws_factory = std::make_shared<bzn::beast::websocket>();
-            the_swarm_factory = std::make_shared<swarm_factory>(io_context, ws_factory, the_crypto);
+            the_swarm_factory = std::make_shared<swarm_factory>(io_context, ws_factory, the_crypto, public_key);
             the_swarm_factory->temporary_set_default_endpoint(endpoint);
         }
         catch(...)

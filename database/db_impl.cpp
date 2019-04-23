@@ -31,11 +31,28 @@ db_impl::db_impl(std::shared_ptr<bzn::asio::io_context_base> io_context
 {
 }
 
+db_impl::~db_impl()
+{
+}
+
 void
 db_impl::initialize(completion_handler_t handler)
 {
-    this->swarm->register_response_handler(bzn_envelope::kDatabaseResponse, std::bind(&db_impl::handle_swarm_response
-        , shared_from_this(), std::placeholders::_2));
+//    this->swarm->register_response_handler(bzn_envelope::kDatabaseResponse, std::bind(&db_impl::handle_swarm_response
+//        , shared_from_this(), std::placeholders::_2));
+
+    this->swarm->register_response_handler(bzn_envelope::kDatabaseResponse, [weak_this = weak_from_this()](const uuid_t& /*uuid*/, const bzn_envelope& env)->bool
+    {
+        auto strong_this = weak_this.lock();
+        if (strong_this)
+        {
+            return strong_this->handle_swarm_response(env);
+        }
+        else
+        {
+            return true;
+        }
+    });
 
     this->swarm->initialize(handler);
 }
@@ -155,6 +172,14 @@ db_impl::handle_swarm_response(const bzn_envelope& response)
     if (i == this->messages.end())
     {
         LOG(debug) << "Ignoring db response for unknown or already processed message: " << nonce;
+        return false;
+    }
+
+    // all responses apart from quickreads require a signature
+    // TODO: this isn't ideal if we wan't to enable/disable signatures globally
+    if (!db_response.has_quick_read() && response.signature().empty())
+    {
+        LOG(debug) << "Dropping unsigned response for message: " << nonce;
         return false;
     }
 
