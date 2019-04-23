@@ -22,6 +22,7 @@
 #include <library/library.hpp>
 #include <jsoncpp/src/jsoncpp/include/json/value.h>
 #include <jsoncpp/src/jsoncpp/include/json/reader.h>
+#include <library/udp_response.hpp>
 
 using namespace testing;
 using namespace bzapi;
@@ -544,4 +545,40 @@ TEST_F(integration_test, signing_test)
 
     c.sign(env);
     EXPECT_TRUE(c.verify(env));
+}
+
+TEST_F(integration_test, response_test)
+{
+    sockaddr_in local;
+    memset(&local, 0, sizeof(sockaddr_in));
+    local.sin_family = AF_INET;
+    local.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    local.sin_port = 0; //randomly selected port
+    int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (bind(sock, (sockaddr*)&local, sizeof(local)) == -1)
+    {
+        throw std::runtime_error("unable to bind udp socket");
+    }
+
+    int my_id = 0;
+    struct sockaddr_in sin;
+    socklen_t addrlen = sizeof(sin);
+    if (getsockname(sock, (struct sockaddr *)&sin, &addrlen) == 0
+        && sin.sin_family == AF_INET && addrlen == sizeof(sin))
+    {
+        my_id = ntohs(sin.sin_port);
+    }
+    else
+    {
+        throw std::runtime_error("error determining local port");
+    }
+
+    udp_response resp;
+    int their_id = resp.get_signal_id(my_id);
+    (void) their_id;
+    resp.set_ready();
+
+    char buf[1024];
+    auto res = recvfrom(sock, buf, 1024, 0, NULL, 0);
+    std::cout << "received: " << res << " bytes" << std::endl;
 }
