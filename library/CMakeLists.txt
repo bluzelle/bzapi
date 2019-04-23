@@ -1,4 +1,6 @@
 add_library(bzapi SHARED library.cpp library.hpp ../include/boost_asio_beast.hpp ../database/db_base.hpp response.hpp udp_response.hpp)
+set_source_files_properties(../swig/py/bzpy.i PROPERTIES CPLUSPLUS ON)
+include_directories(bzapi ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/database)
 add_dependencies(jsoncpp openssl)
 target_include_directories(bzapi PRIVATE . ${JSONCPP_INCLUDE_DIRS})
 target_link_libraries(bzapi crypto proto swarm node database ${Protobuf_LIBRARIES} ${JSONCPP_LIBRARIES} ${OPENSSL_LIBRARIES} pthread)
@@ -26,8 +28,6 @@ find_package(SWIG REQUIRED)
 include(${SWIG_USE_FILE})
 
 set(CMAKE_SWIG_FLAGS -c++)
-
-
 set(SWIG_MODULE_NAME bzpy)
 
 add_compile_options("-fdiagnostics-color=auto")
