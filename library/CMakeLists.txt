@@ -19,7 +19,7 @@ else()
 endif()
 
 
-find_package(Boost 1.69.0 REQUIRED)
+find_package(Boost REQUIRED)
 set(Boost_USE_STATIC_LIBS OFF)
 set(Boost_USE_MULTITHREADED ON)
 set(Boost_USE_STATIC_RUNTIME OFF)

@@ -20,6 +20,7 @@ from librarya import bzpy
 
 async def get_via_socket():
     my_port = 1246
+    rsp = bzpy.create_db("3098308503850934850934850")
     # # Create a local UDP enpoint
     # local = await open_local_endpoint('127.0.0.1', my_port)
     # 

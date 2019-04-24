@@ -36,28 +36,28 @@ namespace bzapi
     {
     public:
 
-        database(std::shared_ptr<db_impl_base> db_impl);
+        database(std::shared_ptr<bzapi::db_impl_base> db_impl);
 
-        void open(completion_handler_t handler);
+        void open(bzapi::completion_handler_t handler);
 
-        std::shared_ptr<response> create(const key_t& key, const value_t& value);
-        std::shared_ptr<response> read(const key_t& key);
-        std::shared_ptr<response> update(const key_t& key, const value_t& value);
-        std::shared_ptr<response> remove(const key_t& key);
+        std::shared_ptr<response> create(const bzapi::key_t& key, const bzapi::value_t& value);
+        std::shared_ptr<response> read(const bzapi::key_t& key);
+        std::shared_ptr<response> update(const bzapi::key_t& key, const bzapi::value_t& value);
+        std::shared_ptr<response> remove(const bzapi::key_t& key);
 
-        std::shared_ptr<response> quick_read(const key_t& key);
-        std::shared_ptr<response> has(const key_t& key);
+        std::shared_ptr<response> quick_read(const bzapi::key_t& key);
+        std::shared_ptr<response> has(const bzapi::key_t& key);
         std::shared_ptr<response> keys();
         std::shared_ptr<response> size();
-        std::shared_ptr<response> expire(const key_t& key, expiry_t expiry);
-        std::shared_ptr<response> persist(const key_t& key);
-        std::shared_ptr<response> ttl(const key_t& key);
+        std::shared_ptr<response> expire(const bzapi::key_t& key, bzapi::expiry_t expiry);
+        std::shared_ptr<response> persist(const bzapi::key_t& key);
+        std::shared_ptr<response> ttl(const bzapi::key_t& key);
 
-        std::string swarm_status();
+        //std::string swarm_status();
 
     private:
 
-        std::shared_ptr<db_impl_base> db_impl;
+        std::shared_ptr<bzapi::db_impl_base> db_impl;
 
         void translate_swarm_response(const database_response& db_response, const boost::system::error_code& ec
             , std::shared_ptr<response> resp
