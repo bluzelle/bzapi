@@ -153,7 +153,7 @@ struct mock_websocket
 };
 
 
-class integration_test : public Test, public std::enable_shared_from_this<integration_test>
+class integration_test : public Test
 {
 public:
     void initialize(uuid_t _uuid)

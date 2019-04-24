@@ -126,26 +126,34 @@ node::send(boost::asio::mutable_buffers_1 buffer, completion_handler_t callback,
 {
     // need to wrap this in a strand...
 
-    this->websocket->async_write(buffer, [&](auto ec, auto /*bytes*/)
+    this->websocket->async_write(buffer, [weak_this = weak_from_this(), callback, is_retry, buffer](auto ec, auto /*bytes*/)
     {
         if (ec == boost::beast::websocket::error::closed || ec == boost::asio::error::eof)
         {
-            this->connected = false;
-
-            // try to reconnect once
-            if (!is_retry)
+            auto strong_this = weak_this.lock();
+            if (strong_this)
             {
-                this->connect([&](auto ec)
-                {
-                    if (ec)
-                    {
-                        callback(ec);
-                        return;
-                    }
+                strong_this->connected = false;
 
-                    this->send(buffer, callback, true);
-                    return;
-                });
+                // try to reconnect once
+                if (!is_retry)
+                {
+                    strong_this->connect([weak_this2 = std::weak_ptr(strong_this), callback, buffer](auto ec)
+                    {
+                        if (ec)
+                        {
+                            callback(ec);
+                            return;
+                        }
+
+                        auto strong_this2 = weak_this2.lock();
+                        if (strong_this2)
+                        {
+                            strong_this2->send(buffer, callback, true);
+                            return;
+                        }
+                    });
+                }
             }
         }
         else
@@ -159,25 +167,29 @@ void
 node::receive()
 {
     auto buffer = std::make_shared<boost::beast::multi_buffer>();
-    this->websocket->async_read(*buffer, [this, buffer](auto ec, auto /*bytes_transferred*/)
+    this->websocket->async_read(*buffer, [weak_this = weak_from_this(), buffer](auto ec, auto /*bytes_transferred*/)
     {
-        if (ec)
+        auto strong_this = weak_this.lock();
+        if (strong_this)
         {
-            this->close();
-            return;
-        }
+            if (ec)
+            {
+                strong_this->close();
+                return;
+            }
 
-        std::stringstream ss;
-        ss << boost::beast::buffers(buffer->data());
-        std::string str = ss.str();
+            std::stringstream ss;
+            ss << boost::beast::buffers(buffer->data());
+            std::string str = ss.str();
 
-        if (this->handler(str.c_str(), str.length()))
-        {
-            this->close();
-        }
-        else
-        {
-            this->receive();
+            if (strong_this->handler(str.c_str(), str.length()))
+            {
+                strong_this->close();
+            }
+            else
+            {
+                strong_this->receive();
+            }
         }
     });
 }
