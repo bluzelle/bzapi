@@ -9,8 +9,7 @@
 %include "library/response.hpp"
 %include "library/library.hpp"
 %include "database/database.hpp"
-%shared_ptr(response)
-%shared_ptr(test)
+%shared_ptr(bzapi::response)
 %typemap(out) std::string {
         $result = PyString_FromString($1.c_str());
 }

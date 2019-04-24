@@ -7,8 +7,6 @@ target_link_libraries(bzapi crypto proto swarm node database ${Protobuf_LIBRARIE
 
 target_compile_features(bzapi PUBLIC cxx_std_17)
 
-
-
 find_package(PythonLibs 3 REQUIRED)
 find_package(PythonInterp ${PYTHONLIBS_VERSION_STRING} REQUIRED)
 
