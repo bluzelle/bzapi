@@ -43,7 +43,7 @@ node::send_message(const char *msg, size_t len, completion_handler_t callback)
 
     if (!this->connected)
     {
-        this->connect([&](auto ec)
+        this->connect([weak_this = weak_from_this(), callback, write_buffer](auto ec)
         {
             if (ec)
             {
@@ -51,8 +51,12 @@ node::send_message(const char *msg, size_t len, completion_handler_t callback)
                 return;
             }
 
-            this->send(write_buffer, callback, true);
-            return;
+            auto strong_this = weak_this.lock();
+            if (strong_this)
+            {
+                strong_this->send(write_buffer, callback, true);
+                return;
+            }
         });
     }
     else
@@ -71,7 +75,7 @@ void
 node::connect(completion_handler_t callback)
 {
     std::shared_ptr<bzn::asio::tcp_socket_base> socket = this->io_context->make_unique_tcp_socket();
-    socket->async_connect(this->endpoint, [&](auto ec)
+    socket->async_connect(this->endpoint, [weak_this = weak_from_this(), callback, socket](auto ec)
     {
         // TODO: save connection latency...
 
@@ -82,29 +86,38 @@ node::connect(completion_handler_t callback)
             return;
         }
 
-        this->connected = true;
-
-        // set tcp_nodelay option
-        boost::system::error_code option_ec;
-        socket->get_tcp_socket().set_option(boost::asio::ip::tcp::no_delay(true), option_ec);
-        if (option_ec)
+        auto strong_this = weak_this.lock();
+        if (strong_this)
         {
-            LOG(error) << "failed to set socket option: " << option_ec.message();
-        }
+            strong_this->connected = true;
 
-        this->websocket = ws_factory->make_unique_websocket_stream(socket->get_tcp_socket());
-        this->websocket->async_handshake(this->endpoint.address().to_string(), "/", [&](auto ec)
-        {
-            if (ec)
+            // set tcp_nodelay option
+            boost::system::error_code option_ec;
+            socket->get_tcp_socket().set_option(boost::asio::ip::tcp::no_delay(true), option_ec);
+            if (option_ec)
             {
-                // connect failed
-                callback(ec);
-                return;
+                LOG(error) << "failed to set socket option: " << option_ec.message();
             }
 
-            callback(ec);
-            this->receive();
-        });
+            strong_this->websocket = strong_this->ws_factory->make_unique_websocket_stream(socket->get_tcp_socket());
+            strong_this->websocket->async_handshake(strong_this->endpoint.address().to_string(), "/"
+                , [weak_this2 = std::weak_ptr(strong_this), callback](auto ec)
+            {
+                if (ec)
+                {
+                    // connect failed
+                    callback(ec);
+                    return;
+                }
+
+                callback(ec);
+                auto strong_this2 = weak_this2.lock();
+                if (strong_this2)
+                {
+                    strong_this2->receive();
+                }
+            });
+        }
     });
 }
 

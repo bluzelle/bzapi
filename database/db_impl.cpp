@@ -38,10 +38,8 @@ db_impl::~db_impl()
 void
 db_impl::initialize(completion_handler_t handler)
 {
-//    this->swarm->register_response_handler(bzn_envelope::kDatabaseResponse, std::bind(&db_impl::handle_swarm_response
-//        , shared_from_this(), std::placeholders::_2));
-
-    this->swarm->register_response_handler(bzn_envelope::kDatabaseResponse, [weak_this = weak_from_this()](const uuid_t& /*uuid*/, const bzn_envelope& env)->bool
+    this->swarm->register_response_handler(bzn_envelope::kDatabaseResponse
+        , [weak_this = weak_from_this()](const uuid_t& /*uuid*/, const bzn_envelope& env)->bool
     {
         auto strong_this = weak_this.lock();
         if (strong_this)
@@ -102,11 +100,15 @@ db_impl::setup_request_policy(msg_info& info, send_policy policy, nonce_t nonce)
         info.responses_required = this->swarm->honest_majority_size();
         info.retry_timer = this->io_context->make_unique_steady_timer();
         info.retry_timer->expires_from_now(REQUEST_RETRY_TIME);
-        info.retry_timer->async_wait([this, nonce](const auto& ec)
+        info.retry_timer->async_wait([weak_this = weak_from_this(), nonce](const auto& ec)
         {
-            this->handle_request_timeout(ec, nonce);
+            auto strong_this = weak_this.lock();
+            if (strong_this)
+            {
+                strong_this->handle_request_timeout(ec, nonce);
 
-            // we may need a client timeout here...
+                // we may need a client timeout here...
+            }
         });
     }
     else
@@ -144,11 +146,15 @@ db_impl::handle_request_timeout(const boost::system::error_code& ec, nonce_t non
                   % nonce % info.responses.size() % info.responses_required;
 
     info.retry_timer->expires_from_now(BROADCAST_RETRY_TIME);
-    info.retry_timer->async_wait([this, nonce](const auto& ec2)
+    info.retry_timer->async_wait([weak_this = weak_from_this(), nonce](const auto& ec2)
     {
-        this->handle_request_timeout(ec2, nonce);
+        auto strong_this = weak_this.lock();
+        if (strong_this)
+        {
+            strong_this->handle_request_timeout(ec2, nonce);
 
-        // we may need a client timeout here...
+            // we may need a client timeout here...
+        }
     });
 
     // broadcast the retry

@@ -22,7 +22,7 @@
 
 namespace bzapi
 {
-    class swarm_factory
+class swarm_factory : public std::enable_shared_from_this<swarm_factory>
     {
     public:
         swarm_factory(std::shared_ptr<bzn::asio::io_context_base> io_context

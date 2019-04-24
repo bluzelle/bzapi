@@ -90,7 +90,7 @@ struct mock_websocket
     mock_websocket(uint16_t id = 0)
     : id(id) {}
 
-    std::unique_ptr<bzn::beast::Mockwebsocket_stream_base> get()
+    std::unique_ptr<bzn::beast::Mockwebsocket_stream_base> get(bool close = false)
     {
         auto websocket = std::make_unique<bzn::beast::Mockwebsocket_stream_base>();
 
@@ -125,7 +125,10 @@ struct mock_websocket
             cb(boost::system::error_code{}, buffer.size());
         }));
 
-//        EXPECT_CALL(*websocket, is_open()).Times(Exactly(1)).WillOnce(Return(false));
+        if (close)
+        {
+            EXPECT_CALL(*websocket, is_open()).Times(Exactly(1)).WillOnce(Return(false));
+        }
 
         return websocket;
     }
@@ -162,9 +165,7 @@ public:
         mock_ws_factory = std::make_shared<bzn::beast::Mockwebsocket_base>();
         ws_factory = mock_ws_factory;
         the_swarm_factory = std::make_shared<swarm_factory>(io_context, ws_factory, the_crypto, this->uuid);
-        auto swf = the_swarm_factory;
-        swf->temporary_set_default_endpoint("ws://127.0.0.1:50000");
-//        the_swarm_factory->temporary_set_default_endpoint("ws://127.0.0.1:50000");
+        the_swarm_factory->temporary_set_default_endpoint("ws://127.0.0.1:50000");
     }
 
     void teardown()
@@ -253,7 +254,7 @@ public:
                 ws.read_handler(boost::system::error_code{}, message.size());
             };
 
-            return ws.get();
+            return ws.get(true);
         })).RetiresOnSaturation();
     }
 
@@ -423,6 +424,7 @@ TEST_F(integration_test, test_create)
         bzn_envelope env2;
         env2.set_database_response(dr.SerializeAsString());
         env2.set_sender("node_" + std::to_string(i));
+        env2.set_signature("xxx");
         auto message = env2.SerializeAsString();
         this->nodes[i].simulate_read(message);
     }
@@ -495,6 +497,7 @@ TEST_F(integration_test, test_read)
         bzn_envelope env2;
         env2.set_database_response(dr.SerializeAsString());
         env2.set_sender("node_" + std::to_string(i));
+        env2.set_signature("xxx");
         auto message = env2.SerializeAsString();
         this->nodes[i].simulate_read(message);
     }

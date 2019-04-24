@@ -26,7 +26,7 @@ namespace bzapi
     // establishes and maintains connection with node
     // sends messages to node
     // receives incoming messages and forwards them to owner
-    class node : public node_base
+    class node : public node_base, public std::enable_shared_from_this<node>
     {
     public:
         node(std::shared_ptr<bzn::asio::io_context_base> io_context
