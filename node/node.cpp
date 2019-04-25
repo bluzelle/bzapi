@@ -102,19 +102,23 @@ node::connect(completion_handler_t callback)
             strong_this->websocket = strong_this->ws_factory->make_unique_websocket_stream(socket->get_tcp_socket());
             strong_this->websocket->async_handshake(strong_this->endpoint.address().to_string(), "/"
                 , [weak_this2 = std::weak_ptr(strong_this), callback](auto ec)
-            {
-                if (ec)
                 {
-                    // connect failed
-                    callback(ec);
-                    return;
-                }
+                    auto strong_this2 = weak_this2.lock();
+                    if (strong_this2)
+                    {
+                        if (ec)
+                        {
+                            // connect failed
+                            callback(ec);
+                            return;
+                        }
 
-                callback(ec);
-                auto strong_this2 = weak_this2.lock();
-                if (strong_this2)
-                {
-                    strong_this2->receive();
+                    callback(ec);
+//                    auto strong_this2 = weak_this2.lock();
+                    if (strong_this2)
+                    {
+                        strong_this2->receive();
+                    }
                 }
             });
         }

@@ -41,7 +41,7 @@ class swarm_factory : public std::enable_shared_from_this<swarm_factory>
         std::shared_ptr<bzn::asio::io_context_base> io_context;
         std::shared_ptr<bzn::beast::websocket_base> ws_factory;
         std::shared_ptr<crypto_base> crypto;
-        const uuid_t& my_uuid;
+        const uuid_t my_uuid;
         std::map<uuid_t, std::weak_ptr<swarm_base>> uuids;
         std::map<endpoint_t, std::weak_ptr<swarm_base>> swarms;
         std::shared_ptr<node_factory_base> node_factory;

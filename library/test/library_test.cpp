@@ -589,3 +589,16 @@ TEST_F(integration_test, response_test)
     auto res = recvfrom(sock, buf, 1024, 0, NULL, 0);
     std::cout << "received: " << res << " bytes" << std::endl;
 }
+
+TEST_F(integration_test, live_test)
+{
+    bool res = bzapi::initialize(pub_key, priv_key, "ws://127.0.0.1:50000");
+    EXPECT_TRUE(res);
+
+    auto resp = bzapi::create_db("test_db");
+    while (!resp->is_ready())
+    {
+        sleep(1);
+    }
+    EXPECT_TRUE(resp->is_ready());
+}

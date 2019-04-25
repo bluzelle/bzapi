@@ -143,7 +143,7 @@ swarm_factory::has_db(const uuid_t& uuid, std::function<void(db_error result)> c
             this->swarms[elem.first] = sw;
         }
 
-        sw->has_uuid(uuid, [weak_this = weak_from_this(), uuid, &count, callback, weak_sw = std::weak_ptr(sw)](auto res)
+        sw->has_uuid(uuid, [weak_this = weak_from_this(), uuid, &count, callback, sw /*weak_sw = std::weak_ptr(sw)*/](auto res)
         {
             count--;
             if (res)
@@ -151,7 +151,8 @@ swarm_factory::has_db(const uuid_t& uuid, std::function<void(db_error result)> c
                 auto strong_this = weak_this.lock();
                 if (strong_this)
                 {
-                    strong_this->uuids[uuid] = weak_sw;
+                    //strong_this->uuids[uuid] = weak_sw;
+                    strong_this->uuids[uuid] = sw;
                     callback(db_error::success);
                 }
             }
