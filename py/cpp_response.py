@@ -12,25 +12,26 @@ from socket import *
 import asyncio
 import warnings
 
-#from udp_support import *
+from udp_support import *
 
 sys.path.extend([os.getcwd()])
 
-from librarya import bzpy
+from build.library import bzpy
+
+priv_key = "-----BEGIN EC PRIVATE KEY-----\n" \
+           "MHQCAQEEIBWDWE/MAwtXaFQp6d2Glm2Uj7ROBlDKFn5RwqQsDEbyoAcGBSuBBAAK\n" \
+           "oUQDQgAEiykQ5A02u+02FR1nftxT5VuUdqLO6lvNoL5aAIyHvn8NS0wgXxbPfpuq\n" \
+           "UPpytiopiS5D+t2cYzXJn19MQmnl/g==\n" \
+           "-----END EC PRIVATE KEY-----"
 
 async def get_via_socket():
-    priv_key = "-----BEGIN EC PRIVATE KEY-----\n"
-    "MHQCAQEEIBWDWE/MAwtXaFQp6d2Glm2Uj7ROBlDKFn5RwqQsDEbyoAcGBSuBBAAK\n"
-    "oUQDQgAEiykQ5A02u+02FR1nftxT5VuUdqLO6lvNoL5aAIyHvn8NS0wgXxbPfpuq\n"
-    "UPpytiopiS5D+t2cYzXJn19MQmnl/g==\n"
-    "-----END EC PRIVATE KEY-----"
-
-    pub_key = "MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEiykQ5A02u+02FR1nftxT5VuUdqLO6lvN\n"
-    "oL5aAIyHvn8NS0wgXxbPfpuqUPpytiopiS5D+t2cYzXJn19MQmnl/g=="
-
-
-    bzpy.initialize(priv_key, "ws://75.96.163.85:51010")  # EC keys in string form. pub key doesn't have header, private does. see library_test.cpp for example
+    my_port = 1234
+    a = bzpy.initialize(priv_key, "ws://75.96.163.85:51010")  # EC keys in string form. pub key doesn't have header, private does. see library_test.cpp for example
+    pprint(a)
     resp = bzpy.create_db("test23")
+    cpp_port = resp.get_signal_id(my_port)
+    print(cpp_port)
+    pprint(resp.is_ready())
     # await resp
     # mydb = resp.get_db()
     # resp = mydb.create("mykey", "myvalue")
@@ -46,21 +47,10 @@ async def get_via_socket():
 
 
     # # Create a local UDP enpoint
-    # local = await open_local_endpoint('127.0.0.1', my_port)
-    # 
-    # db = libdb.DB()
-    # task = db.newTest()
-    # response = task.makeResponseSharedPtr()
-    # task.setResponseSharedPtr(response)
-    # cpp_port = response.get_signal_id(my_port)
-    # print("CPP process_request()..... ")
-    #
-    # task.process_request(timeout=1) # aka DB.get()
-    #
-    # print("Python: waiting for UDP signal..... ")
-    #
-    # data, address = await local.receive() # wait for processing to continue
-    #
+    local = await open_local_endpoint('127.0.0.1', my_port)
+
+    data, address = await local.receive() # wait for processing to continue
+
     # print(f"Got {data!r} from {address[0]} port {address[1]}")
     #
     # print("CPP result ready? ", response.is_ready())

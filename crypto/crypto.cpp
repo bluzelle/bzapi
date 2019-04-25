@@ -200,7 +200,6 @@ bool
 crypto::load_private_key(const std::string& key)
 {
     BIO *bio = BIO_new_mem_buf((void *)key.c_str(), key.length());
-    LOG(error) << key;
     this->private_key_EVP = EVP_PKEY_ptr_t(PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL), EVP_PKEY_free);
 
     if (!this->private_key_EVP)

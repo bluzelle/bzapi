@@ -32,7 +32,7 @@ namespace bzapi
 
     using nonce_t = uint64_t;
 
-    class database : public std::enable_shared_from_this<database>
+class database : public std::enable_shared_from_this<bzapi::database>
     {
     public:
 
