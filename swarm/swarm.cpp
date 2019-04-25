@@ -92,9 +92,12 @@ swarm::has_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
     request.set_allocated_has_db(new database_has_db());
     env.set_database_msg(request.SerializeAsString());
     env.set_sender(my_uuid);
+    env.set_timestamp(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count()));
+
     this->crypto->sign(env);
     auto message = env.SerializeAsString();
-    uuid_node->send_message(message.c_str(), message.size(), [callback, uuid](const auto& ec)
+    uuid_node->send_message(message, [callback, uuid](const auto& ec)
     {
         if (ec)
         {
@@ -159,7 +162,7 @@ swarm::create_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
     this->crypto->sign(env);
 
     auto message = env.SerializeAsString();
-    uuid_node->send_message(message.c_str(), message.size(), [callback, uuid](const auto& ec)
+    uuid_node->send_message(message, [callback, uuid](const auto& ec)
     {
         if (ec)
         {
@@ -274,7 +277,7 @@ void
 swarm::send_node_request(std::shared_ptr<node_base> node, std::shared_ptr<bzn_envelope> request)
 {
     std::string msg = request->SerializeAsString();
-    node->send_message(msg.c_str(), msg.length(), [](auto ec)
+    node->send_message(msg, [](auto ec)
     {
         if (ec)
         {
@@ -505,7 +508,7 @@ swarm::send_status_request(uuid_t node_uuid)
     auto msg = env.SerializeAsString();
     info.last_status_request_sent = std::chrono::steady_clock::now();
     info.last_message_sent = std::chrono::steady_clock::now();
-    node->send_message(msg.c_str(), msg.length(), [](auto& ec)
+    node->send_message(msg, [](auto& ec)
     {
         if (ec)
         {

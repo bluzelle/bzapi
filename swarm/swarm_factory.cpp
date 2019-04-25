@@ -132,7 +132,7 @@ swarm_factory::has_db(const uuid_t& uuid, std::function<void(db_error result)> c
 
     // TODO: set a timer to retry if no response
 
-    auto count = this->swarms.size();
+    //auto count = this->swarms.size();
     for (const auto& elem : this->swarms)
     {
         auto sw = elem.second.lock();
@@ -143,9 +143,9 @@ swarm_factory::has_db(const uuid_t& uuid, std::function<void(db_error result)> c
             this->swarms[elem.first] = sw;
         }
 
-        sw->has_uuid(uuid, [weak_this = weak_from_this(), uuid, &count, callback, sw /*weak_sw = std::weak_ptr(sw)*/](auto res)
+        sw->has_uuid(uuid, [weak_this = weak_from_this(), uuid, /*count,*/ callback, sw /*weak_sw = std::weak_ptr(sw)*/](auto res)
         {
-            count--;
+            //count--;
             if (res)
             {
                 auto strong_this = weak_this.lock();
@@ -158,7 +158,7 @@ swarm_factory::has_db(const uuid_t& uuid, std::function<void(db_error result)> c
             }
             else
             {
-                if (!count)
+                if (/*!count*/ 1)
                 {
                     callback(db_error::no_database);
                 }

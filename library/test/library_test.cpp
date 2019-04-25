@@ -595,7 +595,7 @@ TEST_F(integration_test, live_test)
     bool res = bzapi::initialize(pub_key, priv_key, "ws://127.0.0.1:50000");
     EXPECT_TRUE(res);
 
-    auto resp = bzapi::create_db("test_db");
+    auto resp = bzapi::has_db("test_db");
     while (!resp->is_ready())
     {
         sleep(1);

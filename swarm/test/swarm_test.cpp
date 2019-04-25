@@ -130,8 +130,8 @@ protected:
                 this->nodes[meta.id].handler = handler;
             }));
 
-        EXPECT_CALL(*meta.node, send_message(_, _, _)).Times(AtLeast(1))
-            .WillRepeatedly(Invoke([this, meta](auto /*msg*/, auto /*len*/, auto callback)
+        EXPECT_CALL(*meta.node, send_message(_, _)).Times(AtLeast(1))
+            .WillRepeatedly(Invoke([this, meta](auto /*msg*/, auto callback)
             {
                 // schedule status response
                 auto node = this->nodes[meta.id];
@@ -252,8 +252,8 @@ TEST_F(swarm_test, test_bad_status)
             meta.handler = handler;
         }));
 
-    EXPECT_CALL(*meta.node, send_message(_, _, _)).Times(AtLeast(1))
-        .WillRepeatedly(Invoke([&meta](auto /*msg*/, auto /*len*/, auto /*callback*/)
+    EXPECT_CALL(*meta.node, send_message(_, _)).Times(AtLeast(1))
+        .WillRepeatedly(Invoke([&meta](auto /*msg*/, auto /*callback*/)
         {
             // schedule status response
             auto node = meta.node;
