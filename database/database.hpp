@@ -59,7 +59,7 @@ class database : public std::enable_shared_from_this<bzapi::database>
 
         std::shared_ptr<bzapi::db_impl_base> db_impl;
 
-        void translate_swarm_response(const database_response& db_response, const boost::system::error_code& ec
+        static void translate_swarm_response(const database_response& db_response, const boost::system::error_code& ec
             , std::shared_ptr<response> resp
             , std::function<void(const database_response& response)> handler);
 

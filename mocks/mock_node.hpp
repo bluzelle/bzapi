@@ -25,6 +25,6 @@ namespace bzapi
     public:
 
         MOCK_METHOD1(register_message_handler, void(node_message_handler handler));
-        MOCK_METHOD3(send_message, void(const char *msg, size_t len, completion_handler_t callback));
+        MOCK_METHOD2(send_message, void(const std::string& msg, completion_handler_t callback));
     };
 }

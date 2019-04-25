@@ -64,15 +64,17 @@ database::translate_swarm_response(const database_response& db_response, const b
 void
 database::send_message_with_basic_response(database_msg& msg, std::shared_ptr<response> resp)
 {
-    this->db_impl->send_message_to_swarm(msg, send_policy::normal,
-        std::bind(&database::translate_swarm_response, shared_from_this(), std::placeholders::_1, std::placeholders::_2
-        , resp, [resp](const database_response & /*response*/)
+    this->db_impl->send_message_to_swarm(msg, send_policy::normal
+        , [resp](const database_response &response, const boost::system::error_code &error)
+    {
+        translate_swarm_response(response, error, resp, [resp](const database_response &/*response*/)
         {
             Json::Value result;
             result["result"] = 1;
             resp->set_result(result.toStyledString());
             resp->set_ready();
-        }));
+        });
+    });
 }
 
 std::shared_ptr<response>
@@ -101,8 +103,9 @@ database::read(const key_t& key)
     msg.set_allocated_read(request);
 
     this->db_impl->send_message_to_swarm(msg, send_policy::normal
-        , std::bind(&database::translate_swarm_response, shared_from_this(), std::placeholders::_1
-        , std::placeholders::_2, resp, [resp](const database_response &response)
+        , [resp](const database_response &response, const boost::system::error_code &error)
+    {
+        translate_swarm_response(response, error, resp, [resp](const database_response &response)
         {
             Json::Value result;
             const database_read_response& read_resp = response.read();
@@ -111,7 +114,8 @@ database::read(const key_t& key)
             result["value"] = read_resp.value();
             resp->set_result(result.toStyledString());
             resp->set_ready();
-        }));
+        });
+    });
 
     return resp;
 }
@@ -212,21 +216,23 @@ database::keys()
     msg.set_allocated_keys(request);
 
     this->db_impl->send_message_to_swarm(msg, send_policy::normal
-        , std::bind(&database::translate_swarm_response, shared_from_this(), std::placeholders::_1
-        , std::placeholders::_2, resp, [resp](const database_response &response)
+        , [resp](const database_response &response, const boost::system::error_code &ec)
         {
-            Json::Value result;
-            const database_keys_response& keys_resp = response.keys();
-            Json::Value keys;
-            for (int i = 0; i < keys_resp.keys_size(); i++)
+            translate_swarm_response(response, ec, resp, [resp](const database_response &response)
             {
-                keys.append(keys_resp.keys(i));
-            }
-            result["keys"] = keys;
+                Json::Value result;
+                const database_keys_response& keys_resp = response.keys();
+                Json::Value keys;
+                for (int i = 0; i < keys_resp.keys_size(); i++)
+                {
+                    keys.append(keys_resp.keys(i));
+                }
+                result["keys"] = keys;
 
-            resp->set_result(result.toStyledString());
-            resp->set_ready();
-        }));
+                resp->set_result(result.toStyledString());
+                resp->set_ready();
+            });
+        });
 
     return resp;
 }
@@ -241,19 +247,21 @@ database::size()
     msg.set_allocated_size(request);
 
     this->db_impl->send_message_to_swarm(msg, send_policy::normal
-        , std::bind(&database::translate_swarm_response, shared_from_this(), std::placeholders::_1
-        , std::placeholders::_2, resp, [resp](const database_response &response)
+        , [resp](const database_response &response, const boost::system::error_code &ec)
         {
-            Json::Value result;
-            const database_size_response& size_resp = response.size();
-            result["result"] = 1;
-            result["bytes"] = size_resp.bytes();
-            result["keys"] = size_resp.keys();
-            result["remaining_bytes"] = size_resp.remaining_bytes();
-            result["max_size"] = size_resp.max_size();
-            resp->set_result(result.toStyledString());
-            resp->set_ready();
-        }));
+            translate_swarm_response(response, ec, resp, [resp](const database_response &response)
+            {
+                Json::Value result;
+                const database_size_response &size_resp = response.size();
+                result["result"] = 1;
+                result["bytes"] = size_resp.bytes();
+                result["keys"] = size_resp.keys();
+                result["remaining_bytes"] = size_resp.remaining_bytes();
+                result["max_size"] = size_resp.max_size();
+                resp->set_result(result.toStyledString());
+                resp->set_ready();
+            });
+        });
 
     return resp;
 }
@@ -298,17 +306,19 @@ database::ttl(const key_t& key)
     msg.set_allocated_ttl(request);
 
     this->db_impl->send_message_to_swarm(msg, send_policy::normal
-        , std::bind(&database::translate_swarm_response, shared_from_this(), std::placeholders::_1
-        , std::placeholders::_2, resp, [resp](const database_response &response)
+        , [resp](const database_response &response, const boost::system::error_code &ec)
         {
-            Json::Value result;
-            const database_ttl_response& read_resp = response.ttl();
-            result["result"] = 1;
-            result["key"] = read_resp.key();
-            result["ttl"] = read_resp.ttl();
-            resp->set_result(result.toStyledString());
-            resp->set_ready();
-        }));
+            translate_swarm_response(response, ec, resp, [resp](const database_response &response)
+            {
+                Json::Value result;
+                const database_ttl_response &read_resp = response.ttl();
+                result["result"] = 1;
+                result["key"] = read_resp.key();
+                result["ttl"] = read_resp.ttl();
+                resp->set_result(result.toStyledString());
+                resp->set_ready();
+            });
+        });
 
     return resp;
 }

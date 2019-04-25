@@ -28,6 +28,8 @@
 namespace bzapi
 {
     std::shared_ptr<bzn::asio::io_context_base> io_context;
+    boost::asio::signal_set *signals = nullptr;
+    std::thread *io_thread;
     std::shared_ptr<swarm_factory> the_swarm_factory;
     std::shared_ptr<crypto_base> the_crypto;
     std::shared_ptr<bzn::beast::websocket_base> ws_factory;
@@ -39,14 +41,36 @@ namespace bzapi
     }
 
     bool
-    initialize(const char *private_key, const char *endpoint)
+    initialize(const char *public_key, const char *private_key, const char *endpoint)
     {
         try
         {
             io_context = std::make_shared<bzn::asio::io_context>();
+
+            signals = new boost::asio::signal_set(io_context->get_io_context(), SIGINT);
+            signals->async_wait([&](const boost::system::error_code& error, int signal_number)
+            {
+                if (!error)
+                {
+                    std::cout << "signal received -- shutting down (" << signal_number << ")";
+                    io_context->stop();
+                }
+                else
+                {
+                    std::cout << "Error: " << error.value() << ", " << error.category().name() << std::endl;
+                }
+            });
+
+            io_thread = new std::thread([&]()
+            {
+                std::cout << "running io_context" << std::endl;
+                auto res = io_context->run();
+                std::cout << "ran: " << res << std::endl;
+            });
+
             the_crypto = std::make_shared<crypto>(private_key);
             ws_factory = std::make_shared<bzn::beast::websocket>();
-            the_swarm_factory = std::make_shared<swarm_factory>(io_context, ws_factory, the_crypto);
+            the_swarm_factory = std::make_shared<swarm_factory>(io_context, ws_factory, the_crypto, public_key);
             the_swarm_factory->temporary_set_default_endpoint(endpoint);
         }
         catch(...)

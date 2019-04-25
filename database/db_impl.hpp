@@ -27,6 +27,7 @@ namespace bzapi
     {
     public:
         db_impl(std::shared_ptr<bzn::asio::io_context_base> io_context, std::shared_ptr<swarm_base> swarm, uuid_t uuid);
+        ~db_impl();
 
         void initialize(completion_handler_t handler);
 

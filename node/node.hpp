@@ -26,7 +26,7 @@ namespace bzapi
     // establishes and maintains connection with node
     // sends messages to node
     // receives incoming messages and forwards them to owner
-    class node : public node_base
+    class node : public node_base, public std::enable_shared_from_this<node>
     {
     public:
         node(std::shared_ptr<bzn::asio::io_context_base> io_context
@@ -35,7 +35,7 @@ namespace bzapi
         ~node();
 
         void register_message_handler(node_message_handler msg_handler) override;
-        void send_message(const char *msg, size_t len, completion_handler_t callback) override;
+        void send_message(const std::string& msg, completion_handler_t callback) override;
 
     private:
         std::shared_ptr<bzn::asio::io_context_base> io_context;
@@ -48,6 +48,7 @@ namespace bzapi
         boost::asio::ip::tcp::endpoint make_tcp_endpoint(const std::string& host, uint16_t port);
         void connect(completion_handler_t callback);
         void send(boost::asio::mutable_buffers_1 buffer, completion_handler_t callback, bool is_retry = false);
+        void send(const std::string& msg, completion_handler_t callback, bool is_retry = false);
         void receive();
         void close();
     };

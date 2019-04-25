@@ -31,11 +31,26 @@ db_impl::db_impl(std::shared_ptr<bzn::asio::io_context_base> io_context
 {
 }
 
+db_impl::~db_impl()
+{
+}
+
 void
 db_impl::initialize(completion_handler_t handler)
 {
-    this->swarm->register_response_handler(bzn_envelope::kDatabaseResponse, std::bind(&db_impl::handle_swarm_response
-        , shared_from_this(), std::placeholders::_2));
+    this->swarm->register_response_handler(bzn_envelope::kDatabaseResponse
+        , [weak_this = weak_from_this()](const uuid_t& /*uuid*/, const bzn_envelope& env)->bool
+    {
+        auto strong_this = weak_this.lock();
+        if (strong_this)
+        {
+            return strong_this->handle_swarm_response(env);
+        }
+        else
+        {
+            return true;
+        }
+    });
 
     this->swarm->initialize(handler);
 }
@@ -85,11 +100,15 @@ db_impl::setup_request_policy(msg_info& info, send_policy policy, nonce_t nonce)
         info.responses_required = this->swarm->honest_majority_size();
         info.retry_timer = this->io_context->make_unique_steady_timer();
         info.retry_timer->expires_from_now(REQUEST_RETRY_TIME);
-        info.retry_timer->async_wait([this, nonce](const auto& ec)
+        info.retry_timer->async_wait([weak_this = weak_from_this(), nonce](const auto& ec)
         {
-            this->handle_request_timeout(ec, nonce);
+            auto strong_this = weak_this.lock();
+            if (strong_this)
+            {
+                strong_this->handle_request_timeout(ec, nonce);
 
-            // we may need a client timeout here...
+                // we may need a client timeout here...
+            }
         });
     }
     else
@@ -127,11 +146,15 @@ db_impl::handle_request_timeout(const boost::system::error_code& ec, nonce_t non
                   % nonce % info.responses.size() % info.responses_required;
 
     info.retry_timer->expires_from_now(BROADCAST_RETRY_TIME);
-    info.retry_timer->async_wait([this, nonce](const auto& ec2)
+    info.retry_timer->async_wait([weak_this = weak_from_this(), nonce](const auto& ec2)
     {
-        this->handle_request_timeout(ec2, nonce);
+        auto strong_this = weak_this.lock();
+        if (strong_this)
+        {
+            strong_this->handle_request_timeout(ec2, nonce);
 
-        // we may need a client timeout here...
+            // we may need a client timeout here...
+        }
     });
 
     // broadcast the retry
@@ -155,6 +178,14 @@ db_impl::handle_swarm_response(const bzn_envelope& response)
     if (i == this->messages.end())
     {
         LOG(debug) << "Ignoring db response for unknown or already processed message: " << nonce;
+        return false;
+    }
+
+    // all responses apart from quickreads require a signature
+    // TODO: this isn't ideal if we wan't to enable/disable signatures globally
+    if (!db_response.has_quick_read() && response.signature().empty())
+    {
+        LOG(debug) << "Dropping unsigned response for message: " << nonce;
         return false;
     }
 

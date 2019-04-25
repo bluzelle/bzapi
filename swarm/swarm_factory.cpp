@@ -21,8 +21,9 @@ using namespace bzapi;
 
 swarm_factory::swarm_factory(std::shared_ptr<bzn::asio::io_context_base> io_context
     , std::shared_ptr<bzn::beast::websocket_base> ws_factory
-    , std::shared_ptr<crypto_base> crypto)
-: io_context(std::move(io_context)), ws_factory(std::move(ws_factory)), crypto(std::move(crypto))
+    , std::shared_ptr<crypto_base> crypto
+    , const uuid_t& uuid)
+: io_context(std::move(io_context)), ws_factory(std::move(ws_factory)), crypto(std::move(crypto)), my_uuid(uuid)
 {
     node_factory = std::make_shared<::node_factory>();
 }
@@ -62,6 +63,7 @@ swarm_factory::get_swarm(const uuid_t& uuid, std::function<void(std::shared_ptr<
         }
     });
 
+    // TODO: fix this
 //    std::shared_ptr<swarm> the_swarm = std::make_shared<swarm>(this->node_factory, this->io_context, this->crypto
 //        , this->tmp_default_endpoint);
 //    this->swarms[uuid] = the_swarm;
@@ -86,16 +88,22 @@ swarm_factory::create_db(const uuid_t& uuid, std::function<void(std::shared_ptr<
     auto sw = sw_info->second.lock();
     if (!sw)
     {
-        sw = std::make_shared<swarm>(this->node_factory, this->ws_factory, this->io_context, this->crypto, sw_info->first);
+        sw = std::make_shared<swarm>(this->node_factory, this->ws_factory, this->io_context, this->crypto
+            , sw_info->first, my_uuid);
         this->swarms[sw_info->first] = sw;
     }
 
-    sw->create_uuid(uuid, [callback, sw, this, uuid](auto res)
+    sw->create_uuid(uuid, [callback, sw, weak_this = weak_from_this(), uuid](auto res)
     {
         if (res)
         {
-            this->uuids[uuid] = sw;
-            callback(sw);
+            auto strong_this = weak_this.lock();
+            if (strong_this)
+            {
+                strong_this->uuids[uuid] = sw;
+                callback(sw);
+                return;
+            }
         }
         else
         {
@@ -109,8 +117,8 @@ void
 swarm_factory::temporary_set_default_endpoint(const endpoint_t& endpoint)
 {
     this->endpoints.insert(endpoint);
-    this->swarms[endpoint] =
-        std::make_shared<swarm>(this->node_factory, this->ws_factory, this->io_context, this->crypto, endpoint);
+    this->swarms[endpoint] = std::make_shared<swarm>(this->node_factory, this->ws_factory, this->io_context
+        , this->crypto, endpoint, my_uuid);
 }
 
 void
@@ -124,29 +132,33 @@ swarm_factory::has_db(const uuid_t& uuid, std::function<void(db_error result)> c
 
     // TODO: set a timer to retry if no response
 
-    auto count = this->swarms.size();
+    //auto count = this->swarms.size();
     for (const auto& elem : this->swarms)
     {
         auto sw = elem.second.lock();
         if (!sw)
         {
-            sw = std::make_shared<swarm>(this->node_factory, this->ws_factory, this->io_context, this->crypto, elem.first);
+            sw = std::make_shared<swarm>(this->node_factory, this->ws_factory, this->io_context, this->crypto
+                , elem.first, my_uuid);
             this->swarms[elem.first] = sw;
         }
 
-        // TODO: can the shared_ptr be captured by reference?
-//        sw->has_uuid(uuid, [uuid, callback, sw, this](auto res)
-        sw->has_uuid(uuid, [&](auto res)
+        sw->has_uuid(uuid, [weak_this = weak_from_this(), uuid, /*count,*/ callback, sw /*weak_sw = std::weak_ptr(sw)*/](auto res)
         {
-            count--;
+            //count--;
             if (res)
             {
-                this->uuids[uuid] = sw;
-                callback(db_error::success);
+                auto strong_this = weak_this.lock();
+                if (strong_this)
+                {
+                    //strong_this->uuids[uuid] = weak_sw;
+                    strong_this->uuids[uuid] = sw;
+                    callback(db_error::success);
+                }
             }
             else
             {
-                if (!count)
+                if (/*!count*/ 1)
                 {
                     callback(db_error::no_database);
                 }

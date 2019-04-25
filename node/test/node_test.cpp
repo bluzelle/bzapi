@@ -92,7 +92,7 @@ TEST_F(node_test, test_send_and_receive_message)
         }));
 
     // send the "request"
-    this->node->send_message(test_str.c_str(), test_str.size(), [&](auto ec)
+    this->node->send_message(test_str, [&](auto ec)
     {
         EXPECT_EQ(ec, boost::system::errc::success);
     });

@@ -32,9 +32,10 @@ swarm::swarm(std::shared_ptr<node_factory_base> node_factory
     , std::shared_ptr<bzn::beast::websocket_base> ws_factory
     , std::shared_ptr<bzn::asio::io_context_base> io_context
     , std::shared_ptr<crypto_base> crypto
-    , const endpoint_t& initial_endpoint)
+    , const endpoint_t& initial_endpoint
+    , const uuid_t& uuid)
 : node_factory(std::move(node_factory)), ws_factory(std::move(ws_factory)), io_context(std::move(io_context))
-    , crypto(std::move(crypto)), initial_endpoint(initial_endpoint)
+    , crypto(std::move(crypto)), initial_endpoint(initial_endpoint), my_uuid(uuid)
 {
 }
 
@@ -90,10 +91,13 @@ swarm::has_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
     request.set_allocated_header(new database_header(header));
     request.set_allocated_has_db(new database_has_db());
     env.set_database_msg(request.SerializeAsString());
-    env.set_sender("me");
+    env.set_sender(my_uuid);
+    env.set_timestamp(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count()));
+
     this->crypto->sign(env);
     auto message = env.SerializeAsString();
-    uuid_node->send_message(message.c_str(), message.size(), [callback, uuid](const auto& ec)
+    uuid_node->send_message(message, [callback, uuid](const auto& ec)
     {
         if (ec)
         {
@@ -120,18 +124,23 @@ swarm::create_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
 
     // TODO: should this call a static method inside db_impl? Not ideal having the swarm
     // process a database message
-    uuid_node->register_message_handler([uuid, callback](const char *data, uint64_t len)
+    uuid_node->register_message_handler([weak_this = weak_from_this(), uuid, callback](const char *data, uint64_t len)->bool
     {
-        bzn_envelope env;
-        database_response response;
-        if (!env.ParseFromString(std::string(data, len)) || !response.ParseFromString(env.database_response()))
+        auto strong_this = weak_this.lock();
+        if (strong_this)
         {
-            LOG(error) << "Dropping invalid response to has_db: " << std::string(data, MAX_MESSAGE_SIZE);
-            callback(false);
-            return true;
+            bzn_envelope env;
+            database_response response;
+            if (!env.ParseFromString(std::string(data, len)) || !response.ParseFromString(env.database_response()))
+            {
+                LOG(error) << "Dropping invalid response to has_db: " << std::string(data, MAX_MESSAGE_SIZE);
+                callback(false);
+                return true;
+            }
+
+            callback(response.has_error());
         }
 
-        callback(response.has_error());
         return true;
     });
 
@@ -153,7 +162,7 @@ swarm::create_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
     this->crypto->sign(env);
 
     auto message = env.SerializeAsString();
-    uuid_node->send_message(message.c_str(), message.size(), [callback, uuid](const auto& ec)
+    uuid_node->send_message(message, [callback, uuid](const auto& ec)
     {
         if (ec)
         {
@@ -194,8 +203,6 @@ swarm::initialize(completion_handler_t handler)
 
     auto endpoint = this->parse_endpoint(initial_endpoint);
     auto initial_node = node_factory->create_node(this->io_context, this->ws_factory, endpoint.first, endpoint.second);
-//    initial_node->register_message_handler(std::bind(&swarm::handle_node_message, shared_from_this()
-//        , INITIAL_NODE, std::placeholders::_1, std::placeholders::_2));
     initial_node->register_message_handler([weak_this = weak_from_this()](const char *data, uint64_t len)->bool
     {
         auto strong_this = weak_this.lock();
@@ -208,8 +215,6 @@ swarm::initialize(completion_handler_t handler)
             return true;
         }
     });
-//        std::bind(&swarm::handle_node_message, shared_from_this()
-//        , INITIAL_NODE, std::placeholders::_1, std::placeholders::_2));
 
     node_info info{initial_node, endpoint.first, endpoint.second};
     info.status_timer = this->io_context->make_unique_steady_timer();
@@ -272,7 +277,7 @@ void
 swarm::send_node_request(std::shared_ptr<node_base> node, std::shared_ptr<bzn_envelope> request)
 {
     std::string msg = request->SerializeAsString();
-    node->send_message(msg.c_str(), msg.length(), [](auto ec)
+    node->send_message(msg, [](auto ec)
     {
         if (ec)
         {
@@ -325,6 +330,7 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
     std::chrono::microseconds this_node_duration = std::chrono::duration_cast<std::chrono::microseconds>(
         std::chrono::steady_clock::now() - (*this->nodes)[uuid].last_status_request_sent);
 
+    // TODO: fix this
 //    auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>( std::chrono::steady_clock::now()
 //    - (*this->nodes)[uuid].last_status_request_sent);
     auto fastest_time = this_node_duration;
@@ -376,10 +382,6 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
                             return true;
                         }
                     });
-
-//                    info.node->register_message_handler(
-//                        std::bind(&swarm::handle_node_message, shared_from_this(), node_uuid, std::placeholders::_1,
-//                            std::placeholders::_2));
                 }
                 else
                 {
@@ -402,11 +404,7 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
                         }
                     });
 
-//                    info.node->register_message_handler(
-//                        std::bind(&swarm::handle_node_message, shared_from_this(), node_uuid, std::placeholders::_1,
-//                            std::placeholders::_2));
                     info.status_timer = this->io_context->make_unique_steady_timer();
-
                     new_uuids.push_back(node_uuid);
                 }
             }
@@ -420,10 +418,15 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
 
                 // schedule another status request for this node
                 info.status_timer->expires_from_now(STATUS_REQUEST_TIME);
-                info.status_timer->async_wait([this, node_uuid](auto ec) {
+                info.status_timer->async_wait([weak_this = weak_from_this(), node_uuid](auto ec)
+                {
                     if (!ec)
                     {
-                        this->send_status_request(node_uuid);
+                        auto strong_this = weak_this.lock();
+                        if (strong_this)
+                        {
+                            strong_this->send_status_request(node_uuid);
+                        }
                     }
                 });
             }
@@ -505,7 +508,7 @@ swarm::send_status_request(uuid_t node_uuid)
     auto msg = env.SerializeAsString();
     info.last_status_request_sent = std::chrono::steady_clock::now();
     info.last_message_sent = std::chrono::steady_clock::now();
-    node->send_message(msg.c_str(), msg.length(), [&](auto& ec)
+    node->send_message(msg, [](auto& ec)
     {
         if (ec)
         {
@@ -542,7 +545,8 @@ swarm::handle_node_message(const std::string& uuid, const char *data, uint64_t l
         return true;
     }
 
-    if (!this->crypto->verify(env))
+    // only verify signature if it exists. upper layer will check for existance of signature where required
+    if (env.signature().length() && !this->crypto->verify(env))
     {
         LOG(error) << "Dropping message with invalid signature: " << env.DebugString().substr(0, MAX_MESSAGE_SIZE);
         return true;

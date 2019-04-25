@@ -58,7 +58,8 @@ protected:
     std::shared_ptr<bzn::asio::Mockio_context_base> mock_io_context = std::make_shared<bzn::asio::Mockio_context_base>();
     std::shared_ptr<crypto_base> crypto = std::make_shared<null_crypto>();
     std::shared_ptr<bzn::beast::websocket_base> ws_factory = std::make_shared<bzn::beast::Mockwebsocket_base>();
-    std::shared_ptr<swarm_base> the_swarm = std::make_shared<swarm>(node_factory, ws_factory, mock_io_context, crypto, "ws://127.0.0.1:0");
+    std::shared_ptr<swarm_base> the_swarm = std::make_shared<swarm>(node_factory, ws_factory, mock_io_context, crypto
+        , "ws://127.0.0.1:0", "my_uuid");
     std::vector<std::shared_ptr<mock_node>> mock_nodes;
 
     std::map<uint16_t, node_meta> nodes;
@@ -129,8 +130,8 @@ protected:
                 this->nodes[meta.id].handler = handler;
             }));
 
-        EXPECT_CALL(*meta.node, send_message(_, _, _)).Times(AtLeast(1))
-            .WillRepeatedly(Invoke([this, meta](auto /*msg*/, auto /*len*/, auto callback)
+        EXPECT_CALL(*meta.node, send_message(_, _)).Times(AtLeast(1))
+            .WillRepeatedly(Invoke([this, meta](auto /*msg*/, auto callback)
             {
                 // schedule status response
                 auto node = this->nodes[meta.id];
@@ -251,8 +252,8 @@ TEST_F(swarm_test, test_bad_status)
             meta.handler = handler;
         }));
 
-    EXPECT_CALL(*meta.node, send_message(_, _, _)).Times(AtLeast(1))
-        .WillRepeatedly(Invoke([&meta](auto /*msg*/, auto /*len*/, auto /*callback*/)
+    EXPECT_CALL(*meta.node, send_message(_, _)).Times(AtLeast(1))
+        .WillRepeatedly(Invoke([&meta](auto /*msg*/, auto /*callback*/)
         {
             // schedule status response
             auto node = meta.node;
