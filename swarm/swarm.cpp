@@ -350,12 +350,12 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
         std::stringstream(status.module_status_json()) >> module_status;
 
         // find the pbft module status (verify this exists first?)
-        Json::Value swarm_status = module_status["pbft"];
+        Json::Value swarm_status = module_status["module"][0];
 
         auto new_nodes = std::make_shared<std::unordered_map<uuid_t, node_info>>();
         std::vector<std::string> new_uuids;
 
-        Json::Value peer_index = swarm_status["peer_index"];
+        Json::Value peer_index = swarm_status["status"]["peer_index"];
         for (Json::ArrayIndex i = 0; i < peer_index.size(); i++)
         {
             Json::Value node = peer_index[i];
