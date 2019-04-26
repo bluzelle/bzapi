@@ -47,7 +47,6 @@ namespace bzapi
 
         boost::asio::ip::tcp::endpoint make_tcp_endpoint(const std::string& host, uint16_t port);
         void connect(completion_handler_t callback);
-        void send(boost::asio::mutable_buffers_1 buffer, completion_handler_t callback, bool is_retry = false);
         void send(const std::string& msg, completion_handler_t callback, bool is_retry = false);
         void receive();
         void close();

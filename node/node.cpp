@@ -72,56 +72,57 @@ node::make_tcp_endpoint(const std::string& host, uint16_t port)
 void
 node::connect(completion_handler_t callback)
 {
-//    std::shared_ptr<bzn::asio::tcp_socket_base> socket = this->io_context->make_unique_tcp_socket();
-//    socket->async_connect(this->endpoint, [weak_this = weak_from_this(), callback, socket](auto ec)
-//    {
-//        // TODO: save connection latency...
-//
-//        if (ec)
-//        {
-//            // failed to connect
-//            callback(ec);
-//            return;
-//        }
-//
-//        auto strong_this = weak_this.lock();
-//        if (strong_this)
-//        {
-//            strong_this->connected = true;
-//
-//            // set tcp_nodelay option
-//            boost::system::error_code option_ec;
-//            socket->get_tcp_socket().set_option(boost::asio::ip::tcp::no_delay(true), option_ec);
-//            if (option_ec)
-//            {
-//                LOG(error) << "failed to set socket option: " << option_ec.message();
-//            }
-//
-//            strong_this->websocket = strong_this->ws_factory->make_unique_websocket_stream(socket->get_tcp_socket());
-//            strong_this->websocket->async_handshake(strong_this->endpoint.address().to_string(), "/"
-//                , [weak_this2 = std::weak_ptr(strong_this), callback](auto ec)
-//                {
-//                    auto strong_this2 = weak_this2.lock();
-//                    if (strong_this2)
-//                    {
-//                        if (ec)
-//                        {
-//                            // connect failed
-//                            callback(ec);
-//                            return;
-//                        }
-//
-//                    callback(ec);
-////                    auto strong_this2 = weak_this2.lock();
-//                    if (strong_this2)
-//                    {
-//                        strong_this2->receive();
-//                    }
-//                }
-//            });
-//        }
-//    });
+#if 1
+    std::shared_ptr<bzn::asio::tcp_socket_base> socket = this->io_context->make_unique_tcp_socket();
+    socket->async_connect(this->endpoint, [weak_this = weak_from_this(), callback, socket](auto ec)
+    {
+        // TODO: save connection latency...
 
+        if (ec)
+        {
+            // failed to connect
+            callback(ec);
+            return;
+        }
+
+        auto strong_this = weak_this.lock();
+        if (strong_this)
+        {
+            strong_this->connected = true;
+
+            // set tcp_nodelay option
+            boost::system::error_code option_ec;
+            socket->get_tcp_socket().set_option(boost::asio::ip::tcp::no_delay(true), option_ec);
+            if (option_ec)
+            {
+                LOG(error) << "failed to set socket option: " << option_ec.message();
+            }
+
+            strong_this->websocket = strong_this->ws_factory->make_unique_websocket_stream(socket->get_tcp_socket());
+            strong_this->websocket->async_handshake(strong_this->endpoint.address().to_string(), "/"
+                , [weak_this2 = std::weak_ptr(strong_this), callback](auto ec)
+                {
+                    auto strong_this2 = weak_this2.lock();
+                    if (strong_this2)
+                    {
+                        if (ec)
+                        {
+                            // connect failed
+                            callback(ec);
+                            return;
+                        }
+
+                    callback(ec);
+//                    auto strong_this2 = weak_this2.lock();
+                    if (strong_this2)
+                    {
+                        strong_this2->receive();
+                    }
+                }
+            });
+        }
+    });
+#else
     std::shared_ptr<bzn::asio::tcp_socket_base> socket = this->io_context->make_unique_tcp_socket();
     socket->async_connect(this->endpoint, [this, callback, socket](auto ec)
     {
@@ -161,78 +162,7 @@ node::connect(completion_handler_t callback)
                 this->receive();
             });
     });
-}
-
-void
-node::send(boost::asio::mutable_buffers_1 buffer, completion_handler_t callback, bool is_retry)
-{
-    // need to wrap this in a strand...
-
-//    this->websocket->async_write(buffer, [weak_this = weak_from_this(), callback, is_retry, buffer](auto ec, auto /*bytes*/)
-//    {
-//        if (ec == boost::beast::websocket::error::closed || ec == boost::asio::error::eof)
-//        {
-//            auto strong_this = weak_this.lock();
-//            if (strong_this)
-//            {
-//                strong_this->connected = false;
-//
-//                // try to reconnect once
-//                if (!is_retry)
-//                {
-//                    strong_this->connect([weak_this2 = std::weak_ptr(strong_this), callback, buffer](auto ec)
-//                    {
-//                        if (ec)
-//                        {
-//                            callback(ec);
-//                            return;
-//                        }
-//
-//                        auto strong_this2 = weak_this2.lock();
-//                        if (strong_this2)
-//                        {
-//                            strong_this2->send(buffer, callback, true);
-//                            return;
-//                        }
-//                    });
-//                }
-//            }
-//        }
-//        else
-//        {
-//            callback(ec);
-//        }
-//    });
-
-    this->websocket->binary(true);
-    this->websocket->async_write(buffer, [this, callback, is_retry, &buffer](auto ec, auto bytes)
-    {
-        if (ec == boost::beast::websocket::error::closed || ec == boost::asio::error::eof)
-        {
-            this->connected = false;
-
-            // try to reconnect once
-            if (!is_retry)
-            {
-                this->connect([this, callback, &buffer](auto ec)
-                {
-                    if (ec)
-                    {
-                        callback(ec);
-                        return;
-                    }
-
-                    this->send(buffer, callback, true);
-                    return;
-                });
-            }
-        }
-        else
-        {
-            std::cout << bytes << " bytes written";
-            callback(ec);
-        }
-    });
+#endif
 }
 
 void
@@ -241,26 +171,34 @@ node::send(const std::string& msg, completion_handler_t callback, bool is_retry)
     boost::asio::mutable_buffers_1 buffer((void*)msg.c_str(), msg.length());
 
     this->websocket->binary(true);
-    this->websocket->async_write(buffer, [this, callback, is_retry, msg](auto ec, auto bytes)
+    this->websocket->async_write(buffer, [weak_this = weak_from_this(), callback, is_retry, msg](auto ec, auto bytes)
     {
         if (ec == boost::beast::websocket::error::closed || ec == boost::asio::error::eof)
         {
-            this->connected = false;
-
-            // try to reconnect once
-            if (!is_retry)
+            auto strong_this = weak_this.lock();
+            if (strong_this)
             {
-                this->connect([this, callback, msg](auto ec)
-                {
-                    if (ec)
-                    {
-                        callback(ec);
-                        return;
-                    }
+                strong_this->connected = false;
 
-                    this->send(msg, callback, true);
-                    return;
-                });
+                // try to reconnect once
+                if (!is_retry)
+                {
+                    strong_this->connect([weak_this2 = std::weak_ptr(strong_this), callback, msg](auto ec)
+                    {
+                        if (ec)
+                        {
+                            callback(ec);
+                            return;
+                        }
+
+                        auto strong_this2 = weak_this2.lock();
+                        if (strong_this2)
+                        {
+                            strong_this2->send(msg, callback, true);
+                            return;
+                        }
+                    });
+                }
             }
         }
         else
@@ -274,33 +212,34 @@ node::send(const std::string& msg, completion_handler_t callback, bool is_retry)
 void
 node::receive()
 {
-//    auto buffer = std::make_shared<boost::beast::multi_buffer>();
-//    this->websocket->async_read(*buffer, [weak_this = weak_from_this(), buffer](auto ec, auto /*bytes_transferred*/)
-//    {
-//        auto strong_this = weak_this.lock();
-//        if (strong_this)
-//        {
-//            if (ec)
-//            {
-//                strong_this->close();
-//                return;
-//            }
-//
-//            std::stringstream ss;
-//            ss << boost::beast::buffers(buffer->data());
-//            std::string str = ss.str();
-//
-//            if (strong_this->handler(str.c_str(), str.length()))
-//            {
-//                strong_this->close();
-//            }
-//            else
-//            {
-//                strong_this->receive();
-//            }
-//        }
-//    });
+#if 1
+    auto buffer = std::make_shared<boost::beast::multi_buffer>();
+    this->websocket->async_read(*buffer, [weak_this = weak_from_this(), buffer](auto ec, auto /*bytes_transferred*/)
+    {
+        auto strong_this = weak_this.lock();
+        if (strong_this)
+        {
+            if (ec)
+            {
+                strong_this->close();
+                return;
+            }
 
+            std::stringstream ss;
+            ss << boost::beast::buffers(buffer->data());
+            std::string str = ss.str();
+
+            if (strong_this->handler(str.c_str(), str.length()))
+            {
+                strong_this->close();
+            }
+            else
+            {
+                strong_this->receive();
+            }
+        }
+    });
+#else
     auto buffer = std::make_shared<boost::beast::multi_buffer>();
     this->websocket->async_read(*buffer, [this, buffer](auto ec, auto /*bytes_transferred*/)
     {
@@ -323,6 +262,7 @@ node::receive()
             this->receive();
         }
     });
+#endif
 }
 
 void
