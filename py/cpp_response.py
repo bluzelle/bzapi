@@ -18,6 +18,10 @@ sys.path.extend([os.getcwd()])
 
 from build.library import bzpy
 
+pub_key = "MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEiykQ5A02u+02FR1nftxT5VuUdqLO6lvN\n" \
+"oL5aAIyHvn8NS0wgXxbPfpuqUPpytiopiS5D+t2cYzXJn19MQmnl/g=="
+
+
 priv_key = "-----BEGIN EC PRIVATE KEY-----\n" \
            "MHQCAQEEIBWDWE/MAwtXaFQp6d2Glm2Uj7ROBlDKFn5RwqQsDEbyoAcGBSuBBAAK\n" \
            "oUQDQgAEiykQ5A02u+02FR1nftxT5VuUdqLO6lvNoL5aAIyHvn8NS0wgXxbPfpuq\n" \
@@ -27,14 +31,18 @@ priv_key = "-----BEGIN EC PRIVATE KEY-----\n" \
 async def get_via_socket():
     my_port = 1234
     local = await open_local_endpoint('127.0.0.1', my_port)
-    a = bzpy.initialize(priv_key, "ws://75.96.163.85:51010")  # EC keys in string form. pub key doesn't have header, private does. see library_test.cpp for example
+    a = bzpy.initialize(pub_key, priv_key, "ws://75.96.163.85:51010")  # EC keys in string form. pub key doesn't have header, private does. see library_test.cpp for example
     print("Init good ", a)
-    resp = bzpy.create_db("test23")
+    resp = bzpy.has_db("1111-2222")
     cpp_port = resp.get_signal_id(my_port)
     print("Cpp port", cpp_port)
     print("Result ready 1 ", resp.is_ready())
     data, address = await local.receive() # wait for processing to continue
     print("Result ready 2 ", resp.is_ready())
+
+
+
+
     # await resp
     # mydb = resp.get_db()
     # resp = mydb.create("mykey", "myvalue")
