@@ -85,11 +85,11 @@ namespace bzapi
     has_db(const char *uuid)
     {
         auto resp = make_response();
-        the_swarm_factory->has_db(uuid, [resp, uuid](auto res)
+        the_swarm_factory->has_db(uuid, [resp, uuidstr = std::string(uuid)](auto res)
         {
             Json::Value result;
             result["result"] = res == db_error::success ? 1 : 0;
-            result["uuid"] = std::string(uuid);
+            result["uuid"] = uuidstr;
             resp->set_result(result.toStyledString());
             resp->set_ready();
         });
@@ -101,17 +101,17 @@ namespace bzapi
     create_db(const char *uuid)
     {
         auto resp = make_response();
-        the_swarm_factory->has_db(uuid, [&](auto res)
+        the_swarm_factory->has_db(uuid, [&, uuidstr = std::string(uuid)](auto res)
         {
             if (res == db_error::no_database)
             {
-                the_swarm_factory->create_db(uuid, [&](auto sw)
+                the_swarm_factory->create_db(uuidstr, [&](auto sw)
                 {
                     if (sw)
                     {
-                        auto dbi = std::make_shared<db_impl>(io_context, sw, uuid);
+                        auto dbi = std::make_shared<db_impl>(io_context, sw, uuidstr);
                         auto db = std::make_shared<database>(dbi);
-                        db->open([&](auto ec)
+                        db->open([sw, resp, db](auto ec)
                         {
                             if (ec)
                             {
@@ -132,27 +132,27 @@ namespace bzapi
                     }
                     else
                     {
-                        LOG(error) << "Error creating database for: " << std::string(uuid);
+                        LOG(error) << "Error creating database for: " << uuidstr;
                         Json::Value result;
                         result["error"] = "Error creating database";
-                        result["uuid"] = uuid;
+                        result["uuid"] = uuidstr;
                         resp->set_error(static_cast<int>(db_error::no_database));
                     }
                 });
             }
             else if (res == db_error::success)
             {
-                LOG(debug) << "Unable to create existing database: " << std::string(uuid);
+                LOG(debug) << "Unable to create existing database: " << uuidstr;
                 Json::Value result;
                 result["error"] = "UUID already exists";
-                result["uuid"] = uuid;
+                result["uuid"] = uuidstr;
                 resp->set_error(static_cast<int>(db_error::database_error));
             }
             else
             {
                 Json::Value result;
                 result["error"] = "Connection error";
-                result["uuid"] = uuid;
+                result["uuid"] = uuidstr;
                 resp->set_error(static_cast<int>(db_error::connection_error));
             }
         });
@@ -164,7 +164,7 @@ namespace bzapi
     open_db(const char *uuid)
     {
         auto resp = make_response();
-        the_swarm_factory->has_db(uuid, [&](auto res)
+        the_swarm_factory->has_db(uuid, [&, uuidstr = std::string(uuid)](auto res)
         {
             if (res == db_error::success)
             {
@@ -172,7 +172,7 @@ namespace bzapi
                 {
                     if (sw)
                     {
-                        auto dbi = std::make_shared<db_impl>(io_context, sw, uuid);
+                        auto dbi = std::make_shared<db_impl>(io_context, sw, uuidstr);
                         auto db = std::make_shared<database>(dbi);
                         db->open([&](auto ec)
                         {
@@ -195,10 +195,10 @@ namespace bzapi
                     }
                     else
                     {
-                        LOG(error) << "Error getting swarm for: " << std::string(uuid);
+                        LOG(error) << "Error getting swarm for: " << uuidstr;
                         Json::Value result;
                         result["error"] = "Error getting swarm";
-                        result["uuid"] = uuid;
+                        result["uuid"] = uuidstr;
                         resp->set_error(static_cast<int>(db_error::no_database));
                     }
                 });

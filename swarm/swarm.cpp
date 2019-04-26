@@ -138,7 +138,7 @@ swarm::create_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
                 return true;
             }
 
-            callback(response.has_error());
+            callback(!(response.has_error()));
         }
 
         return true;
@@ -158,7 +158,9 @@ swarm::create_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
 
     bzn_envelope env;
     env.set_database_msg(msg.SerializeAsString());
-    //env.set_sender("me");
+    env.set_sender(my_uuid);
+    env.set_timestamp(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count()));
     this->crypto->sign(env);
 
     auto message = env.SerializeAsString();
@@ -348,12 +350,12 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
         std::stringstream(status.module_status_json()) >> module_status;
 
         // find the pbft module status (verify this exists first?)
-        Json::Value swarm_status = module_status["pbft"];
+        Json::Value swarm_status = module_status["module"][0];
 
         auto new_nodes = std::make_shared<std::unordered_map<uuid_t, node_info>>();
         std::vector<std::string> new_uuids;
 
-        Json::Value peer_index = swarm_status["peer_index"];
+        Json::Value peer_index = swarm_status["status"]["peer_index"];
         for (Json::ArrayIndex i = 0; i < peer_index.size(); i++)
         {
             Json::Value node = peer_index[i];
