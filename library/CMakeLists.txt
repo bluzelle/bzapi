@@ -42,4 +42,4 @@ swig_add_library(bzpy TYPE SHARED LANGUAGE python SOURCES ../swig/py/bzpy.i)
 swig_link_libraries(bzpy ${PYTHON_LIBRARIES} bzapi)
 set_target_properties(_bzpy PROPERTIES SUFFIX ".so")
 
-#add_subdirectory(test)
+add_subdirectory(test)

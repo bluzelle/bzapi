@@ -31,14 +31,15 @@ priv_key = "-----BEGIN EC PRIVATE KEY-----\n" \
 async def get_via_socket():
     my_port = 1234
     local = await open_local_endpoint('127.0.0.1', my_port)
-    a = bzpy.initialize(pub_key, priv_key, "ws://75.96.163.85:51010")  # EC keys in string form. pub key doesn't have header, private does. see library_test.cpp for example
+    a = bzpy.initialize(pub_key, priv_key, "ws://127.0.0.1:50000")  # EC keys in string form. pub key doesn't have header, private does. see library_test.cpp for example
     print("Init good ", a)
     resp = bzpy.has_db("1111-2222")
     cpp_port = resp.get_signal_id(my_port)
     print("Cpp port", cpp_port)
     print("Result ready 1 ", resp.is_ready())
     data, address = await local.receive() # wait for processing to continue
-    print("Result ready 2 ", resp.is_ready())
+    print("\nResult ready 2 ", resp.is_ready())
+    print("\nResult", resp.get_result())
 
 
 
