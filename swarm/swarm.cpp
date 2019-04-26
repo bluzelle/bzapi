@@ -67,6 +67,7 @@ swarm::has_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
         if (!env.ParseFromString(std::string(data, len)) || !response.ParseFromString(env.database_response()))
         {
             LOG(error) << "Dropping invalid response to has_db: " << std::string(data, MAX_MESSAGE_SIZE);
+            std::cout<<"\nin U1\n";
             callback(false);
             return true;
         }
@@ -74,11 +75,13 @@ swarm::has_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
         if (response.has_db().uuid() != uuid)
         {
             LOG(error) << "Invalid uuid response to has_db: " << std::string(data, MAX_MESSAGE_SIZE);
+            std::cout<<"\nin U2\n";
             callback(false);
             return true;
         }
 
         //node->register_message_handler([](const auto, auto){return true;});
+        std::cout<<"\nin U3\n";
         callback(response.has_db().has());
         return true;
     });
@@ -97,14 +100,17 @@ swarm::has_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
 
     this->crypto->sign(env);
     auto message = env.SerializeAsString();
+
     uuid_node->send_message(message, [callback, uuid](const auto& ec)
-    {
+    {   std::cout<<"\nin S5\n";
         if (ec)
         {
+            std::cout<<"\nin LL\n";
             LOG(error) << "Error sending has_db(" << uuid << ") request: " << ec.message();
+            std::cout<<"\nin U4\n";
             callback(false);
         }
-
+        std::cout<<"\nin KK\n";
         return true;
     });
 }
