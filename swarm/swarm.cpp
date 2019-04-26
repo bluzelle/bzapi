@@ -138,7 +138,7 @@ swarm::create_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
                 return true;
             }
 
-            callback(response.has_error());
+            callback(!(response.has_error()));
         }
 
         return true;
@@ -158,7 +158,9 @@ swarm::create_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
 
     bzn_envelope env;
     env.set_database_msg(msg.SerializeAsString());
-    //env.set_sender("me");
+    env.set_sender(my_uuid);
+    env.set_timestamp(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count()));
     this->crypto->sign(env);
 
     auto message = env.SerializeAsString();

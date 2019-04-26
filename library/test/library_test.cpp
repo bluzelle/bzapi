@@ -592,11 +592,11 @@ TEST_F(integration_test, response_test)
 
 TEST_F(integration_test, live_test)
 {
-//    bool res = bzapi::initialize(pub_key, priv_key, "ws://127.0.0.1:50000");
-    bool res = bzapi::initialize(pub_key, priv_key, "ws://75.96.163.85:51010");
+    bool res = bzapi::initialize(pub_key, priv_key, "ws://127.0.0.1:50000");
+//    bool res = bzapi::initialize(pub_key, priv_key, "ws://75.96.163.85:51010");
     EXPECT_TRUE(res);
 
-    auto resp = bzapi::has_db("test_db");
+    auto resp = bzapi::create_db("test_db");
     while (!resp->is_ready())
     {
         sleep(1);

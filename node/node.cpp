@@ -72,7 +72,7 @@ node::make_tcp_endpoint(const std::string& host, uint16_t port)
 void
 node::connect(completion_handler_t callback)
 {
-#if 1
+#if 0
     std::shared_ptr<bzn::asio::tcp_socket_base> socket = this->io_context->make_unique_tcp_socket();
     socket->async_connect(this->endpoint, [weak_this = weak_from_this(), callback, socket](auto ec)
     {
@@ -168,6 +168,7 @@ node::connect(completion_handler_t callback)
 void
 node::send(const std::string& msg, completion_handler_t callback, bool is_retry)
 {
+#if 0
     boost::asio::mutable_buffers_1 buffer((void*)msg.c_str(), msg.length());
 
     this->websocket->binary(true);
@@ -207,6 +208,40 @@ node::send(const std::string& msg, completion_handler_t callback, bool is_retry)
             callback(ec);
         }
     });
+#else
+    boost::asio::mutable_buffers_1 buffer((void*)msg.c_str(), msg.length());
+
+    this->websocket->binary(true);
+    this->websocket->async_write(buffer, [this, callback, is_retry, msg](auto ec, auto bytes)
+    {
+        if (ec == boost::beast::websocket::error::closed || ec == boost::asio::error::eof)
+        {
+            this->connected = false;
+
+            // try to reconnect once
+            if (!is_retry)
+            {
+                this->connect([this, callback, msg](auto ec)
+                {
+                    if (ec)
+                    {
+                        callback(ec);
+                        return;
+                    }
+
+                    this->send(msg, callback, true);
+                    return;
+                });
+            }
+        }
+        else
+        {
+            std::cout << bytes << " bytes written";
+            callback(ec);
+        }
+    });
+
+#endif
 }
 
 void
@@ -214,7 +249,7 @@ node::receive()
 {
 #if 1
     auto buffer = std::make_shared<boost::beast::multi_buffer>();
-    this->websocket->async_read(*buffer, [weak_this = weak_from_this(), buffer](auto ec, auto /*bytes_transferred*/)
+    this->websocket->async_read(*buffer, [weak_this = weak_from_this(), buffer, ws = this->websocket](auto ec, auto /*bytes_transferred*/)
     {
         auto strong_this = weak_this.lock();
         if (strong_this)
@@ -273,6 +308,9 @@ node::close()
         this->connected = false;
 
         // ignoring close errors for now
-        this->websocket->async_close(boost::beast::websocket::close_code::normal, [](auto) {});
+        this->websocket->async_close(boost::beast::websocket::close_code::normal, [ws = this->websocket](auto)
+        {
+
+        });
     }
 }
