@@ -36,9 +36,9 @@ namespace bzapi
     {
     public:
 
-        database(std::shared_ptr<bzapi::db_impl_base> db_impl);
+        database(std::shared_ptr<db_impl_base> db_impl);
 
-        void open(bzapi::completion_handler_t handler);
+        void open(completion_handler_t handler);
 
         std::shared_ptr<response> create(const bzapi::key_t& key, const bzapi::value_t& value);
         std::shared_ptr<response> read(const bzapi::key_t& key);
@@ -53,11 +53,13 @@ namespace bzapi
         std::shared_ptr<response> persist(const bzapi::key_t& key);
         std::shared_ptr<response> ttl(const bzapi::key_t& key);
 
-        //std::string swarm_status();
+        std::string swarm_status();
 
     private:
 
-        std::shared_ptr<bzapi::db_impl_base> db_impl;
+        enum class init_state {none, initializing, initialized} state{init_state::none};
+
+        std::shared_ptr<db_impl_base> db_impl;
 
         static void translate_swarm_response(const database_response& db_response, const boost::system::error_code& ec
             , std::shared_ptr<response> resp

@@ -73,3 +73,8 @@ class DB:
         response = await self.load_(self, key, obj = self, meth = self.ttl.__name__)
         results = json.loads(response.get_result())
         return results
+
+    async def swarm_status(self):
+        response = await self.load_(self, obj = self, meth = self.swarm_status.__name__)
+        return response
+

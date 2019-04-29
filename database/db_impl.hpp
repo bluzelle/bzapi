@@ -29,9 +29,11 @@ namespace bzapi
         db_impl(std::shared_ptr<bzn::asio::io_context_base> io_context, std::shared_ptr<swarm_base> swarm, uuid_t uuid);
         ~db_impl();
 
-        void initialize(completion_handler_t handler);
+        void initialize(completion_handler_t handler) override;
 
-        void send_message_to_swarm(database_msg& msg, send_policy policy, db_response_handler_t handler);
+        void send_message_to_swarm(database_msg& msg, send_policy policy, db_response_handler_t handler) override;
+
+        std::string swarm_status() override;
 
     private:
         using nonce_t = uint64_t;

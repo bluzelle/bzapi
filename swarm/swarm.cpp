@@ -443,18 +443,18 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
                 info.last_status_duration = this_node_duration;
 
                 // schedule another status request for this node
-//                info.status_timer->expires_from_now(STATUS_REQUEST_TIME);
-//                info.status_timer->async_wait([weak_this = weak_from_this(), node_uuid](auto ec)
-//                {
-//                    if (!ec)
-//                    {
-//                        auto strong_this = weak_this.lock();
-//                        if (strong_this)
-//                        {
-//                            strong_this->send_status_request(node_uuid);
-//                        }
-//                    }
-//                });
+                info.status_timer->expires_from_now(STATUS_REQUEST_TIME);
+                info.status_timer->async_wait([weak_this = weak_from_this(), node_uuid](auto ec)
+                {
+                    if (!ec)
+                    {
+                        auto strong_this = weak_this.lock();
+                        if (strong_this)
+                        {
+                            strong_this->send_status_request(node_uuid);
+                        }
+                    }
+                });
             }
 
             if (info.last_status_duration > static_cast<std::chrono::microseconds>(0) &&
@@ -473,10 +473,10 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
         this->last_status = status;
 
         // kick off status requests for newly added nodes
-//        for (auto n : new_uuids)
-//        {
-//            this->send_status_request(n);
-//        }
+        for (auto n : new_uuids)
+        {
+            this->send_status_request(n);
+        }
     }
 
     if (this->init_handler)

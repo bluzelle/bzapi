@@ -17,6 +17,7 @@
 
 #include <string>
 #include <atomic>
+#include <iostream>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -61,7 +62,10 @@ namespace bzapi {
         // producer
         void set_result(const std::string& result)
         {
+            std::cout << "in A1"<<std::endl;
+            std::cout << result<<std::endl;
             this->result_str = result;
+            std::cout << "in A2"<<std::endl;
         }
 
         void set_ready()
