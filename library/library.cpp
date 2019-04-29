@@ -100,18 +100,19 @@ namespace bzapi
     std::shared_ptr<response>
     create_db(const char *uuid)
     {
+        auto uuidstr = std::string(uuid);
         auto resp = make_response();
-        the_swarm_factory->has_db(uuid, [&, uuidstr = std::string(uuid)](auto res)
+        the_swarm_factory->has_db(uuid, [&, uuidstr](auto res)
         {
             if (res == db_error::no_database)
             {
-                the_swarm_factory->create_db(uuidstr, [&](auto sw)
+                the_swarm_factory->create_db(uuidstr, [uuidstr, resp](auto sw)
                 {
                     if (sw)
                     {
                         auto dbi = std::make_shared<db_impl>(io_context, sw, uuidstr);
                         auto db = std::make_shared<database>(dbi);
-                        db->open([sw, resp, db](auto ec)
+                        db->open([sw, resp, db, uuidstr](auto ec)
                         {
                             if (ec)
                             {
@@ -124,6 +125,7 @@ namespace bzapi
                             {
                                 Json::Value result;
                                 result["result"] = 1;
+                                result["uuid"] = uuidstr;
                                 resp->set_result(result.toStyledString());
                                 resp->set_db(db);
                                 resp->set_ready();
@@ -136,6 +138,7 @@ namespace bzapi
                         Json::Value result;
                         result["error"] = "Error creating database";
                         result["uuid"] = uuidstr;
+                        resp->set_result(result.toStyledString());
                         resp->set_error(static_cast<int>(db_error::no_database));
                     }
                 });
@@ -146,6 +149,7 @@ namespace bzapi
                 Json::Value result;
                 result["error"] = "UUID already exists";
                 result["uuid"] = uuidstr;
+                resp->set_result(result.toStyledString());
                 resp->set_error(static_cast<int>(db_error::database_error));
             }
             else
@@ -153,6 +157,7 @@ namespace bzapi
                 Json::Value result;
                 result["error"] = "Connection error";
                 result["uuid"] = uuidstr;
+                resp->set_result(result.toStyledString());
                 resp->set_error(static_cast<int>(db_error::connection_error));
             }
         });
