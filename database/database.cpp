@@ -31,7 +31,25 @@ database::database(std::shared_ptr<db_impl_base> db_impl)
 void
 database::open(completion_handler_t handler)
 {
-    this->db_impl->initialize(handler);
+    if (this->state != init_state::none)
+    {
+        return;
+    }
+
+    this->state = init_state::initializing;
+    this->db_impl->initialize([weak_this = weak_from_this(), handler](const auto& ec)
+    {
+        if (!ec)
+        {
+            auto strong_this = weak_this.lock();
+            if (strong_this)
+            {
+                strong_this->state = init_state::initialized;
+            }
+        }
+
+        handler(ec);
+    });
 }
 
 void
@@ -59,6 +77,26 @@ database::translate_swarm_response(const database_response& db_response, const b
             handler(db_response);
         }
     }
+}
+
+std::string
+database::swarm_status()
+{
+    if (this->state != init_state::initialized)
+    {
+        return "Not initialized";
+    }
+
+    return this->db_impl->swarm_status();
+}
+
+Json::Value
+uninit_error()
+{
+    Json::Value result;
+    result["result"] = 0;
+    result["error"] = "Database not initialized";
+    return result;
 }
 
 void
@@ -322,3 +360,4 @@ database::ttl(const key_t& key)
 
     return resp;
 }
+

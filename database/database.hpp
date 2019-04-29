@@ -57,6 +57,8 @@ namespace bzapi
 
     private:
 
+        enum class init_state {none, initializing, initialized} state{init_state::none};
+
         std::shared_ptr<db_impl_base> db_impl;
 
         static void translate_swarm_response(const database_response& db_response, const boost::system::error_code& ec

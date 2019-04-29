@@ -82,6 +82,12 @@ db_impl::send_message_to_swarm(database_msg& msg, send_policy policy, db_respons
     this->swarm->send_request(env, policy);
 }
 
+std::string
+db_impl::swarm_status()
+{
+    return this->swarm->get_status();
+}
+
 uint64_t
 db_impl::now() const
 {
@@ -121,9 +127,6 @@ db_impl::setup_request_policy(msg_info& info, send_policy policy, nonce_t nonce)
 void
 db_impl::handle_request_timeout(const boost::system::error_code& ec, nonce_t nonce)
 {
-    LOG(debug) << "Ignoring timeout for: " << nonce;
-    return;
-
     if (ec == boost::asio::error::operation_aborted)
     {
         return;

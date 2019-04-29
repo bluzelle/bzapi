@@ -645,4 +645,28 @@ TEST_F(integration_test, live_test)
     std::stringstream(read_resp->get_result()) >> read_json;
     EXPECT_EQ(read_json["result"].asInt(), 1);
     EXPECT_TRUE(read_json["value"].asString() == "test_value");
+
+    auto update_resp = db->update("test_key", "test_value");
+    while (!update_resp->is_ready())
+    {
+        sleep(1);
+    }
+
+    Json::Value update_json;
+    std::stringstream(update_resp->get_result()) >> update_json;
+    EXPECT_EQ(update_json["result"].asInt(), 1);
+
+    auto remove_resp = db->remove("test_key");
+    while (!remove_resp->is_ready())
+    {
+        sleep(1);
+    }
+
+    Json::Value remove_json;
+    std::stringstream(remove_resp->get_result()) >> remove_json;
+    EXPECT_EQ(read_json["result"].asInt(), 1);
+
+    auto status = db->swarm_status();
+    std::cout << status << std::endl;
+    
 }

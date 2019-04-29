@@ -25,5 +25,6 @@ namespace bzapi
     public:
         MOCK_METHOD1(initialize, void(completion_handler_t));
         MOCK_METHOD3(send_message_to_swarm, void(database_msg&, send_policy, db_response_handler_t));
+        MOCK_METHOD0(swarm_status, std::string(void));
     };
 }
