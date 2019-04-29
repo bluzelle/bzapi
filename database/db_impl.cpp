@@ -121,6 +121,9 @@ db_impl::setup_request_policy(msg_info& info, send_policy policy, nonce_t nonce)
 void
 db_impl::handle_request_timeout(const boost::system::error_code& ec, nonce_t nonce)
 {
+    LOG(debug) << "Ignoring timeout for: " << nonce;
+    return;
+
     if (ec == boost::asio::error::operation_aborted)
     {
         return;

@@ -23,6 +23,7 @@
 #include <jsoncpp/src/jsoncpp/include/json/value.h>
 #include <jsoncpp/src/jsoncpp/include/json/reader.h>
 #include <library/udp_response.hpp>
+#include <random>
 
 using namespace testing;
 using namespace bzapi;
@@ -142,6 +143,7 @@ struct mock_websocket
             read_handler(boost::system::error_code{}, message.size());
         }
     }
+
 
     std::function<void(const boost::asio::mutable_buffers_1& buffer)> write_func;
     std::function<void(boost::beast::multi_buffer& buffer)> read_func;
@@ -306,6 +308,14 @@ public:
                     return ws.get();
                 }));
         }
+    }
+
+    uint32_t generate_random_number(uint32_t min, uint32_t max)
+    {
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<uint32_t> dist(min, max);
+        return dist(gen);
     }
 
 protected:
@@ -592,14 +602,47 @@ TEST_F(integration_test, response_test)
 
 TEST_F(integration_test, live_test)
 {
+    auto rand = generate_random_number(0, 100000);
+    std::string db_name = "testdb_" + std::to_string(rand);
+
     bool res = bzapi::initialize(pub_key, priv_key, "ws://127.0.0.1:50000");
 //    bool res = bzapi::initialize(pub_key, priv_key, "ws://75.96.163.85:51010");
     EXPECT_TRUE(res);
 
-    auto resp = bzapi::create_db("test_db");
+    auto resp = bzapi::create_db(db_name.data());
     while (!resp->is_ready())
     {
         sleep(1);
     }
     EXPECT_TRUE(resp->is_ready());
+    Json::Value res_json;
+    std::stringstream(resp->get_result()) >> res_json;
+    auto result = res_json["result"].asInt();
+    auto db_uuid = res_json["uuid"].asString();
+    EXPECT_EQ(result, 1);
+    EXPECT_EQ(db_uuid, db_name);
+
+    auto db = resp->get_db();
+    ASSERT_NE(db, nullptr);
+
+    auto create_resp = db->create("test_key", "test_value");
+    while (!create_resp->is_ready())
+    {
+        sleep(1);
+    }
+
+    Json::Value create_json;
+    std::stringstream(create_resp->get_result()) >> create_json;
+    EXPECT_EQ(create_json["result"].asInt(), 1);
+
+    auto read_resp = db->read("test_key");
+    while (!read_resp->is_ready())
+    {
+        sleep(1);
+    }
+
+    Json::Value read_json;
+    std::stringstream(read_resp->get_result()) >> read_json;
+    EXPECT_EQ(read_json["result"].asInt(), 1);
+    EXPECT_TRUE(read_json["value"].asString() == "test_value");
 }

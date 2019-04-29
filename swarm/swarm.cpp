@@ -230,6 +230,23 @@ swarm::initialize(completion_handler_t handler)
 int
 swarm::send_request(std::shared_ptr<bzn_envelope> request, send_policy policy)
 {
+    // TODO: refactor the message so we don't need to break encapsulation like this
+    if (request->payload_case() == bzn_envelope::PayloadCase::kDatabaseMsg)
+    {
+        database_msg db_msg;
+        if (db_msg.ParseFromString(request->database_msg()))
+        {
+            auto db_header = new database_header(*db_msg.mutable_header());
+            db_header->set_point_of_contact(policy == send_policy::fastest ?
+                this->fastest_node : this->primary_node);
+            db_msg.set_allocated_header(db_header);
+            request->set_database_msg(db_msg.SerializeAsString());
+        }
+    }
+
+    request->set_sender(my_uuid);
+    request->set_timestamp(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count()));
     if (request->signature().empty())
     {
         this->crypto->sign(*request);
@@ -367,6 +384,7 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
                 if (uuid == INITIAL_NODE && node["host"].asString() == (*this->nodes)[INITIAL_NODE].host
                     && node["port"].asUInt() == (*this->nodes)[INITIAL_NODE].port)
                 {
+                    LOG(debug) << "status: updating initial node";
                     info = (*this->nodes)[INITIAL_NODE];
 
                     // re-register with it's real uuid
@@ -384,12 +402,18 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
                             return true;
                         }
                     });
+
+                    // update to real uuid
+                    fastest_node_so_far = node_uuid;
                 }
                 else
                 {
                     // refactor
                     info.host = node["host"].asString();
                     info.port = node["port"].asUInt();
+
+                    LOG(debug) << "status: adding node: " << info.host << ":" << info.port;
+
                     info.node = this->node_factory->create_node(this->io_context, this->ws_factory, info.host,
                         info.port);
 
@@ -419,18 +443,18 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
                 info.last_status_duration = this_node_duration;
 
                 // schedule another status request for this node
-                info.status_timer->expires_from_now(STATUS_REQUEST_TIME);
-                info.status_timer->async_wait([weak_this = weak_from_this(), node_uuid](auto ec)
-                {
-                    if (!ec)
-                    {
-                        auto strong_this = weak_this.lock();
-                        if (strong_this)
-                        {
-                            strong_this->send_status_request(node_uuid);
-                        }
-                    }
-                });
+//                info.status_timer->expires_from_now(STATUS_REQUEST_TIME);
+//                info.status_timer->async_wait([weak_this = weak_from_this(), node_uuid](auto ec)
+//                {
+//                    if (!ec)
+//                    {
+//                        auto strong_this = weak_this.lock();
+//                        if (strong_this)
+//                        {
+//                            strong_this->send_status_request(node_uuid);
+//                        }
+//                    }
+//                });
             }
 
             if (info.last_status_duration > static_cast<std::chrono::microseconds>(0) &&
@@ -444,15 +468,15 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
         }
 
         this->nodes = new_nodes;
-        this->primary_node = swarm_status["primary"]["uuid"].asString();
+        this->primary_node = swarm_status["status"]["primary"]["uuid"].asString();
         this->fastest_node = fastest_node_so_far;
         this->last_status = status;
 
         // kick off status requests for newly added nodes
-        for (auto n : new_uuids)
-        {
-            this->send_status_request(n);
-        }
+//        for (auto n : new_uuids)
+//        {
+//            this->send_status_request(n);
+//        }
     }
 
     if (this->init_handler)
