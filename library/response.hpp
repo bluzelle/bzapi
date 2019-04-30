@@ -31,7 +31,8 @@ namespace bzapi
     class response
     {
     public:
-        virtual ~response() = default;
+        virtual ~response()
+        {}
 
         // consumer
         int get_signal_id(int theirs)
