@@ -52,6 +52,11 @@ namespace bzapi
             }
         }
 
+        ~udp_response()
+        {
+            std::cout << "Destroying response object" << std::endl;
+        }
+
         void signal(int error) override
         {
             struct sockaddr_in their_addr;

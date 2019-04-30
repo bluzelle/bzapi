@@ -204,7 +204,7 @@ node::send(const std::string& msg, completion_handler_t callback, bool is_retry)
         }
         else
         {
-            std::cout << bytes << " bytes written";
+            std::cout << bytes << " bytes written" << std::endl;
             callback(ec);
         }
     });
