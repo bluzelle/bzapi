@@ -210,7 +210,7 @@ namespace bzapi
             }
             else
             {
-                LOG(debug) << "Failed to open database: " << std::string(uuid);
+                LOG(debug) << "Failed to open database: " << uuidstr;
                 Json::Value result;
                 result["error"] = "UUID not found";
                 resp->set_error(static_cast<int>(db_error::no_database));
