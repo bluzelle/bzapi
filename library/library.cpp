@@ -48,7 +48,7 @@ namespace bzapi
             io_context = std::make_shared<bzn::asio::io_context>();
 
             signals = new boost::asio::signal_set(io_context->get_io_context(), SIGINT);
-            signals->async_wait([&](const boost::system::error_code& error, int signal_number)
+            signals->async_wait([](const boost::system::error_code& error, int signal_number)
             {
                 if (!error)
                 {
@@ -61,7 +61,7 @@ namespace bzapi
                 }
             });
 
-            io_thread = new std::thread([&]()
+            io_thread = new std::thread([]()
             {
                 std::cout << "running io_context" << std::endl;
                 auto res = io_context->run();
@@ -102,7 +102,7 @@ namespace bzapi
     {
         auto uuidstr = std::string(uuid);
         auto resp = make_response();
-        the_swarm_factory->has_db(uuid, [&, uuidstr](auto res)
+        the_swarm_factory->has_db(uuid, [resp, uuidstr](auto res)
         {
             if (res == db_error::no_database)
             {
@@ -169,11 +169,11 @@ namespace bzapi
     open_db(const char *uuid)
     {
         auto resp = make_response();
-        the_swarm_factory->has_db(uuid, [&, uuidstr = std::string(uuid)](auto res)
+        the_swarm_factory->has_db(uuid, [resp, uuidstr = std::string(uuid)](auto res)
         {
             if (res == db_error::success)
             {
-                the_swarm_factory->get_swarm(uuid, [&](auto sw)
+                the_swarm_factory->get_swarm(uuidstr, [&](auto sw)
                 {
                     if (sw)
                     {
