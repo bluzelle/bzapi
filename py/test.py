@@ -40,7 +40,7 @@ async def create_and_check(uuid):
     #     print("Value == ", json_resp['value'])
 
 #asyncio.run(create_and_check(uuid))
-os.getpid()
+#os.getpid()
 bzpy.initialize(pub_key, priv_key, "ws://127.0.0.1:50000")
 res = bzpy.create_db(uuid)
 time.sleep(2)
