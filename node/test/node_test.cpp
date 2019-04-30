@@ -100,9 +100,9 @@ TEST_F(node_test, test_send_and_receive_message)
     EXPECT_EQ(request, test_str);
 
     std::string response;
-    this->node->register_message_handler([&](const char* data, size_t len)->bool
+    this->node->register_message_handler([&](const std::string& data)->bool
     {
-        response = std::string(data, len);
+        response = data;
 
         // force the connection to be closed
         return true;

@@ -22,7 +22,7 @@
 namespace bzapi
 {
     using websocket = uint64_t;
-    using node_message_handler = std::function<bool(const char *data, uint64_t len)>;
+    using node_message_handler = std::function<bool(const std::string& data)>;
 
     // establishes and maintains connection with node
     // sends messages to node

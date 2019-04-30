@@ -264,7 +264,7 @@ node::receive()
             ss << boost::beast::buffers(buffer->data());
             std::string str = ss.str();
 
-            if (strong_this->handler(str.c_str(), str.length()))
+            if (strong_this->handler(str))
             {
                 strong_this->close();
             }

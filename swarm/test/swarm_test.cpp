@@ -145,7 +145,7 @@ protected:
                     env.set_sender("node_" + std::to_string(node.id));
                     auto env_str = env.SerializeAsString();
                     ASSERT_NE(node.handler, nullptr);
-                    EXPECT_EQ(node.handler(env_str.c_str(), env_str.length()), false);
+                    EXPECT_EQ(node.handler(env_str), false);
                 });
 
                 boost::system::error_code ec;
@@ -261,7 +261,7 @@ TEST_F(swarm_test, test_bad_status)
             bzn_envelope env;
             env.set_status_response("A bunch of garbage");
             auto env_str = env.SerializeAsString();
-            EXPECT_EQ(meta.handler(env_str.c_str(), env_str.length()), true);
+            EXPECT_EQ(meta.handler(env_str), true);
         }));
 
     auto l = [](auto& /*ec*/){};

@@ -59,12 +59,12 @@ swarm::has_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
 
     // TODO: should this call a static method inside db_impl? Not ideal having the swarm
     // process a database message
-    uuid_node->register_message_handler([uuid, callback](const char *data, uint64_t len)
+    uuid_node->register_message_handler([uuid, callback](const std::string& data)
     {
         bzn_envelope env;
         database_response response;
         database_has_db_response has_db;
-        if (!env.ParseFromString(std::string(data, len)) || !response.ParseFromString(env.database_response()))
+        if (!env.ParseFromString(data) || !response.ParseFromString(env.database_response()))
         {
             LOG(error) << "Dropping invalid response to has_db: " << std::string(data, MAX_MESSAGE_SIZE);
             callback(false);
@@ -124,14 +124,14 @@ swarm::create_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
 
     // TODO: should this call a static method inside db_impl? Not ideal having the swarm
     // process a database message
-    uuid_node->register_message_handler([weak_this = weak_from_this(), uuid, callback](const char *data, uint64_t len)->bool
+    uuid_node->register_message_handler([weak_this = weak_from_this(), uuid, callback](const std::string& data)->bool
     {
         auto strong_this = weak_this.lock();
         if (strong_this)
         {
             bzn_envelope env;
             database_response response;
-            if (!env.ParseFromString(std::string(data, len)) || !response.ParseFromString(env.database_response()))
+            if (!env.ParseFromString(data) || !response.ParseFromString(env.database_response()))
             {
                 LOG(error) << "Dropping invalid response to has_db: " << std::string(data, MAX_MESSAGE_SIZE);
                 callback(false);
@@ -205,12 +205,12 @@ swarm::initialize(completion_handler_t handler)
 
     auto endpoint = this->parse_endpoint(initial_endpoint);
     auto initial_node = node_factory->create_node(this->io_context, this->ws_factory, endpoint.first, endpoint.second);
-    initial_node->register_message_handler([weak_this = weak_from_this()](const char *data, uint64_t len)->bool
+    initial_node->register_message_handler([weak_this = weak_from_this()](const std::string& data)->bool
     {
         auto strong_this = weak_this.lock();
         if (strong_this)
         {
-            return strong_this->handle_node_message(INITIAL_NODE, data, len);
+            return strong_this->handle_node_message(INITIAL_NODE, data);
         }
         else
         {
@@ -390,12 +390,12 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
                     // re-register with it's real uuid
                     assert(info.node);
 
-                    info.node->register_message_handler([weak_this = weak_from_this(), node_uuid](const char *data, uint64_t len)->bool
+                    info.node->register_message_handler([weak_this = weak_from_this(), node_uuid](const std::string& data)->bool
                     {
                         auto strong_this = weak_this.lock();
                         if (strong_this)
                         {
-                            return strong_this->handle_node_message(node_uuid, data, len);
+                            return strong_this->handle_node_message(node_uuid, data);
                         }
                         else
                         {
@@ -417,12 +417,12 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
                     info.node = this->node_factory->create_node(this->io_context, this->ws_factory, info.host,
                         info.port);
 
-                    info.node->register_message_handler([weak_this = weak_from_this(), node_uuid](const char *data, uint64_t len)->bool
+                    info.node->register_message_handler([weak_this = weak_from_this(), node_uuid](const std::string& data)->bool
                     {
                         auto strong_this = weak_this.lock();
                         if (strong_this)
                         {
-                            return strong_this->handle_node_message(node_uuid, data, len);
+                            return strong_this->handle_node_message(node_uuid, data);
                         }
                         else
                         {
@@ -545,7 +545,7 @@ swarm::send_status_request(uuid_t node_uuid)
 }
 
 bool
-swarm::handle_node_message(const std::string& uuid, const char *data, uint64_t len)
+swarm::handle_node_message(const std::string& uuid, const std::string& data)
 {
     auto it = this->nodes->find(uuid);
     if (it == this->nodes->end())
@@ -558,7 +558,7 @@ swarm::handle_node_message(const std::string& uuid, const char *data, uint64_t l
     info.last_message_received = std::chrono::steady_clock::now();
 
     bzn_envelope env;
-    if (!env.ParseFromString(std::string(data, len)))
+    if (!env.ParseFromString(data))
     {
         LOG(error) << "Dropping invalid message: " << std::string(data, MAX_MESSAGE_SIZE);
         return true;
