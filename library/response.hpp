@@ -17,16 +17,17 @@
 
 #include <string>
 #include <atomic>
-#include <iostream>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
-
+#include <stdexcept>
 #include <string.h>
 #include <memory>
 
-namespace bzapi {
+namespace bzapi
+{
     class database;
+
     class response
     {
     public:
@@ -54,7 +55,7 @@ namespace bzapi {
             return {};
         }
 
-        std::shared_ptr<bzapi::database> get_db()
+        std::shared_ptr<database> get_db()
         {
             return this->db;
         }
@@ -62,10 +63,7 @@ namespace bzapi {
         // producer
         void set_result(const std::string& result)
         {
-            std::cout << "in A1"<<std::endl;
-            std::cout << result<<std::endl;
             this->result_str = result;
-            std::cout << "in A2"<<std::endl;
         }
 
         void set_ready()
@@ -79,7 +77,7 @@ namespace bzapi {
             this->signal(error);
         }
 
-        void set_db(std::shared_ptr<bzapi::database> db_ptr)
+        void set_db(std::shared_ptr<database> db_ptr)
         {
             this->db = db_ptr;
         }
@@ -89,7 +87,7 @@ namespace bzapi {
         int their_id = 0;
         std::string result_str;
         std::atomic<bool> ready = false;
-        std::shared_ptr<bzapi::database> db;
+        std::shared_ptr<database> db;
 
         virtual void signal(int error) = 0;
     };

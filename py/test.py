@@ -45,4 +45,6 @@ bzpy.initialize(pub_key, priv_key, "ws://127.0.0.1:50000")
 res = bzpy.create_db(uuid)
 time.sleep(2)
 pprint(json.loads(res.get_result()))
+print("Here")
+
 
