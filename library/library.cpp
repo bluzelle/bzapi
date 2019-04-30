@@ -81,11 +81,19 @@ namespace bzapi
         return true;
     }
 
+    void
+    terminate()
+    {
+        io_context->stop();
+        io_thread->join();
+    }
+
     std::shared_ptr<response>
     has_db(const char *uuid)
     {
+        auto uuidstr = std::string(uuid);
         auto resp = make_response();
-        the_swarm_factory->has_db(uuid, [resp, uuidstr = std::string(uuid)](auto res)
+        the_swarm_factory->has_db(uuid, [resp, uuidstr](auto res)
         {
             Json::Value result;
             result["result"] = res == db_error::success ? 1 : 0;

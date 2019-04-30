@@ -22,6 +22,8 @@ namespace bzapi
     // temporary?
     bool initialize(const char *public_key, const char *private_key, const char *endpoint);
 
+    void terminate();
+
     std::shared_ptr<response> has_db(const char *uuid);
 
     std::shared_ptr<response> create_db(const char *uuid);
