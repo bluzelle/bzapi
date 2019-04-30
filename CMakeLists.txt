@@ -35,7 +35,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 add_definitions(-DBOOST_ERROR_CODE_HEADER_ONLY -DBOOST_LOG_DYN_LINK)
 
-set(warnings "-Wno-deprecated-declarations -Wall -Wextra -Werror -Wpedantic")
+set(warnings "-Wno-deprecated-declarations -Wall -Wextra -Wpedantic")
 if (APPLE)
     set(warnings "${warnings} -Wno-extended-offsetof")
 endif(APPLE)
