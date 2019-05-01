@@ -181,13 +181,13 @@ namespace bzapi
         {
             if (res == db_error::success)
             {
-                the_swarm_factory->get_swarm(uuidstr, [&](auto sw)
+                the_swarm_factory->get_swarm(uuidstr, [resp, uuidstr](auto sw)
                 {
                     if (sw)
                     {
                         auto dbi = std::make_shared<db_impl>(io_context, sw, uuidstr);
                         auto db = std::make_shared<database>(dbi);
-                        db->open([&](auto ec)
+                        db->open([sw, resp, db](auto ec)
                         {
                             if (ec)
                             {
