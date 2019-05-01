@@ -11,9 +11,9 @@ find_package(PythonLibs 3 REQUIRED)
 find_package(PythonInterp ${PYTHONLIBS_VERSION_STRING} REQUIRED)
 
 if(PYTHONLIBS_VERSION_STRING MATCHES "^2.*$" )
-    set(CMAKE_SWIG_FLAGS -classic)
+    set(CMAKE_SWIG_FLAGS -classic -c++)
 else()
-    set(CMAKE_SWIG_FLAGS -py3)
+    set(CMAKE_SWIG_FLAGS -py3 -c++)
 endif()
 
 
@@ -25,7 +25,6 @@ set(Boost_USE_STATIC_RUNTIME OFF)
 find_package(SWIG REQUIRED)
 include(${SWIG_USE_FILE})
 
-set(CMAKE_SWIG_FLAGS -c++)
 set(SWIG_MODULE_NAME bzpy)
 
 add_compile_options("-fdiagnostics-color=auto")

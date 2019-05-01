@@ -48,6 +48,9 @@ async def create_and_check(uuid):
     pprint("here3")
 #asyncio.run(create_and_check(uuid))
 #os.getpid()
+
+bzpy.set_string("a")
+
 bzpy.initialize(pub_key, priv_key, "ws://127.0.0.1:50000")
 res = bzpy.create_db(uuid)
 time.sleep(2)
@@ -65,6 +68,7 @@ pprint(res.get_result())
 
 mydb = res.get_db()
 bzpy.terminate()
-# res = mydb.create("akey", "aval")
-# time.sleep(2)
-# pprint(json.loads(res.get_result()))
+res = mydb.create("akey", "aval")
+time.sleep(2)
+pprint(json.loads(res.get_result()))
+
