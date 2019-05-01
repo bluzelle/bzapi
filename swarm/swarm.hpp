@@ -86,7 +86,7 @@ namespace bzapi
 
         void send_status_request(uuid_t node_uuid);
 
-        bool handle_node_message(const std::string& uuid, const char *data, uint64_t len);
+        bool handle_node_message(const std::string& uuid, const std::string& data);
 
         void send_node_request(std::shared_ptr<node_base> node, std::shared_ptr<bzn_envelope> request);
 

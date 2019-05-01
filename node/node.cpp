@@ -72,7 +72,7 @@ node::make_tcp_endpoint(const std::string& host, uint16_t port)
 void
 node::connect(completion_handler_t callback)
 {
-#if 0
+#if 1
     std::shared_ptr<bzn::asio::tcp_socket_base> socket = this->io_context->make_unique_tcp_socket();
     socket->async_connect(this->endpoint, [weak_this = weak_from_this(), callback, socket](auto ec)
     {
@@ -168,7 +168,7 @@ node::connect(completion_handler_t callback)
 void
 node::send(const std::string& msg, completion_handler_t callback, bool is_retry)
 {
-#if 0
+#if 1
     boost::asio::mutable_buffers_1 buffer((void*)msg.c_str(), msg.length());
 
     this->websocket->binary(true);
@@ -264,7 +264,7 @@ node::receive()
             ss << boost::beast::buffers(buffer->data());
             std::string str = ss.str();
 
-            if (strong_this->handler(str.c_str(), str.length()))
+            if (strong_this->handler(str))
             {
                 strong_this->close();
             }
