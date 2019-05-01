@@ -11,6 +11,7 @@ using namespace bzapi;
 $result = PyString_FromString($1.c_str());
 }
 %shared_ptr(bzapi::response)
+%shared_ptr(bzapi::database)
 %include "library/response.hpp"
 %include "library/library.hpp"
 %include "database/database.hpp"

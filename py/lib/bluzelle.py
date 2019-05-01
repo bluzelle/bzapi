@@ -23,14 +23,13 @@ class Bluzelle:
         resp = method_handle(*args[1:])
         resp.get_signal_id(self.async_udp_port)
         data, address = await local.receive()
+        local.close()
         return resp
 
 
     async def create_db(self, uuid):
         response = await self.load_(self, uuid, obj = bzpy, meth = self.create_db.__name__)
-        results = json.loads(response.get_result())
-        results.get_db = response.get_db
-        return results
+        return response
 
     async def open_db(self, uuid):
         response = await self.load_(self, uuid, obj = bzpy, meth = self.open_db.__name__)

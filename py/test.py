@@ -8,7 +8,7 @@ sys.path.extend([os.getcwd()])
 sys.path.extend([os.path.abspath(os.path.join(os.getcwd(), os.pardir))])
 import asyncio
 from socket import *
-from lib import blz
+from lib import bluzelle
 import uuid
 from lib.udp.udp_support import *
 from build.library import bzpy
@@ -26,10 +26,16 @@ priv_key = "-----BEGIN EC PRIVATE KEY-----\n" \
 uuid = str(uuid.uuid4())
 
 async def create_and_check(uuid):
-    bz = blz.Bluzelle(pub_key, priv_key)
+    bz = bluzelle.Bluzelle(pub_key, priv_key)
     resp = await bz.create_db(uuid)
+    pprint(json.loads(resp.get_result()))
+    pprint("here1")
+    mydb = resp.get_db()
+    pprint("here2")
+
+
+    resp = await bz.has_db(uuid)
     pprint(resp)
-    #await bz.has_db("8863708f-cd00-46b9-8c75-0f59a013a94b")
     # mydb = resp.get_db()
     # resp = await mydb.create("mykey", "myvalue")
     # json_resp = resp.get_result()
@@ -38,13 +44,27 @@ async def create_and_check(uuid):
     # resp = await mydb.read("mykey")
     # if (json_resp['result'] == 1):
     #     print("Value == ", json_resp['value'])
-
+    bzpy.terminate()
+    pprint("here3")
 #asyncio.run(create_and_check(uuid))
 #os.getpid()
 bzpy.initialize(pub_key, priv_key, "ws://127.0.0.1:50000")
 res = bzpy.create_db(uuid)
 time.sleep(2)
+print("\ncreate_db:\n")
 pprint(json.loads(res.get_result()))
-print("Here")
+res = bzpy.has_db(uuid)
+time.sleep(2)
+print("\nhas_db:\n")
+pprint(json.loads(res.get_result()))
 
+res = bzpy.open_db(uuid)
+time.sleep(2)
+print("\nopen_db:\n")
+pprint(res.get_result())
 
+mydb = res.get_db()
+bzpy.terminate()
+# res = mydb.create("akey", "aval")
+# time.sleep(2)
+# pprint(json.loads(res.get_result()))
