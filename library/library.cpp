@@ -227,4 +227,16 @@ namespace bzapi
 
         return resp;
     }
+
+    std::string value{"Hello world"};
+
+    std::string get_string()
+    {
+        return value;
+    }
+
+    void set_string(const std::string& val)
+    {
+        value = val;
+    }
 }
