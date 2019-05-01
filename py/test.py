@@ -34,7 +34,9 @@ async def create_and_check(uuid):
     pprint("here2")
 
 
-    resp = await bz.has_db(uuid)
+    #resp = await bz.has_db(uuid)
+    resp = await bz.create_db(uuid)
+    pprint("here3")
     pprint(resp)
     # mydb = resp.get_db()
     # resp = await mydb.create("mykey", "myvalue")
@@ -47,10 +49,6 @@ async def create_and_check(uuid):
     bzpy.terminate()
     pprint("here3")
 #asyncio.run(create_and_check(uuid))
-#os.getpid()
-
-bzpy.set_string("a")
-
 bzpy.initialize(pub_key, priv_key, "ws://127.0.0.1:50000")
 res = bzpy.create_db(uuid)
 time.sleep(2)
@@ -67,8 +65,32 @@ print("\nopen_db:\n")
 pprint(res.get_result())
 
 mydb = res.get_db()
-bzpy.terminate()
+
 res = mydb.create("akey", "aval")
 time.sleep(2)
 pprint(json.loads(res.get_result()))
 
+
+res = mydb.read("akey")
+time.sleep(2)
+print("AA ", json.loads(res.get_result()))
+
+res = mydb.update("akey", "aval2!")
+time.sleep(2)
+print("BB", json.loads(res.get_result()))
+
+
+res = mydb.read("akey")
+time.sleep(2)
+print("CC ", json.loads(res.get_result()))
+
+res = mydb.remove("akey")
+time.sleep(2)
+print("DD ", json.loads(res.get_result()))
+
+res = mydb.read("akey")
+time.sleep(2)
+print("EE ", json.loads(res.get_result()))
+
+
+bzpy.terminate()

@@ -17,13 +17,18 @@ class Bluzelle:
         if (not bzpy.initialize(pub_key, priv_key, full_url)):
             raise Exception('Could not run initialize')
 
+        self.udp_open = False
+
     async def load_(self, *args, **kwargs):
-        local = await open_local_endpoint(self.localhost_ip, self.async_udp_port)
+        if not self.udp_open:
+            self.local = await open_local_endpoint(self.localhost_ip, self.async_udp_port)
+            self.udp_open = True
         method_handle = getattr(kwargs['obj'], kwargs['meth'])
         resp = method_handle(*args[1:])
         resp.get_signal_id(self.async_udp_port)
-        data, address = await local.receive()
-        local.close()
+        data, address = await self.local.receive()
+        self.local.close()
+        self.udp_open = False
         return resp
 
 
