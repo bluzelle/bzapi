@@ -66,7 +66,20 @@ node::send_message(const std::string& msg, completion_handler_t callback)
 boost::asio::ip::tcp::endpoint
 node::make_tcp_endpoint(const std::string& host, uint16_t port)
 {
-    return boost::asio::ip::tcp::endpoint(boost::asio::ip::address_v4::from_string(host), port);
+    boost::asio::ip::tcp::resolver resolver(this->io_context->get_io_context());
+    boost::asio::ip::tcp::resolver::query query(host, std::to_string(port));
+    boost::asio::ip::tcp::resolver::iterator iter = resolver.resolve(query);
+    boost::asio::ip::tcp::endpoint endpoint;
+
+    std::for_each(iter, {}, [&endpoint](auto& it)
+    {
+        if (it.endpoint().address().is_v4())
+        {
+            endpoint = it.endpoint();
+        }
+    });
+
+    return endpoint;
 }
 
 void
