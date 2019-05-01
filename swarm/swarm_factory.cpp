@@ -45,6 +45,12 @@ swarm_factory::get_swarm(const uuid_t& uuid, std::function<void(std::shared_ptr<
             callback(swarm);
             return;
         }
+        else
+        {
+            auto sw = get_default_swarm();
+            callback(sw);
+            return;
+        }
     }
 
     // find the swarm if we don't have it
@@ -62,13 +68,6 @@ swarm_factory::get_swarm(const uuid_t& uuid, std::function<void(std::shared_ptr<
             callback(swarm);
         }
     });
-
-    // TODO: fix this
-//    std::shared_ptr<swarm> the_swarm = std::make_shared<swarm>(this->node_factory, this->io_context, this->crypto
-//        , this->tmp_default_endpoint);
-//    this->swarms[uuid] = the_swarm;
-//
-//    return the_swarm;
 }
 
 void
@@ -77,20 +76,10 @@ swarm_factory::create_db(const uuid_t& uuid, std::function<void(std::shared_ptr<
     // for now we will just use the first (only) swarm in our list
     // TODO: find best swarm for the new db
 
-    auto sw_info = this->swarms.begin();
-    if (sw_info == this->swarms.end())
-    {
-        LOG(error) << "No swarm endpoints configured";
-        callback(nullptr);
-        return;
-    }
-
-    auto sw = sw_info->second.lock();
+    auto sw = get_default_swarm();
     if (!sw)
     {
-        sw = std::make_shared<swarm>(this->node_factory, this->ws_factory, this->io_context, this->crypto
-            , sw_info->first, my_uuid);
-        this->swarms[sw_info->first] = sw;
+        callback(sw);
     }
 
     sw->create_uuid(uuid, [callback, sw, weak_this = weak_from_this(), uuid](auto res)
@@ -119,6 +108,27 @@ swarm_factory::temporary_set_default_endpoint(const endpoint_t& endpoint)
     this->endpoints.insert(endpoint);
     this->swarms[endpoint] = std::make_shared<swarm>(this->node_factory, this->ws_factory, this->io_context
         , this->crypto, endpoint, my_uuid);
+}
+
+std::shared_ptr<swarm_base>
+swarm_factory::get_default_swarm()
+{
+    auto sw_info = this->swarms.begin();
+    if (sw_info == this->swarms.end())
+    {
+        LOG(error) << "No swarm endpoints configured";
+        return nullptr;
+    }
+
+    auto sw = sw_info->second.lock();
+    if (!sw)
+    {
+        sw = std::make_shared<swarm>(this->node_factory, this->ws_factory, this->io_context, this->crypto
+            , sw_info->first, my_uuid);
+        this->swarms[sw_info->first] = sw;
+    }
+
+    return sw;
 }
 
 void

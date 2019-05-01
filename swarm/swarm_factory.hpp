@@ -46,5 +46,8 @@ class swarm_factory : public std::enable_shared_from_this<swarm_factory>
         std::map<endpoint_t, std::weak_ptr<swarm_base>> swarms;
         std::shared_ptr<node_factory_base> node_factory;
         std::set<endpoint_t> endpoints;
-    };
+
+        std::shared_ptr<swarm_base> get_default_swarm();
+
+};
 }
