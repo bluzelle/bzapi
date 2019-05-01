@@ -605,7 +605,8 @@ TEST_F(integration_test, live_test)
     auto rand = generate_random_number(0, 100000);
     std::string db_name = "testdb_" + std::to_string(rand);
 
-    bool res = bzapi::initialize(pub_key, priv_key, "ws://127.0.0.1:50000");
+    bool res = bzapi::initialize(pub_key, priv_key, "ws://localhost:50000");
+//    bool res = bzapi::initialize(pub_key, priv_key, "ws://127.0.0.1:50000");
 //    bool res = bzapi::initialize(pub_key, priv_key, "ws://75.96.163.85:51010");
     EXPECT_TRUE(res);
 
