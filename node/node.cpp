@@ -113,7 +113,7 @@ node::connect(completion_handler_t callback)
 
             strong_this->websocket = strong_this->ws_factory->make_unique_websocket_stream(socket->get_tcp_socket());
             strong_this->websocket->async_handshake(strong_this->endpoint.address().to_string(), "/"
-                , [weak_this2 = std::weak_ptr(strong_this), callback](auto ec)
+                , [weak_this2 = std::weak_ptr<node>(strong_this), callback](auto ec)
                 {
                     auto strong_this2 = weak_this2.lock();
                     if (strong_this2)
@@ -197,7 +197,7 @@ node::send(const std::string& msg, completion_handler_t callback, bool is_retry)
                 // try to reconnect once
                 if (!is_retry)
                 {
-                    strong_this->connect([weak_this2 = std::weak_ptr(strong_this), callback, msg](auto ec)
+                    strong_this->connect([weak_this2 = std::weak_ptr<node>(strong_this), callback, msg](auto ec)
                     {
                         if (ec)
                         {

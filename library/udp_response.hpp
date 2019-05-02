@@ -59,6 +59,11 @@ namespace bzapi
 
         void signal(int error) override
         {
+            while (!their_id)
+            {
+                usleep(1000);
+            }
+
             struct sockaddr_in their_addr;
             memset(&their_addr, 0, sizeof(sockaddr_in));
             their_addr.sin_family = AF_INET;
