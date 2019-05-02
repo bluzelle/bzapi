@@ -28,17 +28,31 @@ uuid = str(uuid.uuid4())
 async def create_and_check(uuid):
     bz = bluzelle.Bluzelle(pub_key, priv_key)
 
-    pprint("here0")
-
+    print("starting create_db ... ")
     db = await bz.create_db(uuid)
-    pprint("here2")
-    pprint(db)
+    print("create_db finished ... db_obj = ", db)
+
+
+    print("starting has_db ... ")
+
     resp = await bz.has_db(uuid)
     pprint(resp)
-    pprint("here1")
+    print("has_db finished ... rusult = ", resp)
 
+    print("starting open_db ... ")
+    db = await bz.open_db(uuid)
+    print("open_db finished ... db_obj = ", db)
+
+    create = await db.create("akey", "aval")
+
+    print("db.create finished ... db_obj = ", create)
+
+    print("starting bzpy.terminate() ")
     bzpy.terminate()
-    pprint("here3")
+    print("finish")
+
+
+
 asyncio.run(create_and_check(uuid))
 # bzpy.initialize(pub_key, priv_key, "ws://127.0.0.1:50000")
 

@@ -76,7 +76,7 @@ namespace bzapi
 //                    this->signal(error);
 //                });
 //            }
-
+            LOG(error) << "in signal: ";
             struct sockaddr_in their_addr;
             memset(&their_addr, 0, sizeof(sockaddr_in));
             their_addr.sin_family = AF_INET;
