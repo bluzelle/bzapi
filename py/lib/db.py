@@ -7,13 +7,14 @@ import json
 
 class DB:
 
-    def __init__(self, pub_key, priv_key, ws_address="127.0.0.1", ws_port="50000"):
+    def __init__(self, cpp_db, ws_address="127.0.0.1", ws_port="50000"):
         self.localhost_ip = "127.0.0.1"
         self.async_udp_port = 1234
+        self.cpp_db = cpp_db
 
     async def load_(self, *args, **kwargs):
         local = await open_local_endpoint(self.localhost_ip, self.async_udp_port)
-        method_handle = getattr(kwargs['obj'], kwargs['meth'])
+        method_handle = getattr(self.cpp_db, kwargs['meth'])
         resp = method_handle(*args[1:])
         response.get_signal_id(self.async_udp_port)
         data, address = await local.receive()

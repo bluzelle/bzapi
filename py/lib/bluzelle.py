@@ -3,6 +3,7 @@ import asyncio
 from lib.udp.udp_support import *
 from build.library import bzpy
 import json
+from lib.db import DB
 
 class Bluzelle:
 
@@ -17,37 +18,47 @@ class Bluzelle:
         if (not bzpy.initialize(pub_key, priv_key, full_url)):
             raise Exception('Could not run initialize')
 
-        self.udp_open = False
-
     async def load_(self, *args, **kwargs):
-        if not self.udp_open:
-            self.local = await open_local_endpoint(self.localhost_ip, self.async_udp_port)
-            self.udp_open = True
+        print("++")
+        self.local = await open_local_endpoint(self.localhost_ip, self.async_udp_port)
+        print("--")
         method_handle = getattr(kwargs['obj'], kwargs['meth'])
         resp = method_handle(*args[1:])
         resp.get_signal_id(self.async_udp_port)
         data, address = await self.local.receive()
+        print("@@@")
         self.local.close()
-        self.udp_open = False
+        self.async_udp_port = self.async_udp_port + 1
         return resp
 
 
     async def create_db(self, uuid):
         response = await self.load_(self, uuid, obj = bzpy, meth = self.create_db.__name__)
-        return response
+        results = json.loads(response.get_result())
+        if 'error' in results['error'] == 1:
+            raise Exception(results['error'])
+        else:
+            return DB(response, self.ws_address, self.ws_port)
+
+
+    async def has_db(self, uuid):
+        print("aaa")
+        response = await self.load_(self, uuid, obj = bzpy, meth = self.has_db.__name__)
+        print("bbb")
+        results = json.loads(response.get_result())
+        return results['result'] == 1
 
     async def open_db(self, uuid):
         response = await self.load_(self, uuid, obj = bzpy, meth = self.open_db.__name__)
         results = json.loads(response.get_result())
-        results.get_db = response.get_db
-        return results
+        if 'error' in results['error'] == 1:
+            raise Exception(results['error'])
+        else:
+            return DB(response, self.ws_address, self.ws_port)
 
-    async def has_db(self, uuid):
-        response = await self.load_(self, uuid, obj = bzpy, meth = self.has_db.__name__)
-        results = json.loads(response.get_result())
-        return results['result'] == 1
 
-    #
+
+        #
     #
     # async def load_(self, *args, **kwargs):
     #     local = await open_local_endpoint(self.localhost_ip, self.async_udp_port)
