@@ -20,14 +20,14 @@
 namespace bzapi
 {
     // temporary?
-    bool initialize(const char *public_key, const char *private_key, const char *endpoint);
+    bool initialize(const std::string& public_key, const std::string& private_key, const std::string& endpoint);
 
     void terminate();
 
-    std::shared_ptr<response> has_db(const char *uuid);
+    std::shared_ptr<response> has_db(const std::string& uuid);
 
-    std::shared_ptr<response> create_db(const char *uuid);
+    std::shared_ptr<response> create_db(const std::string& uuid);
 
-    std::shared_ptr<response> open_db(const char *uuid);
+    std::shared_ptr<response> open_db(const std::string& uuid);
 
 }

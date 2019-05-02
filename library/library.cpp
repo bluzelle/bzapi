@@ -34,6 +34,11 @@ namespace bzapi
     std::shared_ptr<crypto_base> the_crypto;
     std::shared_ptr<bzn::beast::websocket_base> ws_factory;
 
+//    std::shared_ptr<bzn::asio::io_context_base> get_my_io_context()
+//    {
+//        return io_context;
+//    }
+
     std::shared_ptr<response>
     make_response()
     {
@@ -41,7 +46,7 @@ namespace bzapi
     }
 
     bool
-    initialize(const char *public_key, const char *private_key, const char *endpoint)
+    initialize(const std::string& public_key, const std::string& private_key, const std::string& endpoint)
     {
         try
         {
@@ -89,140 +94,150 @@ namespace bzapi
     }
 
     std::shared_ptr<response>
-    has_db(const char *uuid)
+    has_db(const std::string& uuid)
     {
-        auto uuidstr = std::string(uuid);
+        std::string uuidstr{uuid};
         auto resp = make_response();
-        the_swarm_factory->has_db(uuid, [resp, uuidstr](auto res)
+        resp->exec([uuid, resp, uuidstr]()
         {
-            Json::Value result;
-            result["result"] = res == db_error::success ? 1 : 0;
-            result["uuid"] = uuidstr;
-            resp->set_result(result.toStyledString());
-            resp->set_ready();
+            the_swarm_factory->has_db(uuid, [resp, uuidstr](auto res)
+            {
+                Json::Value result;
+                result["result"] = res == db_error::success ? 1 : 0;
+                result["uuid"] = uuidstr;
+                resp->set_result(result.toStyledString());
+                resp->set_ready();
+            });
         });
 
         return resp;
     }
 
     std::shared_ptr<response>
-    create_db(const char *uuid)
+    create_db(const std::string& uuid)
     {
-        auto uuidstr = std::string(uuid);
+        std::string uuidstr{uuid};
         auto resp = make_response();
-        the_swarm_factory->has_db(uuid, [resp, uuidstr](auto res)
+        resp->exec([resp, uuidstr]()
         {
-            if (res == db_error::no_database)
+            the_swarm_factory->has_db(uuidstr, [resp, uuidstr](auto res)
             {
-                the_swarm_factory->create_db(uuidstr, [uuidstr, resp](auto sw)
+                if (res == db_error::no_database)
                 {
-                    if (sw)
+                    the_swarm_factory->create_db(uuidstr, [uuidstr, resp](auto sw)
                     {
-                        auto dbi = std::make_shared<db_impl>(io_context, sw, uuidstr);
-                        auto db = std::make_shared<database>(dbi);
-                        db->open([sw, resp, db, uuidstr](auto ec)
+                        if (sw)
                         {
-                            if (ec)
+                            auto dbi = std::make_shared<db_impl>(io_context, sw, uuidstr);
+                            auto db = std::make_shared<database>(dbi);
+                            db->open([sw, resp, db, uuidstr](auto ec)
                             {
-                                LOG(error) << "Error initializing database: " << ec.message();
-                                Json::Value result;
-                                result["error"] = ec.message();
-                                resp->set_error(static_cast<int>(db_error::connection_error));
-                            }
-                            else
-                            {
-                                Json::Value result;
-                                result["result"] = 1;
-                                result["uuid"] = uuidstr;
-                                resp->set_result(result.toStyledString());
-                                resp->set_db(db);
-                                resp->set_ready();
-                            }
-                        });
-                    }
-                    else
-                    {
-                        LOG(error) << "Error creating database for: " << uuidstr;
-                        Json::Value result;
-                        result["error"] = "Error creating database";
-                        result["uuid"] = uuidstr;
-                        resp->set_result(result.toStyledString());
-                        resp->set_error(static_cast<int>(db_error::no_database));
-                    }
-                });
-            }
-            else if (res == db_error::success)
-            {
-                LOG(debug) << "Unable to create existing database: " << uuidstr;
-                Json::Value result;
-                result["error"] = "UUID already exists";
-                result["uuid"] = uuidstr;
-                resp->set_result(result.toStyledString());
-                resp->set_error(static_cast<int>(db_error::database_error));
-            }
-            else
-            {
-                Json::Value result;
-                result["error"] = "Connection error";
-                result["uuid"] = uuidstr;
-                resp->set_result(result.toStyledString());
-                resp->set_error(static_cast<int>(db_error::connection_error));
-            }
+                                if (ec)
+                                {
+                                    LOG(error) << "Error initializing database: " << ec.message();
+                                    Json::Value result;
+                                    result["error"] = ec.message();
+                                    resp->set_error(static_cast<int>(db_error::connection_error));
+                                }
+                                else
+                                {
+                                    Json::Value result;
+                                    result["result"] = 1;
+                                    result["uuid"] = uuidstr;
+                                    resp->set_result(result.toStyledString());
+                                    resp->set_db(db);
+                                    resp->set_ready();
+                                }
+                            });
+                        }
+                        else
+                        {
+                            LOG(error) << "Error creating database for: " << uuidstr;
+                            Json::Value result;
+                            result["error"] = "Error creating database";
+                            result["uuid"] = uuidstr;
+                            resp->set_result(result.toStyledString());
+                            resp->set_error(static_cast<int>(db_error::no_database));
+                        }
+                    });
+                }
+                else if (res == db_error::success)
+                {
+                    LOG(debug) << "Unable to create existing database: " << uuidstr;
+                    Json::Value result;
+                    result["error"] = "UUID already exists";
+                    result["uuid"] = uuidstr;
+                    resp->set_result(result.toStyledString());
+                    resp->set_error(static_cast<int>(db_error::database_error));
+                }
+                else
+                {
+                    Json::Value result;
+                    result["error"] = "Connection error";
+                    result["uuid"] = uuidstr;
+                    resp->set_result(result.toStyledString());
+                    resp->set_error(static_cast<int>(db_error::connection_error));
+                }
+            });
         });
 
         return resp;
     }
 
     std::shared_ptr<response>
-    open_db(const char *uuid)
+    open_db(const std::string& uuid)
     {
+        std::string uuidstr{uuid};
         auto resp = make_response();
-        the_swarm_factory->has_db(uuid, [resp, uuidstr = std::string(uuid)](auto res)
+        resp->exec([resp, uuidstr]()
         {
-            if (res == db_error::success)
+            the_swarm_factory->has_db(uuidstr, [resp, uuidstr](auto res)
             {
-                the_swarm_factory->get_swarm(uuidstr, [resp, uuidstr](auto sw)
+                if (res == db_error::success)
                 {
-                    if (sw)
+                    the_swarm_factory->get_swarm(uuidstr, [&](auto sw)
                     {
-                        auto dbi = std::make_shared<db_impl>(io_context, sw, uuidstr);
-                        auto db = std::make_shared<database>(dbi);
-                        db->open([sw, resp, db](auto ec)
+                        if (sw)
                         {
-                            if (ec)
+                            auto dbi = std::make_shared<db_impl>(io_context, sw, uuidstr);
+                            auto db = std::make_shared<database>(dbi);
+                            db->open([&](auto ec)
                             {
-                                LOG(error) << "Error initializing database: " << ec.message();
-                                Json::Value result;
-                                result["error"] = ec.message();
-                                resp->set_error(static_cast<int>(db_error::connection_error));
-                            }
-                            else
-                            {
-                                Json::Value result;
-                                result["result"] = 1;
-                                resp->set_result(result.toStyledString());
-                                resp->set_db(db);
-                                resp->set_ready();
-                            }
-                        });
-                    }
-                    else
-                    {
-                        LOG(error) << "Error getting swarm for: " << uuidstr;
-                        Json::Value result;
-                        result["error"] = "Error getting swarm";
-                        result["uuid"] = uuidstr;
-                        resp->set_error(static_cast<int>(db_error::no_database));
-                    }
-                });
-            }
-            else
-            {
-                LOG(debug) << "Failed to open database: " << uuidstr;
-                Json::Value result;
-                result["error"] = "UUID not found";
-                resp->set_error(static_cast<int>(db_error::no_database));
-            }
+                                if (ec)
+                                {
+                                    LOG(error) << "Error initializing database: " << ec.message();
+                                    Json::Value result;
+                                    result["error"] = ec.message();
+                                    resp->set_error(static_cast<int>(db_error::connection_error));
+                                }
+                                else
+                                {
+                                    Json::Value result;
+                                    result["result"] = 1;
+                                    resp->set_result(result.toStyledString());
+                                    resp->set_db(db);
+                                    resp->set_ready();
+                                }
+                            });
+                        }
+                        else
+                        {
+                            LOG(error) << "Error getting swarm for: " << uuidstr;
+                            Json::Value result;
+                            result["error"] = "Error getting swarm";
+                            result["uuid"] = uuidstr;
+                            resp->set_error(static_cast<int>(db_error::no_database));
+                        }
+                    });
+                }
+                else
+                {
+                    LOG(debug) << "Failed to open database: " << uuidstr;
+                    Json::Value result;
+                    result["error"] = "UUID not found";
+                    resp->set_error(static_cast<int>(db_error::no_database));
+                }
+            });
         });
 
         return resp;

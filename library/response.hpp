@@ -23,6 +23,7 @@
 #include <stdexcept>
 #include <string.h>
 #include <memory>
+#include <functional>
 
 namespace bzapi
 {
@@ -31,13 +32,20 @@ namespace bzapi
     class response
     {
     public:
+        response()
+        {}
+
         virtual ~response()
         {}
+
+        virtual void exec(std::function<void(void)> func)
+        { exec_func = func; }
 
         // consumer
         int get_signal_id(int theirs)
         {
             this->their_id = theirs;
+            this->exec_func();
             return this->my_id;
         }
 
@@ -89,6 +97,7 @@ namespace bzapi
         std::string result_str;
         std::atomic<bool> ready = false;
         std::shared_ptr<database> db;
+        std::function<void(void)> exec_func;
 
         virtual void signal(int error) = 0;
     };
