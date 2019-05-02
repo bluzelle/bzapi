@@ -34,6 +34,11 @@ namespace bzapi
     std::shared_ptr<crypto_base> the_crypto;
     std::shared_ptr<bzn::beast::websocket_base> ws_factory;
 
+//    std::shared_ptr<bzn::asio::io_context_base> get_my_io_context()
+//    {
+//        return io_context;
+//    }
+
     std::shared_ptr<response>
     make_response()
     {
@@ -41,7 +46,7 @@ namespace bzapi
     }
 
     bool
-    initialize(const char *public_key, const char *private_key, const char *endpoint)
+    initialize(const std::string& public_key, const std::string& private_key, const std::string& endpoint)
     {
         try
         {
@@ -89,9 +94,9 @@ namespace bzapi
     }
 
     std::shared_ptr<response>
-    has_db(const char *uuid)
+    has_db(const std::string& uuid)
     {
-        auto uuidstr = std::string(uuid);
+        std::string uuidstr{uuid};
         auto resp = make_response();
         the_swarm_factory->has_db(uuid, [resp, uuidstr](auto res)
         {
@@ -106,9 +111,9 @@ namespace bzapi
     }
 
     std::shared_ptr<response>
-    create_db(const char *uuid)
+    create_db(const std::string& uuid)
     {
-        auto uuidstr = std::string(uuid);
+        std::string uuidstr{uuid};
         auto resp = make_response();
         the_swarm_factory->has_db(uuid, [resp, uuidstr](auto res)
         {
@@ -174,10 +179,11 @@ namespace bzapi
     }
 
     std::shared_ptr<response>
-    open_db(const char *uuid)
+    open_db(const std::string& uuid)
     {
+        std::string uuidstr{uuid};
         auto resp = make_response();
-        the_swarm_factory->has_db(uuid, [resp, uuidstr = std::string(uuid)](auto res)
+        the_swarm_factory->has_db(uuid, [resp, uuidstr](auto res)
         {
             if (res == db_error::success)
             {
