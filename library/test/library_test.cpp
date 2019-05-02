@@ -45,6 +45,7 @@ namespace
 
 // this is kinda ugly, but we need to identify the node somehow
 std::map<uint16_t, boost::asio::ip::tcp::socket*> sock_map;
+boost::asio::io_context real_io_context;
 
 uint16_t get_node_from_sock(const boost::asio::ip::tcp::socket& sock)
 {
@@ -80,11 +81,8 @@ struct my_mock_tcp_socket : public bzn::asio::tcp_socket_base
     }
 
     int id{};
-    static boost::asio::io_context io;
-    boost::asio::ip::tcp::socket socket{io};
+    boost::asio::ip::tcp::socket socket{real_io_context};
 };
-
-boost::asio::io_context my_mock_tcp_socket::io;
 
 struct mock_websocket
 {
@@ -99,6 +97,8 @@ struct mock_websocket
         {
             lambda(boost::system::error_code{});
         }));
+
+        EXPECT_CALL(*websocket, binary(_)).Times(AtLeast(1));
 
         EXPECT_CALL(*websocket, async_read(_, _)).Times(AtLeast(1))
             .WillRepeatedly(Invoke([&](boost::beast::multi_buffer& buffer, auto cb)
@@ -162,6 +162,8 @@ public:
     {
         this->uuid = _uuid;
         mock_io_context = std::make_shared<bzn::asio::Mockio_context_base>();
+        EXPECT_CALL(*mock_io_context, get_io_context()).Times(AtLeast(1)).WillRepeatedly(ReturnRef(real_io_context));
+
         io_context = mock_io_context;
         the_crypto = std::make_shared<null_crypto>();
         mock_ws_factory = std::make_shared<bzn::beast::Mockwebsocket_base>();
@@ -199,7 +201,7 @@ public:
 
         pbft_status["peer_index"] = peer_index;
         Json::Value module_status;
-        module_status["pbft"] = pbft_status;
+        module_status["module"][0]["status"] = pbft_status;
         srm.set_module_status_json(module_status.toStyledString());
 
         return srm;
@@ -343,6 +345,7 @@ TEST_F(integration_test, test_has_db)
     expect_has_db();
 
     auto response = has_db(uuid.c_str());
+    response->get_signal_id(100);
     EXPECT_TRUE(response->is_ready());
     auto resp = response->get_result();
     Json::Value resp_json;
@@ -370,6 +373,7 @@ TEST_F(integration_test, test_open_db)
     expect_has_db();
 
     auto response = open_db(uuid.c_str());
+    response->get_signal_id(100);
     EXPECT_TRUE(response->is_ready());
     auto resp = response->get_result();
     Json::Value resp_json;
@@ -399,6 +403,7 @@ TEST_F(integration_test, test_create)
     expect_has_db();
 
     auto response = open_db(uuid.c_str());
+    response->get_signal_id(100);
     ASSERT_TRUE(response->is_ready());
     auto db = response->get_db();
     ASSERT_TRUE(db != nullptr);
@@ -423,6 +428,7 @@ TEST_F(integration_test, test_create)
     }
 
     auto create_response = db->create("test_key", "test_value");
+    create_response->get_signal_id(100);
 
     for (size_t i = 0; i < 4; i++)
     {
@@ -468,6 +474,7 @@ TEST_F(integration_test, test_read)
     expect_has_db();
 
     auto response = open_db(uuid.c_str());
+    response->get_signal_id(100);
     ASSERT_TRUE(response->is_ready());
     auto db = response->get_db();
     ASSERT_TRUE(db != nullptr);
@@ -491,6 +498,7 @@ TEST_F(integration_test, test_read)
     }
 
     auto create_response = db->read("test_key");
+    create_response->get_signal_id(100);
 
     for (size_t i = 0; i < 4; i++)
     {
@@ -528,6 +536,7 @@ TEST_F(integration_test, test_read)
 //    }
     this->nodes.clear();
 
+    Mock::VerifyAndClearExpectations(mock_io_context.get());
     this->teardown();
 }
 
@@ -611,6 +620,7 @@ TEST_F(integration_test, live_test)
     EXPECT_TRUE(res);
 
     auto resp = bzapi::create_db(db_name.data());
+    resp->get_signal_id(100);
     while (!resp->is_ready())
     {
         sleep(1);
@@ -627,6 +637,8 @@ TEST_F(integration_test, live_test)
     ASSERT_NE(db, nullptr);
 
     auto create_resp = db->create("test_key", "test_value");
+    create_resp->get_signal_id(100);
+
     while (!create_resp->is_ready())
     {
         sleep(1);
@@ -637,6 +649,7 @@ TEST_F(integration_test, live_test)
     EXPECT_EQ(create_json["result"].asInt(), 1);
 
     auto read_resp = db->read("test_key");
+    read_resp->get_signal_id(100);
     while (!read_resp->is_ready())
     {
         sleep(1);
@@ -648,6 +661,7 @@ TEST_F(integration_test, live_test)
     EXPECT_TRUE(read_json["value"].asString() == "test_value");
 
     auto update_resp = db->update("test_key", "test_value");
+    update_resp->get_signal_id(100);
     while (!update_resp->is_ready())
     {
         sleep(1);
@@ -658,6 +672,7 @@ TEST_F(integration_test, live_test)
     EXPECT_EQ(update_json["result"].asInt(), 1);
 
     auto remove_resp = db->remove("test_key");
+    remove_resp->get_signal_id(100);
     while (!remove_resp->is_ready())
     {
         sleep(1);
