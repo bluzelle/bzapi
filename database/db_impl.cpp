@@ -106,20 +106,17 @@ db_impl::setup_request_policy(msg_info& info, send_policy policy, nonce_t nonce)
         info.responses_required = this->swarm->honest_majority_size();
         info.retry_timer = this->io_context->make_unique_steady_timer();
         info.retry_timer->expires_from_now(REQUEST_RETRY_TIME);
-//        info.retry_timer->async_wait([weak_this = weak_from_this(), nonce](const auto& ec)
-//        {
-//            auto strong_this = weak_this.lock();
-//            if (strong_this)
-//            {
-//                strong_this->handle_request_timeout(ec, nonce);
-//
-//                // we may need a client timeout here...
-//            }
-//        });
+        info.retry_timer->async_wait([weak_this = weak_from_this(), nonce](const auto& ec)
+        {
+            auto strong_this = weak_this.lock();
+            if (strong_this)
+            {
+                strong_this->handle_request_timeout(ec, nonce);
+            }
+        });
     }
     else
     {
-        // we may need a client timeout here...
         info.responses_required = 1;
     }
 }
@@ -141,7 +138,6 @@ db_impl::handle_request_timeout(const boost::system::error_code& ec, nonce_t non
     auto i = this->messages.find(nonce);
     if (i == this->messages.end())
     {
-        // shouldn't really happen?
         // message has already been processed
         LOG(debug) << "Ignoring timeout for already processed message: " << nonce;
         return;
@@ -158,8 +154,6 @@ db_impl::handle_request_timeout(const boost::system::error_code& ec, nonce_t non
         if (strong_this)
         {
             strong_this->handle_request_timeout(ec2, nonce);
-
-            // we may need a client timeout here...
         }
     });
 
@@ -251,7 +245,7 @@ db_impl::qualify_response(bzapi::db_impl::msg_info &info, const uuid_t& sender) 
 bool
 db_impl::responses_are_equal(const database_response& r1, const database_response& r2) const
 {
-    // this needs to be made better
+    // TODO: this needs to be made better
     return r1.response_case() == r2.response_case() &&
            r1.SerializeAsString() == r2.SerializeAsString();
 }

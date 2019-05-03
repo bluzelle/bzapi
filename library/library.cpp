@@ -34,11 +34,6 @@ namespace bzapi
     std::shared_ptr<crypto_base> the_crypto;
     std::shared_ptr<bzn::beast::websocket_base> ws_factory;
 
-//    std::shared_ptr<bzn::asio::io_context_base> get_my_io_context()
-//    {
-//        return io_context;
-//    }
-
     std::shared_ptr<response>
     make_response()
     {
@@ -241,17 +236,5 @@ namespace bzapi
         });
 
         return resp;
-    }
-
-    std::string value{"Hello world"};
-
-    std::string get_string()
-    {
-        return value;
-    }
-
-    void set_string(const std::string& val)
-    {
-        value = val;
     }
 }

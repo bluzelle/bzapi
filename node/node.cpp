@@ -85,7 +85,6 @@ node::make_tcp_endpoint(const std::string& host, uint16_t port)
 void
 node::connect(completion_handler_t callback)
 {
-#if 1
     std::shared_ptr<bzn::asio::tcp_socket_base> socket = this->io_context->make_unique_tcp_socket();
     socket->async_connect(this->endpoint, [weak_this = weak_from_this(), callback, socket](auto ec)
     {
@@ -135,53 +134,11 @@ node::connect(completion_handler_t callback)
             });
         }
     });
-#else
-    std::shared_ptr<bzn::asio::tcp_socket_base> socket = this->io_context->make_unique_tcp_socket();
-    socket->async_connect(this->endpoint, [this, callback, socket](auto ec)
-    {
-        // TODO: save connection latency...
-
-        if (ec)
-        {
-            // failed to connect
-            callback(ec);
-            return;
-        }
-
-        this->connected = true;
-
-        // set tcp_nodelay option
-        boost::system::error_code option_ec;
-        socket->get_tcp_socket().set_option(boost::asio::ip::tcp::no_delay(true), option_ec);
-        if (option_ec)
-        {
-            LOG(error) << "failed to set socket option: " << option_ec.message();
-        }
-
-        this->websocket = this->ws_factory->make_unique_websocket_stream(socket->get_tcp_socket());
-        this->websocket->async_handshake(this->endpoint.address().to_string(), "/"
-            , [this, callback](auto ec)
-            {
-                if (ec)
-                {
-                    // connect failed
-                    callback(ec);
-                    return;
-                }
-
-                callback(ec);
-//                    auto strong_this2 = weak_this2.lock();
-
-                this->receive();
-            });
-    });
-#endif
 }
 
 void
 node::send(const std::string& msg, completion_handler_t callback, bool is_retry)
 {
-#if 1
     boost::asio::mutable_buffers_1 buffer((void*)msg.c_str(), msg.length());
 
     this->websocket->binary(true);
@@ -221,46 +178,11 @@ node::send(const std::string& msg, completion_handler_t callback, bool is_retry)
             callback(ec);
         }
     });
-#else
-    boost::asio::mutable_buffers_1 buffer((void*)msg.c_str(), msg.length());
-
-    this->websocket->binary(true);
-    this->websocket->async_write(buffer, [this, callback, is_retry, msg](auto ec, auto bytes)
-    {
-        if (ec == boost::beast::websocket::error::closed || ec == boost::asio::error::eof)
-        {
-            this->connected = false;
-
-            // try to reconnect once
-            if (!is_retry)
-            {
-                this->connect([this, callback, msg](auto ec)
-                {
-                    if (ec)
-                    {
-                        callback(ec);
-                        return;
-                    }
-
-                    this->send(msg, callback, true);
-                    return;
-                });
-            }
-        }
-        else
-        {
-            std::cout << bytes << " bytes written";
-            callback(ec);
-        }
-    });
-
-#endif
 }
 
 void
 node::receive()
 {
-#if 1
     auto buffer = std::make_shared<boost::beast::multi_buffer>();
     this->websocket->async_read(*buffer, [weak_this = weak_from_this(), buffer, ws = this->websocket](auto ec, auto /*bytes_transferred*/)
     {
@@ -287,30 +209,6 @@ node::receive()
             }
         }
     });
-#else
-    auto buffer = std::make_shared<boost::beast::multi_buffer>();
-    this->websocket->async_read(*buffer, [this, buffer](auto ec, auto /*bytes_transferred*/)
-    {
-        if (ec)
-        {
-            this->close();
-            return;
-        }
-
-        std::stringstream ss;
-        ss << boost::beast::buffers(buffer->data());
-        std::string str = ss.str();
-
-        if (this->handler(str.c_str(), str.length()))
-        {
-            this->close();
-        }
-        else
-        {
-            this->receive();
-        }
-    });
-#endif
 }
 
 void
