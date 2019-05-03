@@ -17,7 +17,7 @@
 #include <swarm/swarm.hpp>
 #include <node/node_factory.hpp>
 
-// Note: the intention is for a swarm to server multiple db_impl clients (swarm sharing)
+// Note: the intention is for a swarm to serve multiple db_impl clients (swarm sharing)
 // however the current code will allocate a new swarm for each db instance, even if
 // it's the same uuid.
 // This will be fixed in an upcoming sprint.
