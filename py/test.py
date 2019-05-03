@@ -32,9 +32,6 @@ async def create_and_check(uuid):
     db = await bz.create_db(uuid)
     print("create_db finished ... db_obj = ", db)
 
-
-    print("starting has_db ... ")
-
     resp = await bz.has_db(uuid)
     pprint(resp)
     print("has_db finished ... rusult = ", resp)
@@ -55,7 +52,6 @@ async def create_and_check(uuid):
     res = await db.has("akey")
     print("db.has finished ... res = ", res)
 
-
     res = await db.read("akey")
     print("db.read finished ... res = ", res)
 
@@ -68,10 +64,6 @@ async def create_and_check(uuid):
     res = await db.persist("key")
     print("db.persist finished ... res = ", res)
 
-    res = await db.persist("key")
-    print("db.persist finished ... res = ", res)
-
-
     res = await db.update("akey", "aval1")
     print("db.update finished ... res = ", res)
 
@@ -79,7 +71,7 @@ async def create_and_check(uuid):
     print("db.read finished ... res = ", res)
 
     res = await db.keys()
-    print("db.res finished ... res = ", res)
+    print("db.keys finished ... res = ", res)
 
     size = await db.size()
     print("db.size finished ... res = ", size)
@@ -88,13 +80,13 @@ async def create_and_check(uuid):
     print("db.remove finished ... res = ", res)
 
     res = await db.keys()
-    print("db.res finished ... res = ", res)
+    print("db.keys finished ... res = ", res)
 
     has = await db.has("akey")
     print("db.has finished ... res = ", has)
 
     res = await db.keys()
-    print("db.res finished ... res = ", res)
+    print("db.keys finished ... res = ", res)
 
     # res = await db.expire("key", 5)
     # print("db.expire finished ... res = ", res)
@@ -110,34 +102,3 @@ async def create_and_check(uuid):
 loop = asyncio.get_event_loop()
 loop.run_until_complete(create_and_check(uuid))
 loop.close()
-
-# bzpy.initialize(pub_key, priv_key, "ws://127.0.0.1:50000")
-
-
-# res = bzpy.open_db(uuid)
-# time.sleep(2)
-# print("\nopen_db:\n")
-# pprint(res.get_result())
-#
-# mydb = res.get_db()
-#
-# res = mydb.create("akey", "aval")
-# time.sleep(2)
-# pprint(json.loads(res.get_result()))
-#
-#
-#
-# res = mydb.read("akey")
-# time.sleep(2)
-# print("CC ", json.loads(res.get_result()))
-#
-# res = mydb.remove("akey")
-# time.sleep(2)
-# print("DD ", json.loads(res.get_result()))
-#
-# res = mydb.read("akey")
-# time.sleep(2)
-# print("EE ", json.loads(res.get_result()))
-#
-#
-# bzpy.terminate()
