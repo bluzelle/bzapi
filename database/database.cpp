@@ -260,7 +260,17 @@ database::has(const key_t& key)
         database_msg msg;
         msg.set_allocated_has(request);
 
-        send_message_with_basic_response(msg, resp);
+        this->db_impl->send_message_to_swarm(msg, send_policy::normal
+            , [resp](const database_response &response, const boost::system::error_code &error)
+            {
+                translate_swarm_response(response, error, resp, [resp](const database_response &response)
+                {
+                    Json::Value result;
+                    result["result"] = response.has().has();
+                    resp->set_result(result.toStyledString());
+                    resp->set_ready();
+                });
+            });
     });
 
     return resp;

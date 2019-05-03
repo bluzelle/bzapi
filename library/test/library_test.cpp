@@ -696,6 +696,18 @@ TEST_F(integration_test, live_test)
     std::stringstream(remove_resp->get_result()) >> remove_json;
     EXPECT_EQ(read_json["result"].asInt(), 1);
 
+    auto has_resp = db->has("test_key");
+    has_resp->get_signal_id(100);
+    while (!has_resp->is_ready())
+    {
+        sleep(1);
+    }
+
+    Json::Value has_json;
+    std::stringstream(has_resp->get_result()) >> has_json;
+    EXPECT_EQ(has_json["result"].asInt(), 0);
+
+
     auto status = db->swarm_status();
     std::cout << status << std::endl;
     
