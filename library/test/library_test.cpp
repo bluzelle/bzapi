@@ -660,7 +660,7 @@ TEST_F(integration_test, live_test)
     EXPECT_EQ(read_json["result"].asInt(), 1);
     EXPECT_TRUE(read_json["value"].asString() == "test_value");
 
-    auto update_resp = db->update("test_key", "test_value");
+    auto update_resp = db->update("test_key", "test_value2");
     update_resp->get_signal_id(100);
     while (!update_resp->is_ready())
     {
@@ -670,6 +670,20 @@ TEST_F(integration_test, live_test)
     Json::Value update_json;
     std::stringstream(update_resp->get_result()) >> update_json;
     EXPECT_EQ(update_json["result"].asInt(), 1);
+
+
+    auto qread_resp = db->quick_read("test_key");
+    qread_resp->get_signal_id(100);
+    while (!qread_resp->is_ready())
+    {
+        sleep(1);
+    }
+
+    Json::Value qread_json;
+    std::stringstream(qread_resp->get_result()) >> qread_json;
+    EXPECT_EQ(qread_json["result"].asInt(), 1);
+    EXPECT_TRUE(qread_json["value"].asString() == "test_value2");
+
 
     auto remove_resp = db->remove("test_key");
     remove_resp->get_signal_id(100);

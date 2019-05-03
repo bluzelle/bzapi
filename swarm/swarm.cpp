@@ -565,7 +565,8 @@ swarm::handle_node_message(const std::string& uuid, const std::string& data)
     }
 
     // verify sender is on node list
-    if (this->nodes->find(env.sender()) == this->nodes->end() && uuid != INITIAL_NODE)
+    // TODO: quickread responses don't have a sender????
+    if (!env.sender().empty() && this->nodes->find(env.sender()) == this->nodes->end() && uuid != INITIAL_NODE)
     {
         LOG(debug) << "Dropping message from unknown sender: " << env.sender();
         return true;
