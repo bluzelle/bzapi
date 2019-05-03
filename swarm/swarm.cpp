@@ -451,7 +451,7 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
                         auto strong_this = weak_this.lock();
                         if (strong_this)
                         {
-//                            strong_this->send_status_request(node_uuid);
+                            strong_this->send_status_request(node_uuid);
                         }
                     }
                 });
@@ -473,10 +473,10 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
         this->last_status = status;
 
         // kick off status requests for newly added nodes
-//        for (auto n : new_uuids)
-//        {
-//            this->send_status_request(n);
-//        }
+        for (auto n : new_uuids)
+        {
+            this->send_status_request(n);
+        }
     }
 
     if (this->init_handler)

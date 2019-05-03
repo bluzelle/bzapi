@@ -17,6 +17,12 @@
 #include <swarm/swarm.hpp>
 #include <node/node_factory.hpp>
 
+// Note: the intention is for a swarm to server multiple db_impl clients (swarm sharing)
+// however the current code will allocate a new swarm for each db instance, even if
+// it's the same uuid.
+// This will be fixed in an upcoming sprint.
+
+
 using namespace bzapi;
 
 swarm_factory::swarm_factory(std::shared_ptr<bzn::asio::io_context_base> io_context
@@ -62,7 +68,6 @@ swarm_factory::get_swarm(const uuid_t& /*uuid*/, std::function<void(std::shared_
             callback(swarm);
         }
     });
-<<<<<<< Updated upstream
 
     // TODO: fix this
 //    std::shared_ptr<swarm> the_swarm = std::make_shared<swarm>(this->node_factory, this->io_context, this->crypto
@@ -70,7 +75,7 @@ swarm_factory::get_swarm(const uuid_t& /*uuid*/, std::function<void(std::shared_
 //    this->swarms[uuid] = the_swarm;
 //
 //    return the_swarm;
-=======
+
 #else
     auto sw = get_default_swarm();
     callback(sw);
@@ -151,8 +156,6 @@ swarm_factory::temporary_set_default_endpoint(const endpoint_t& endpoint)
 //        , this->crypto, endpoint, my_uuid);
 }
 
-//<<<<<<< Updated upstream
-//=======
 std::shared_ptr<swarm_base>
 swarm_factory::get_default_swarm()
 {
@@ -192,8 +195,6 @@ swarm_factory::get_default_swarm()
 
 #endif
 }
-
-//>>>>>>> Stashed changes
 
 void
 swarm_factory::has_db(const uuid_t& uuid, std::function<void(db_error result)> callback)
