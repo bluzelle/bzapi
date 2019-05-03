@@ -648,6 +648,19 @@ TEST_F(integration_test, live_test)
     std::stringstream(create_resp->get_result()) >> create_json;
     EXPECT_EQ(create_json["result"].asInt(), 1);
 
+
+//    auto exp_resp = db->expire("test_key", 5);
+//    exp_resp->get_signal_id(100);
+//
+//    while (!exp_resp->is_ready())
+//    {
+//        sleep(1);
+//    }
+//
+//    Json::Value exp_json;
+//    std::stringstream(exp_resp->get_result()) >> exp_json;
+//    EXPECT_EQ(exp_json["result"].asInt(), 1);
+
     auto read_resp = db->read("test_key");
     read_resp->get_signal_id(100);
     while (!read_resp->is_ready())
@@ -707,8 +720,7 @@ TEST_F(integration_test, live_test)
     std::stringstream(has_resp->get_result()) >> has_json;
     EXPECT_EQ(has_json["result"].asInt(), 0);
 
-
     auto status = db->swarm_status();
+
     std::cout << status << std::endl;
-    
 }
