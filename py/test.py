@@ -58,12 +58,6 @@ async def create_and_check(uuid):
     res = await db.quick_read("akey")
     print("db.quick_read finished ... res = ", res)
 
-    res = await db.ttl("key")
-    print("db.ttl finished ... res = ", res)
-
-    res = await db.persist("key")
-    print("db.persist finished ... res = ", res)
-
     res = await db.update("akey", "aval1")
     print("db.update finished ... res = ", res)
 
@@ -87,9 +81,6 @@ async def create_and_check(uuid):
 
     res = await db.keys()
     print("db.keys finished ... res = ", res)
-
-    # res = await db.expire("key", 5)
-    # print("db.expire finished ... res = ", res)
 
     res = await db.swarm_status()
     print("db.swarm_status finished ... res = ", res)
