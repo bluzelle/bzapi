@@ -52,8 +52,10 @@ async def create_and_check(uuid):
     print("finish")
 
 
+loop = asyncio.get_event_loop()
+loop.run_until_complete(create_and_check(uuid))
+loop.close()
 
-asyncio.run(create_and_check(uuid))
 # bzpy.initialize(pub_key, priv_key, "ws://127.0.0.1:50000")
 
 

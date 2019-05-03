@@ -47,7 +47,7 @@ class swarm_factory : public std::enable_shared_from_this<swarm_factory>
         std::shared_ptr<node_factory_base> node_factory;
         std::set<endpoint_t> endpoints;
 
-        std::shared_ptr<swarm_base> get_default_swarm();
+    std::shared_ptr<swarm_base> get_default_swarm();
 
 };
 }

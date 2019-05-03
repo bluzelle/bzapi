@@ -3,7 +3,6 @@
 import asyncio
 import warnings
 
-
 # Datagram protocol
 
 class DatagramEndpointProtocol(asyncio.DatagramProtocol):

@@ -63,7 +63,7 @@ protected:
     std::vector<std::shared_ptr<mock_node>> mock_nodes;
 
     std::map<uint16_t, node_meta> nodes;
-    bzapi::uuid_t primary_node;
+    uuid_t primary_node;
 
     void init()
     {

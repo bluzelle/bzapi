@@ -201,7 +201,7 @@ namespace bzapi
                         {
                             auto dbi = std::make_shared<db_impl>(io_context, sw, uuidstr);
                             auto db = std::make_shared<database>(dbi);
-                            db->open([&](auto ec)
+                            db->open([resp, db](auto ec)
                             {
                                 if (ec)
                                 {
