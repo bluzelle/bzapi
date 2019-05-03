@@ -13,6 +13,7 @@ $result = PyString_FromString($1.c_str());
 %shared_ptr(bzapi::response)
 %shared_ptr(bzapi::database)
 %include std_string.i
+%include stdint.i
 using std::string;
 %include "library/response.hpp"
 %include "library/library.hpp"

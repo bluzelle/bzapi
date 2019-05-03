@@ -54,13 +54,13 @@ class DB:
         results = json.loads(response.get_result())
         return results['result'] == 1
 
-    async def keys(self, key):
-        response = await self.load_(self, key, obj = self, meth = sys._getframe().f_code.co_name)
+    async def keys(self):
+        response = await self.load_(self, obj = self, meth = sys._getframe().f_code.co_name)
         results = json.loads(response.get_result())
         return results
 
-    async def size(self, key):
-        response = await self.load_(self, key, obj = self, meth = sys._getframe().f_code.co_name)
+    async def size(self):
+        response = await self.load_(self, obj = self, meth = sys._getframe().f_code.co_name)
         results = json.loads(response.get_result())
         return results
 
@@ -80,6 +80,6 @@ class DB:
         return results
 
     async def swarm_status(self):
-        response = await self.load_(self, obj = self, meth = sys._getframe().f_code.co_name)
+        response = self.response.get_db().swarm_status()
         return response
 
