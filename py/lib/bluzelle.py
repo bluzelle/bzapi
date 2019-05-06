@@ -19,8 +19,11 @@ class Bluzelle:
         if (not bzpy.initialize(pub_key, priv_key, full_url)):
             raise Exception('Could not run initialize')
 
+    def __del__(self):
+        bzpy.terminate()
+
     async def load_(self, *args, **kwargs):
-        self.async_udp_port = self.async_udp_port + 1
+        self.async_udp_port = self.async_udp_port+2
         self.local = await open_local_endpoint(self.localhost_ip, self.async_udp_port)
         method_handle = getattr(kwargs['obj'], kwargs['meth'])
         resp = method_handle(*args[1:])

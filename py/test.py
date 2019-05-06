@@ -79,16 +79,8 @@ async def create_and_check(uuid):
     has = await db.has("akey")
     print("db.has finished ... res = ", has)
 
-    res = await db.keys()
-    print("db.keys finished ... res = ", res)
-
     res = await db.swarm_status()
     print("db.swarm_status finished ... res = ", res)
-
-    print("starting bzpy.terminate() ")
-    bzpy.terminate()
-    print("finish")
-
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(create_and_check(uuid))
