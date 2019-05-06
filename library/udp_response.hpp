@@ -62,21 +62,6 @@ namespace bzapi
         void signal(int error) override
         {
             assert(their_id);
-//            {
-//                std::shared_ptr<bzn::asio::steady_timer_base> retry_timer
-//                    = get_my_io_context()->make_unique_steady_timer();
-//                retry_timer->expires_from_now(std::chrono::milliseconds(10));
-//                retry_timer->async_wait([retry_timer, error, this](const auto& ec)
-//                {
-//                    if (ec == boost::asio::error::operation_aborted)
-//                    {
-//                        return;
-//                    }
-//
-//                    this->signal(error);
-//                });
-//            }
-
             struct sockaddr_in their_addr;
             memset(&their_addr, 0, sizeof(sockaddr_in));
             their_addr.sin_family = AF_INET;
