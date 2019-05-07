@@ -144,8 +144,8 @@ async def open_datagram_endpoint(
     endpoint = endpoint_factory()
     kwargs['remote_addr' if remote else 'local_addr'] = host, port
     kwargs['protocol_factory'] = lambda: DatagramEndpointProtocol(endpoint)
-    await loop.create_datagram_endpoint(**kwargs)
-    return endpoint
+    res = await loop.create_datagram_endpoint(**kwargs)
+    return endpoint, res[0], res[1]
 
 
 async def open_local_endpoint(
