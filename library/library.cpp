@@ -24,6 +24,8 @@
 #include <database/db_impl.hpp>
 #include <jsoncpp/src/jsoncpp/include/json/value.h>
 #include <library/udp_response.hpp>
+#include <jsoncpp/src/jsoncpp/include/json/value.h>
+#include <jsoncpp/src/jsoncpp/include/json/reader.h>
 
 namespace bzapi
 {
@@ -229,24 +231,41 @@ namespace bzapi
         return resp;
     }
 
-    namespace sync
+    bool
+    has_db_sync(const std::string& uuid)
     {
-        bool
-        has_db(const std::string& /*uuid*/)
-        {
-            return true;
-        }
+        auto resp = has_db(uuid);
+        auto result = resp->get_result();
 
-        bool
-        create_db(const std::string& /*uuid*/)
-        {
-            return true;
-        }
+        Json::Value json;
+        std::stringstream(result) >> json;
 
-        bool
-        open_db(const std::string& /*uuid*/)
-        {
-            return true;
-        }
+        return json["result"].asInt();
+    }
+
+    std::shared_ptr<database_sync>
+    create_db_sync(const std::string& uuid)
+    {
+        auto resp = create_db(uuid);
+        auto result = resp->get_result();
+
+        Json::Value json;
+        std::stringstream(result) >> json;
+
+        return json["result"].asInt() ? std::make_shared<database_sync>(*(resp->get_db()))
+            : nullptr;
+    }
+
+    std::shared_ptr<database_sync>
+    open_db_sync(const std::string& uuid)
+    {
+        auto resp = open_db(uuid);
+        auto result = resp->get_result();
+
+        Json::Value json;
+        std::stringstream(result) >> json;
+
+        return json["result"].asInt() ? std::make_shared<database_sync>(*(resp->get_db()))
+            : nullptr;
     }
 }

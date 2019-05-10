@@ -789,3 +789,60 @@ TEST_F(integration_test, blocking_live_test)
 
     std::cout << status << std::endl;
 }
+
+TEST_F(integration_test, sync_live_test)
+{
+    auto rand = generate_random_number(0, 100000);
+    std::string db_name = "testdb_" + std::to_string(rand);
+
+    bool res = bzapi::initialize(pub_key, priv_key, "ws://localhost:50000");
+//    bool res = bzapi::initialize(pub_key, priv_key, "ws://127.0.0.1:50000");
+//    bool res = bzapi::initialize(pub_key, priv_key, "ws://75.96.163.85:51010");
+    EXPECT_TRUE(res);
+
+    auto db = bzapi::create_db_sync(db_name.data());
+    ASSERT_NE(db, nullptr);
+
+    auto create_resp = db->create("test_key", "test_value");
+    Json::Value create_json;
+    std::stringstream(create_resp) >> create_json;
+    EXPECT_EQ(create_json["result"].asInt(), 1);
+
+//    auto exp_resp = db->expire("test_key", 5);
+//    Json::Value exp_json;
+//    std::stringstream(exp_resp) >> exp_json;
+//    EXPECT_EQ(exp_json["result"].asInt(), 1);
+
+    auto read_resp = db->read("test_key");
+    Json::Value read_json;
+    std::stringstream(read_resp) >> read_json;
+    EXPECT_EQ(read_json["result"].asInt(), 1);
+    EXPECT_TRUE(read_json["value"].asString() == "test_value");
+
+    auto update_resp = db->update("test_key", "test_value2");
+    Json::Value update_json;
+    std::stringstream(update_resp) >> update_json;
+    EXPECT_EQ(update_json["result"].asInt(), 1);
+
+
+    auto qread_resp = db->quick_read("test_key");
+    Json::Value qread_json;
+    std::stringstream(qread_resp) >> qread_json;
+    EXPECT_EQ(qread_json["result"].asInt(), 1);
+    EXPECT_TRUE(qread_json["value"].asString() == "test_value2");
+
+
+    auto remove_resp = db->remove("test_key");
+    Json::Value remove_json;
+    std::stringstream(remove_resp) >> remove_json;
+    EXPECT_EQ(read_json["result"].asInt(), 1);
+
+    auto has_resp = db->has("test_key");
+    Json::Value has_json;
+    std::stringstream(has_resp) >> has_json;
+    EXPECT_EQ(has_json["result"].asInt(), 0);
+
+    auto status = db->swarm_status();
+
+    std::cout << status << std::endl;
+}

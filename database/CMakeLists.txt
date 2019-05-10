@@ -1,4 +1,4 @@
-add_library(database db_base.hpp database.cpp database.hpp ../include/boost_asio_beast.hpp db_impl_base.hpp db_impl.hpp db_impl.cpp)
+add_library(database db_base.hpp database.cpp database.hpp ../include/boost_asio_beast.hpp db_impl_base.hpp db_impl.hpp db_impl.cpp database_sync.cpp)
 add_dependencies(database proto jsoncpp)
 target_include_directories(database PRIVATE . ${JSONCPP_INCLUDE_DIRS})
 target_link_libraries(database ${Protobuf_LIBRARIES} ${Boost_LIBRARIES} ${JSONCPP_LIBRARIES} ${OPENSSL_LIBRARIES} pthread)

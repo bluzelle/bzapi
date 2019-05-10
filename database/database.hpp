@@ -44,6 +44,7 @@ namespace bzapi
     public:
 
         database(std::shared_ptr<db_impl_base> db_impl);
+        virtual ~database() = default;
 
         void open(completion_handler_t handler);
 
