@@ -16,10 +16,9 @@
 #pragma once
 
 #include <library/response.hpp>
+
 namespace bzapi
 {
-    //extern std::shared_ptr<bzn::asio::io_context_base> get_my_io_context();
-
     class udp_response : public response
     {
     public:
@@ -56,10 +55,39 @@ namespace bzapi
 
         ~udp_response()
         {
-            std::cout << "Destroying response object" << std::endl;
         }
 
-        void signal(int error) override
+        int set_signal_id(int theirs) override
+        {
+            std::scoped_lock<std::mutex> lock(this->mutex);
+
+            this->their_id = theirs;
+            if (this->deferred_signal)
+            {
+                this->send_signal();
+                this->deferred_signal = false;
+            }
+
+            return this->my_id;
+        }
+
+        void signal(int error)
+        {
+            std::scoped_lock<std::mutex> lock(this->mutex);
+
+            this->error_val = error;
+            if (their_id)
+            {
+                send_signal();
+            }
+            else
+            {
+                this->deferred_signal = true;
+            }
+
+        }
+
+        void send_signal()
         {
             assert(their_id);
             struct sockaddr_in their_addr;
@@ -67,13 +95,55 @@ namespace bzapi
             their_addr.sin_family = AF_INET;
             their_addr.sin_port = htons(their_id);
             their_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-            int res = sendto(sock, &error, sizeof(error), 0, (sockaddr*)&their_addr, sizeof(their_addr));
+            int res = sendto(sock, &error_val, sizeof(error_val), 0, (sockaddr*)&their_addr, sizeof(their_addr));
             if (!res)
             {
                 LOG(error) << "Error: " << errno << " sending data to socket";
             }
         }
 
+        void set_result(const std::string& result) override
+        {
+            this->result_str = result;
+        }
+
+        void set_ready() override
+        {
+            this->prom.set_value(0);
+            this->signal(0);
+        }
+
+        void set_error(int error) override
+        {
+            this->prom.set_value(error);
+            this->signal(error);
+        }
+
+        std::string get_result() override
+        {
+            this->prom.get_future().get();
+            return this->result_str;
+        }
+
+        void set_db(std::shared_ptr<database> db_ptr) override
+        {
+            this->db = db_ptr;
+        }
+
+        std::shared_ptr<database> get_db() override
+        {
+            return this->db;
+        }
+
+    private:
+        int my_id = 0;
+        int their_id = 0;
+        std::string result_str;
+        std::shared_ptr<database> db;
         int sock;
+        int error_val = 0;
+        bool deferred_signal = false;
+        std::promise<int> prom;
+        std::mutex mutex;
     };
 }

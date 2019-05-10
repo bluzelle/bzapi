@@ -16,10 +16,10 @@
 #pragma once
 
 #include <library/response.hpp>
+#include <database/database_sync.hpp>
 
 namespace bzapi
 {
-    // temporary?
     bool initialize(const std::string& public_key, const std::string& private_key, const std::string& endpoint);
 
     void terminate();
@@ -30,4 +30,9 @@ namespace bzapi
 
     std::shared_ptr<response> open_db(const std::string& uuid);
 
+    bool has_db_sync(const std::string& uuid);
+
+    std::shared_ptr<database_sync> create_db_sync(const std::string& uuid);
+
+    std::shared_ptr<database_sync> open_db_sync(const std::string& uuid);
 }

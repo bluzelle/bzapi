@@ -15,7 +15,6 @@
 
 #pragma once
 
-//#include <database/db_base.hpp>
 #include <database/db_impl_base.hpp>
 #include <swarm/swarm_base.hpp>
 #include <library/response.hpp>
@@ -44,6 +43,7 @@ namespace bzapi
     public:
 
         database(std::shared_ptr<db_impl_base> db_impl);
+        virtual ~database() = default;
 
         void open(completion_handler_t handler);
 
