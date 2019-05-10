@@ -17,13 +17,28 @@ class DB:
         self.datagram_endpoint = None
         self.transport = None
 
-        def __del__(self):
-            if (self.datagram_endpoint):
+    def __del__(self):
+        if (self.datagram_endpoint):
+            try:
                 self.datagram_endpoint._endpoint.close()
-            if (self.transport):
+            except:
+                pass
+
+        if (self.transport):
+            try:
                 self.transport.abort()
+            except:
+                pass
+
+            try:
                 self.transport.close()
+            except:
+                pass
+
+            try:
                 self.transport._sock.close()
+            except:
+                pass
 
     async def load_(self, *args, **kwargs):
         self.async_udp_port = self.async_udp_port
@@ -37,62 +52,74 @@ class DB:
         data, address = await self.datagram_endpoint._endpoint.receive()
         return resp
 
-    async def create(self, key, value):
-        response = await self.load_(self, key, value, obj = self, meth = sys._getframe().f_code.co_name)
+    async def create(self, *args, **kwargs):
+        response = await self.load_(self, *args, **kwargs, meth = sys._getframe().f_code.co_name)
         results = json.loads(response.get_result())
-        return results['result'] == 1
+        if 'result' in results:
+            return results['result'] == 1
+        else:
+            return False
 
-    async def read(self, key):
-        response = await self.load_(self, key, obj = self, meth = sys._getframe().f_code.co_name)
+    async def update(self, *args, **kwargs):
+        response = await self.load_(self, *args, **kwargs, meth = sys._getframe().f_code.co_name)
+        results = json.loads(response.get_result())
+        if 'result' in results:
+            return results['result'] == 1
+        else:
+            return False
+
+    async def remove(self, *args, **kwargs):
+        response = await self.load_(self, *args, **kwargs, meth = sys._getframe().f_code.co_name)
+        results = json.loads(response.get_result())
+        if 'result' in results:
+            return results['result'] == 1
+        else:
+            return False
+
+    async def has(self, *args, **kwargs):
+        response = await self.load_(self, *args, **kwargs, meth = sys._getframe().f_code.co_name)
+        results = json.loads(response.get_result())
+        if 'result' in results:
+            return results['result'] == 1
+        else:
+            return False
+
+    async def read(self, *args, **kwargs):
+        response = await self.load_(self, *args, **kwargs, meth = sys._getframe().f_code.co_name)
         results = json.loads(response.get_result())
         return results
 
-    async def quick_read(self, key):
-        response = await self.load_(self, key, obj = self, meth = sys._getframe().f_code.co_name)
+    async def quick_read(self, *args, **kwargs):
+        response = await self.load_(self, *args, **kwargs, meth = sys._getframe().f_code.co_name)
         results = json.loads(response.get_result())
         return results
 
-    async def update(self, key, value):
-        response = await self.load_(self, key, value, obj = self, meth = sys._getframe().f_code.co_name)
+    async def expire(self, *args, **kwargs):
+        response = await self.load_(self, *args, **kwargs, meth = sys._getframe().f_code.co_name)
         results = json.loads(response.get_result())
-        return results['result'] == 1
+        return results
 
-    async def remove(self, key):
-        response = await self.load_(self, key, obj = self, meth = sys._getframe().f_code.co_name)
+    async def persist(self, *args, **kwargs):
+        response = await self.load_(self, *args, **kwargs, meth = sys._getframe().f_code.co_name)
         results = json.loads(response.get_result())
-        return results['result'] == 1
+        return results
 
-    async def has(self, key):
-        response = await self.load_(self, key, obj = self, meth = sys._getframe().f_code.co_name)
+    async def ttl(self, *args, **kwargs):
+        response = await self.load_(self, *args, **kwargs, meth = sys._getframe().f_code.co_name)
         results = json.loads(response.get_result())
-        return results['result'] == 1
+        return results
 
     async def keys(self):
-        response = await self.load_(self, obj = self, meth = sys._getframe().f_code.co_name)
+        response = await self.load_(self, meth = sys._getframe().f_code.co_name)
         results = json.loads(response.get_result())
-        return results
+        return results['keys']
 
     async def size(self):
-        response = await self.load_(self, obj = self, meth = sys._getframe().f_code.co_name)
+        response = await self.load_(self, meth = sys._getframe().f_code.co_name)
         results = json.loads(response.get_result())
         return results
 
-    async def expire(self, key, expiry):
-        response = await self.load_(self, key, expiry, obj = self, meth = sys._getframe().f_code.co_name)
-        results = json.loads(response.get_result())
-        return results
-
-    async def persist(self, key):
-        response = await self.load_(self, key, obj = self, meth = sys._getframe().f_code.co_name)
-        results = json.loads(response.get_result())
-        return results
-
-    async def ttl(self, key):
-        response = await self.load_(self, key, obj = self, meth = sys._getframe().f_code.co_name)
-        results = json.loads(response.get_result())
-        return results
 
     async def swarm_status(self):
         response = self.response.get_db().swarm_status()
         return response
-
