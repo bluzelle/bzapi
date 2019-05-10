@@ -42,27 +42,14 @@ namespace bzapi
         { exec_func = func; }
 
         // consumer
-        int get_signal_id(int theirs)
-        {
-            this->their_id = theirs;
-            this->exec_func();
-            return this->my_id;
-        }
+        virtual int get_signal_id(int theirs) = 0;
 
         bool is_ready()
         {
             return this->ready;
         }
 
-        std::string get_result()
-        {
-            if (ready)
-            {
-                return this->result_str;
-            }
-
-            return {};
-        }
+        virtual std::string get_result() = 0;
 
         std::shared_ptr<database> get_db()
         {
@@ -70,21 +57,11 @@ namespace bzapi
         }
 
         // producer
-        void set_result(const std::string& result)
-        {
-            this->result_str = result;
-        }
+        virtual void set_result(const std::string& result) = 0;
 
-        void set_ready()
-        {
-            this->set_error(0);
-        }
+        virtual void set_ready() = 0;
 
-        void set_error(int error)
-        {
-            this->ready = true;
-            this->signal(error);
-        }
+        virtual void set_error(int error) = 0;
 
         void set_db(std::shared_ptr<database> db_ptr)
         {

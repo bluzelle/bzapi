@@ -30,4 +30,10 @@ namespace bzapi
 
     std::shared_ptr<response> open_db(const std::string& uuid);
 
+    namespace sync
+    {
+        bool has_db(const std::string& uuid);
+        bool create_db(const std::string& uuid);
+        bool open_db(const std::string& uuid);
+    }
 }

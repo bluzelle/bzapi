@@ -320,6 +320,33 @@ public:
         return dist(gen);
     }
 
+    int create_socket(uint16_t& port)
+    {
+        sockaddr_in local;
+        memset(&local, 0, sizeof(sockaddr_in));
+        local.sin_family = AF_INET;
+        local.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+        local.sin_port = 0; //randomly selected port
+        int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+        if (bind(sock, (sockaddr*)&local, sizeof(local)) == -1)
+        {
+            throw std::runtime_error("unable to bind udp socket");
+        }
+
+        struct sockaddr_in sin;
+        socklen_t addrlen = sizeof(sin);
+        if (getsockname(sock, (struct sockaddr *)&sin, &addrlen) == 0
+            && sin.sin_family == AF_INET && addrlen == sizeof(sin))
+        {
+            port = ntohs(sin.sin_port);
+            return sock;
+        }
+        else
+        {
+            throw std::runtime_error("error determining local port");
+        }
+    }
+
 protected:
     struct node_meta
     {
@@ -575,29 +602,8 @@ TEST_F(integration_test, signing_test)
 
 TEST_F(integration_test, response_test)
 {
-    sockaddr_in local;
-    memset(&local, 0, sizeof(sockaddr_in));
-    local.sin_family = AF_INET;
-    local.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    local.sin_port = 0; //randomly selected port
-    int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (bind(sock, (sockaddr*)&local, sizeof(local)) == -1)
-    {
-        throw std::runtime_error("unable to bind udp socket");
-    }
-
-    int my_id = 0;
-    struct sockaddr_in sin;
-    socklen_t addrlen = sizeof(sin);
-    if (getsockname(sock, (struct sockaddr *)&sin, &addrlen) == 0
-        && sin.sin_family == AF_INET && addrlen == sizeof(sin))
-    {
-        my_id = ntohs(sin.sin_port);
-    }
-    else
-    {
-        throw std::runtime_error("error determining local port");
-    }
+    uint16_t my_id = 0;
+    int sock = create_socket(my_id);
 
     udp_response resp;
     int their_id = resp.get_signal_id(my_id);
@@ -609,8 +615,28 @@ TEST_F(integration_test, response_test)
     std::cout << "received: " << res << " bytes" << std::endl;
 }
 
+TEST_F(integration_test, blocking_response_test)
+{
+    udp_response resp;
+
+    std::thread thr([&resp]()
+    {
+        sleep(2);
+        resp.set_result("done");
+        resp.set_ready();
+    });
+
+    EXPECT_EQ(resp.get_result(), std::string("done"));
+    thr.join();
+}
+
+
 TEST_F(integration_test, live_test)
 {
+    uint16_t my_id = 0;
+    int sock = create_socket(my_id);
+    char buf[1024];
+
     auto rand = generate_random_number(0, 100000);
     std::string db_name = "testdb_" + std::to_string(rand);
 
@@ -620,12 +646,9 @@ TEST_F(integration_test, live_test)
     EXPECT_TRUE(res);
 
     auto resp = bzapi::create_db(db_name.data());
-    resp->get_signal_id(100);
-    while (!resp->is_ready())
-    {
-        sleep(1);
-    }
-    EXPECT_TRUE(resp->is_ready());
+    resp->get_signal_id(my_id);
+    recvfrom(sock, buf, 1024, 0, NULL, 0);
+
     Json::Value res_json;
     std::stringstream(resp->get_result()) >> res_json;
     auto result = res_json["result"].asInt();
@@ -637,12 +660,8 @@ TEST_F(integration_test, live_test)
     ASSERT_NE(db, nullptr);
 
     auto create_resp = db->create("test_key", "test_value");
-    create_resp->get_signal_id(100);
-
-    while (!create_resp->is_ready())
-    {
-        sleep(1);
-    }
+    create_resp->get_signal_id(my_id);
+    recvfrom(sock, buf, 1024, 0, NULL, 0);
 
     Json::Value create_json;
     std::stringstream(create_resp->get_result()) >> create_json;
@@ -650,23 +669,16 @@ TEST_F(integration_test, live_test)
 
 
 //    auto exp_resp = db->expire("test_key", 5);
-//    exp_resp->get_signal_id(100);
-//
-//    while (!exp_resp->is_ready())
-//    {
-//        sleep(1);
-//    }
+//    resp->get_signal_id(my_id);
+//    recvfrom(sock, buf, 1024, 0, NULL, 0);
 //
 //    Json::Value exp_json;
 //    std::stringstream(exp_resp->get_result()) >> exp_json;
 //    EXPECT_EQ(exp_json["result"].asInt(), 1);
 
     auto read_resp = db->read("test_key");
-    read_resp->get_signal_id(100);
-    while (!read_resp->is_ready())
-    {
-        sleep(1);
-    }
+    read_resp->get_signal_id(my_id);
+    recvfrom(sock, buf, 1024, 0, NULL, 0);
 
     Json::Value read_json;
     std::stringstream(read_resp->get_result()) >> read_json;
@@ -674,11 +686,8 @@ TEST_F(integration_test, live_test)
     EXPECT_TRUE(read_json["value"].asString() == "test_value");
 
     auto update_resp = db->update("test_key", "test_value2");
-    update_resp->get_signal_id(100);
-    while (!update_resp->is_ready())
-    {
-        sleep(1);
-    }
+    update_resp->get_signal_id(my_id);
+    recvfrom(sock, buf, 1024, 0, NULL, 0);
 
     Json::Value update_json;
     std::stringstream(update_resp->get_result()) >> update_json;
@@ -686,11 +695,8 @@ TEST_F(integration_test, live_test)
 
 
     auto qread_resp = db->quick_read("test_key");
-    qread_resp->get_signal_id(100);
-    while (!qread_resp->is_ready())
-    {
-        sleep(1);
-    }
+    qread_resp->get_signal_id(my_id);
+    recvfrom(sock, buf, 1024, 0, NULL, 0);
 
     Json::Value qread_json;
     std::stringstream(qread_resp->get_result()) >> qread_json;
@@ -699,23 +705,82 @@ TEST_F(integration_test, live_test)
 
 
     auto remove_resp = db->remove("test_key");
-    remove_resp->get_signal_id(100);
-    while (!remove_resp->is_ready())
-    {
-        sleep(1);
-    }
+    remove_resp->get_signal_id(my_id);
+    recvfrom(sock, buf, 1024, 0, NULL, 0);
 
     Json::Value remove_json;
     std::stringstream(remove_resp->get_result()) >> remove_json;
     EXPECT_EQ(read_json["result"].asInt(), 1);
 
     auto has_resp = db->has("test_key");
-    has_resp->get_signal_id(100);
-    while (!has_resp->is_ready())
-    {
-        sleep(1);
-    }
+    has_resp->get_signal_id(my_id);
+    recvfrom(sock, buf, 1024, 0, NULL, 0);
 
+    Json::Value has_json;
+    std::stringstream(has_resp->get_result()) >> has_json;
+    EXPECT_EQ(has_json["result"].asInt(), 0);
+
+    auto status = db->swarm_status();
+
+    std::cout << status << std::endl;
+}
+
+TEST_F(integration_test, blocking_live_test)
+{
+    auto rand = generate_random_number(0, 100000);
+    std::string db_name = "testdb_" + std::to_string(rand);
+
+    bool res = bzapi::initialize(pub_key, priv_key, "ws://localhost:50000");
+//    bool res = bzapi::initialize(pub_key, priv_key, "ws://127.0.0.1:50000");
+//    bool res = bzapi::initialize(pub_key, priv_key, "ws://75.96.163.85:51010");
+    EXPECT_TRUE(res);
+
+    auto resp = bzapi::create_db(db_name.data());
+    Json::Value res_json;
+    std::stringstream(resp->get_result()) >> res_json;
+    auto result = res_json["result"].asInt();
+    auto db_uuid = res_json["uuid"].asString();
+    EXPECT_EQ(result, 1);
+    EXPECT_EQ(db_uuid, db_name);
+
+    auto db = resp->get_db();
+    ASSERT_NE(db, nullptr);
+
+    auto create_resp = db->create("test_key", "test_value");
+    Json::Value create_json;
+    std::stringstream(create_resp->get_result()) >> create_json;
+    EXPECT_EQ(create_json["result"].asInt(), 1);
+
+//    auto exp_resp = db->expire("test_key", 5);
+//    Json::Value exp_json;
+//    std::stringstream(exp_resp->get_result()) >> exp_json;
+//    EXPECT_EQ(exp_json["result"].asInt(), 1);
+
+    auto read_resp = db->read("test_key");
+    Json::Value read_json;
+    std::stringstream(read_resp->get_result()) >> read_json;
+    EXPECT_EQ(read_json["result"].asInt(), 1);
+    EXPECT_TRUE(read_json["value"].asString() == "test_value");
+
+    auto update_resp = db->update("test_key", "test_value2");
+    Json::Value update_json;
+    std::stringstream(update_resp->get_result()) >> update_json;
+    EXPECT_EQ(update_json["result"].asInt(), 1);
+
+
+    auto qread_resp = db->quick_read("test_key");
+    Json::Value qread_json;
+    std::stringstream(qread_resp->get_result()) >> qread_json;
+    EXPECT_EQ(qread_json["result"].asInt(), 1);
+    EXPECT_TRUE(qread_json["value"].asString() == "test_value2");
+
+
+    auto remove_resp = db->remove("test_key");
+    Json::Value remove_json;
+    std::stringstream(remove_resp->get_result()) >> remove_json;
+    EXPECT_EQ(read_json["result"].asInt(), 1);
+
+    auto has_resp = db->has("test_key");
     Json::Value has_json;
     std::stringstream(has_resp->get_result()) >> has_json;
     EXPECT_EQ(has_json["result"].asInt(), 0);
