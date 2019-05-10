@@ -16,10 +16,9 @@
 #pragma once
 
 #include <library/response.hpp>
+
 namespace bzapi
 {
-    //extern std::shared_ptr<bzn::asio::io_context_base> get_my_io_context();
-
     class udp_response : public response
     {
     public:
@@ -56,10 +55,9 @@ namespace bzapi
 
         ~udp_response()
         {
-            std::cout << "Destroying response object" << std::endl;
         }
 
-        int get_signal_id(int theirs) override
+        int set_signal_id(int theirs) override
         {
             std::scoped_lock<std::mutex> lock(this->mutex);
 
@@ -73,7 +71,7 @@ namespace bzapi
             return this->my_id;
         }
 
-        void signal(int error) override
+        void signal(int error)
         {
             std::scoped_lock<std::mutex> lock(this->mutex);
 
@@ -127,6 +125,21 @@ namespace bzapi
             return this->result_str;
         }
 
+        void set_db(std::shared_ptr<database> db_ptr) override
+        {
+            this->db = db_ptr;
+        }
+
+        std::shared_ptr<database> get_db() override
+        {
+            return this->db;
+        }
+
+    private:
+        int my_id = 0;
+        int their_id = 0;
+        std::string result_str;
+        std::shared_ptr<database> db;
         int sock;
         int error_val = 0;
         bool deferred_signal = false;

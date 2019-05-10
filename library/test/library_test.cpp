@@ -372,8 +372,7 @@ TEST_F(integration_test, test_has_db)
     expect_has_db();
 
     auto response = has_db(uuid.c_str());
-    response->get_signal_id(100);
-    EXPECT_TRUE(response->is_ready());
+    response->set_signal_id(100);
     auto resp = response->get_result();
     Json::Value resp_json;
     Json::Reader reader;
@@ -400,8 +399,7 @@ TEST_F(integration_test, test_open_db)
     expect_has_db();
 
     auto response = open_db(uuid.c_str());
-    response->get_signal_id(100);
-    EXPECT_TRUE(response->is_ready());
+    response->set_signal_id(100);
     auto resp = response->get_result();
     Json::Value resp_json;
     Json::Reader reader;
@@ -430,8 +428,7 @@ TEST_F(integration_test, test_create)
     expect_has_db();
 
     auto response = open_db(uuid.c_str());
-    response->get_signal_id(100);
-    ASSERT_TRUE(response->is_ready());
+    response->set_signal_id(100);
     auto db = response->get_db();
     ASSERT_TRUE(db != nullptr);
 
@@ -455,7 +452,7 @@ TEST_F(integration_test, test_create)
     }
 
     auto create_response = db->create("test_key", "test_value");
-    create_response->get_signal_id(100);
+    create_response->set_signal_id(100);
 
     for (size_t i = 0; i < 4; i++)
     {
@@ -472,7 +469,6 @@ TEST_F(integration_test, test_create)
         this->nodes[i].simulate_read(message);
     }
 
-    EXPECT_TRUE(create_response->is_ready());
     auto resp = create_response->get_result();
     Json::Value resp_json;
     Json::Reader reader;
@@ -501,8 +497,7 @@ TEST_F(integration_test, test_read)
     expect_has_db();
 
     auto response = open_db(uuid.c_str());
-    response->get_signal_id(100);
-    ASSERT_TRUE(response->is_ready());
+    response->set_signal_id(100);
     auto db = response->get_db();
     ASSERT_TRUE(db != nullptr);
 
@@ -525,7 +520,7 @@ TEST_F(integration_test, test_read)
     }
 
     auto create_response = db->read("test_key");
-    create_response->get_signal_id(100);
+    create_response->set_signal_id(100);
 
     for (size_t i = 0; i < 4; i++)
     {
@@ -547,7 +542,6 @@ TEST_F(integration_test, test_read)
         this->nodes[i].simulate_read(message);
     }
 
-    EXPECT_TRUE(create_response->is_ready());
     auto resp = create_response->get_result();
     Json::Value resp_json;
     Json::Reader reader;
@@ -606,7 +600,7 @@ TEST_F(integration_test, response_test)
     int sock = create_socket(my_id);
 
     udp_response resp;
-    int their_id = resp.get_signal_id(my_id);
+    int their_id = resp.set_signal_id(my_id);
     (void) their_id;
     resp.set_ready();
 
@@ -646,7 +640,7 @@ TEST_F(integration_test, live_test)
     EXPECT_TRUE(res);
 
     auto resp = bzapi::create_db(db_name.data());
-    resp->get_signal_id(my_id);
+    resp->set_signal_id(my_id);
     recvfrom(sock, buf, 1024, 0, NULL, 0);
 
     Json::Value res_json;
@@ -660,7 +654,7 @@ TEST_F(integration_test, live_test)
     ASSERT_NE(db, nullptr);
 
     auto create_resp = db->create("test_key", "test_value");
-    create_resp->get_signal_id(my_id);
+    create_resp->set_signal_id(my_id);
     recvfrom(sock, buf, 1024, 0, NULL, 0);
 
     Json::Value create_json;
@@ -669,7 +663,7 @@ TEST_F(integration_test, live_test)
 
 
 //    auto exp_resp = db->expire("test_key", 5);
-//    resp->get_signal_id(my_id);
+//    resp->set_signal_id(my_id);
 //    recvfrom(sock, buf, 1024, 0, NULL, 0);
 //
 //    Json::Value exp_json;
@@ -677,7 +671,7 @@ TEST_F(integration_test, live_test)
 //    EXPECT_EQ(exp_json["result"].asInt(), 1);
 
     auto read_resp = db->read("test_key");
-    read_resp->get_signal_id(my_id);
+    read_resp->set_signal_id(my_id);
     recvfrom(sock, buf, 1024, 0, NULL, 0);
 
     Json::Value read_json;
@@ -686,7 +680,7 @@ TEST_F(integration_test, live_test)
     EXPECT_TRUE(read_json["value"].asString() == "test_value");
 
     auto update_resp = db->update("test_key", "test_value2");
-    update_resp->get_signal_id(my_id);
+    update_resp->set_signal_id(my_id);
     recvfrom(sock, buf, 1024, 0, NULL, 0);
 
     Json::Value update_json;
@@ -695,7 +689,7 @@ TEST_F(integration_test, live_test)
 
 
     auto qread_resp = db->quick_read("test_key");
-    qread_resp->get_signal_id(my_id);
+    qread_resp->set_signal_id(my_id);
     recvfrom(sock, buf, 1024, 0, NULL, 0);
 
     Json::Value qread_json;
@@ -705,7 +699,7 @@ TEST_F(integration_test, live_test)
 
 
     auto remove_resp = db->remove("test_key");
-    remove_resp->get_signal_id(my_id);
+    remove_resp->set_signal_id(my_id);
     recvfrom(sock, buf, 1024, 0, NULL, 0);
 
     Json::Value remove_json;
@@ -713,7 +707,7 @@ TEST_F(integration_test, live_test)
     EXPECT_EQ(read_json["result"].asInt(), 1);
 
     auto has_resp = db->has("test_key");
-    has_resp->get_signal_id(my_id);
+    has_resp->set_signal_id(my_id);
     recvfrom(sock, buf, 1024, 0, NULL, 0);
 
     Json::Value has_json;

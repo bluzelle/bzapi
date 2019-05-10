@@ -38,23 +38,12 @@ namespace bzapi
         virtual ~response()
         {}
 
-        virtual void exec(std::function<void(void)> func)
-        { exec_func = func; }
-
         // consumer
-        virtual int get_signal_id(int theirs) = 0;
-
-        bool is_ready()
-        {
-            return this->ready;
-        }
+        virtual int set_signal_id(int theirs) = 0;
 
         virtual std::string get_result() = 0;
 
-        std::shared_ptr<database> get_db()
-        {
-            return this->db;
-        }
+        virtual std::shared_ptr<database> get_db() = 0;
 
         // producer
         virtual void set_result(const std::string& result) = 0;
@@ -63,19 +52,7 @@ namespace bzapi
 
         virtual void set_error(int error) = 0;
 
-        void set_db(std::shared_ptr<database> db_ptr)
-        {
-            this->db = db_ptr;
-        }
+        virtual void set_db(std::shared_ptr<database> db_ptr) = 0;
 
-    protected:
-        int my_id = 0;
-        int their_id = 0;
-        std::string result_str;
-        std::atomic<bool> ready = false;
-        std::shared_ptr<database> db;
-        std::function<void(void)> exec_func;
-
-        virtual void signal(int error) = 0;
     };
 }
