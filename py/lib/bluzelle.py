@@ -7,14 +7,12 @@ from ecdsa import SigningKey
 import logging
 from build.library import bzpy
 from lib.udp.udp_support import *
-from lib.udp.test_udp import *
 from lib.db import DB
 
 class Bluzelle:
 
     def __init__(self, priv_key, ws_address="127.0.0.1", ws_port="50000"):
         self.localhost_ip = "127.0.0.1"
-        self.async_udp_port = get_next_free()
         self.ws_address = ws_address
         self.ws_port = ws_port
         self.priv_key = priv_key
@@ -38,61 +36,21 @@ class Bluzelle:
         self.transport = None
 
     def __del__(self):
-        if (self.datagram_endpoint):
-            try:
-                self.datagram_endpoint._endpoint.close()
-            except:
-                pass
-        if (self.transport):
-            try:
-                self.transport.abort()
-            except:
-                pass
-
-            try:
-                self.transport.close()
-            except:
-                pass
-
-            try:
-                self.transport._sock.close()
-            except:
-                pass
-
         if (self.init_happened):
             bzpy.terminate()
 
-    async def load_(self, *args, **kwargs):
-        self.async_udp_port = self.async_udp_port
-        if not self.datagram_endpoint:
-            res = await open_local_endpoint(self.localhost_ip, self.async_udp_port)
-            self.datagram_endpoint = res[2]
-            self.transport = res[1]
-        method_handle = getattr(bzpy, kwargs['meth'])
+    def load_(self, *args, **kwargs):
+        method_handle = getattr(bzpy, kwargs['meth']+'_sync')
         resp = method_handle(*args[1:])
-        resp.get_signal_id(self.async_udp_port)
-        data, address = await self.datagram_endpoint._endpoint.receive()
         return resp
 
+    def create_db(self, *args, **kwargs):
+        response = self.load_(self, *args, **kwargs, meth = sys._getframe().f_code.co_name)
+        return DB(response)
 
-    async def create_db(self, *args, **kwargs):
-        response = await self.load_(self, *args, **kwargs, meth = sys._getframe().f_code.co_name)
-        results = json.loads(response.get_result())
-        if 'error' in results:
-            raise Exception(results['error'])
-        else:
-            return DB(response)
+    def has_db(self, *args, **kwargs):
+        return self.load_(self, *args, **kwargs, meth = sys._getframe().f_code.co_name)
 
-
-    async def has_db(self, *args, **kwargs):
-        response = await self.load_(self, *args, **kwargs, meth = sys._getframe().f_code.co_name)
-        results = json.loads(response.get_result())
-        return results['result'] == 1
-
-    async def open_db(self, *args, **kwargs):
-        response = await self.load_(self, *args, **kwargs, meth = sys._getframe().f_code.co_name)
-        results = json.loads(response.get_result())
-        if 'error' in results:
-            raise Exception(results['error'])
-        else:
-            return DB(response)
+    def open_db(self, *args, **kwargs):
+        response = self.load_(self, *args, **kwargs, meth = sys._getframe().f_code.co_name)
+        return DB(response)
