@@ -17,7 +17,7 @@
 
 #include <cstdint>
 #include <boost_asio_beast.hpp>
-#include <bzapi.hpp>
+#include <defs.hpp>
 #include <proto/database.pb.h>
 #include <library/response.hpp>
 

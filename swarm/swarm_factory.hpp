@@ -17,7 +17,7 @@
 
 #include <swarm/swarm_base.hpp>
 #include <crypto/crypto_base.hpp>
-#include <database/database.hpp>
+#include <database/async_database.hpp>
 #include <boost_asio_beast.hpp>
 
 namespace bzapi

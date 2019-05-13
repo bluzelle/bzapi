@@ -15,25 +15,4 @@
 
 #pragma once
 
-#include <cstdint>
-#include <boost_asio_beast.hpp>
-#include <defs.hpp>
-
-namespace bzapi
-{
-    using websocket = uint64_t;
-    using node_message_handler = std::function<bool(const std::string& data)>;
-
-    // establishes and maintains connection with node
-    // sends messages to node
-    // receives incoming messages and forwards them to owner
-    class node_base
-    {
-    public:
-
-        virtual ~node_base() = default;
-
-        virtual void register_message_handler(node_message_handler handler) = 0;
-        virtual void send_message(const std::string& msg, completion_handler_t callback) = 0;
-   };
-}
+#include "library/library.hpp"

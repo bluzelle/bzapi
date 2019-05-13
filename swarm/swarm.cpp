@@ -16,7 +16,7 @@
 #include <swarm.hpp>
 #include <boost/lexical_cast.hpp>
 #include <json/json.h>
-#include <bzapi.hpp>
+#include <defs.hpp>
 #include <boost/format.hpp>
 #include <proto/database.pb.h>
 
@@ -499,6 +499,7 @@ swarm::parse_endpoint(const std::string& endpoint)
     auto offset = endpoint.find(':', 5);
     if (offset > endpoint.size() || endpoint.substr(0, 5) != "ws://")
     {
+        LOG(error) << "bad swarm node endpoint: " << endpoint;
         throw(std::runtime_error("bad node endpoint: " + endpoint));
     }
 
@@ -509,6 +510,7 @@ swarm::parse_endpoint(const std::string& endpoint)
     }
     catch (boost::bad_lexical_cast &)
     {
+        LOG(error) << "bad swarm node endpoint: " << endpoint;
         throw(std::runtime_error("bad node endpoint: " + endpoint));
     }
 
@@ -539,6 +541,7 @@ swarm::send_status_request(uuid_t node_uuid)
         if (ec)
         {
             // TODO: this needs to be caught
+            LOG(error) << "Error sending status request to node: " << ec.message();
             throw(std::runtime_error("Error sending status request to node: " + ec.message()));
         }
     });

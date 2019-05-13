@@ -1,4 +1,4 @@
-add_library(bzapi SHARED library.cpp library.hpp ../include/boost_asio_beast.hpp ../database/db_base.hpp response.hpp udp_response.hpp)
+add_library(bzapi SHARED library.cpp library.hpp ../include/boost_asio_beast.hpp ../database/db_base.hpp response.hpp udp_response.hpp ../bzapi.hpp)
 set_source_files_properties(../swig/py/bzpy.i PROPERTIES CPLUSPLUS ON)
 include_directories(bzapi ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/database)
 add_dependencies(jsoncpp openssl)

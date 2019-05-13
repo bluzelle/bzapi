@@ -16,7 +16,7 @@
 #pragma once
 
 #include <library/response.hpp>
-#include <database/database_sync.hpp>
+#include <database/database.hpp>
 
 namespace bzapi
 {
@@ -24,15 +24,19 @@ namespace bzapi
 
     void terminate();
 
-    std::shared_ptr<response> has_db(const std::string& uuid);
+    bool has_db(const std::string& uuid);
 
-    std::shared_ptr<response> create_db(const std::string& uuid);
+    std::shared_ptr<database> create_db(const std::string& uuid);
 
-    std::shared_ptr<response> open_db(const std::string& uuid);
+    std::shared_ptr<database> open_db(const std::string& uuid);
 
-    bool has_db_sync(const std::string& uuid);
+    std::shared_ptr<response> async_has_db(const std::string& uuid);
 
-    std::shared_ptr<database_sync> create_db_sync(const std::string& uuid);
+    std::shared_ptr<response> async_create_db(const std::string& uuid);
 
-    std::shared_ptr<database_sync> open_db_sync(const std::string& uuid);
+    std::shared_ptr<response> async_open_db(const std::string& uuid);
+
+    int get_error();
+
+    std::string get_error_str();
 }
