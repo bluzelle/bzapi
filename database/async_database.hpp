@@ -24,8 +24,6 @@ namespace bzapi
     using uuid_t = std::string;
     using endpoint_t = std::string;
     using completion_handler_t = std::function<void(const boost::system::error_code &error)>;
-    using key_t = std::string;
-    using value_t = std::string;
     using expiry_t = uint64_t;
 
     enum class db_error
@@ -47,18 +45,18 @@ namespace bzapi
 
         void open(completion_handler_t handler);
 
-        std::shared_ptr<response> create(const key_t& key, const value_t& value);
-        std::shared_ptr<response> read(const key_t& key);
-        std::shared_ptr<response> update(const key_t& key, const value_t& value);
-        std::shared_ptr<response> remove(const key_t& key);
+        std::shared_ptr<response> create(const std::string& key, const std::string& value);
+        std::shared_ptr<response> read(const std::string& key);
+        std::shared_ptr<response> update(const std::string& key, const std::string& value);
+        std::shared_ptr<response> remove(const std::string& key);
 
-        std::shared_ptr<response> quick_read(const key_t& key);
-        std::shared_ptr<response> has(const key_t& key);
+        std::shared_ptr<response> quick_read(const std::string& key);
+        std::shared_ptr<response> has(const std::string& key);
         std::shared_ptr<response> keys();
         std::shared_ptr<response> size();
-        std::shared_ptr<response> expire(const key_t& key, expiry_t expiry);
-        std::shared_ptr<response> persist(const key_t& key);
-        std::shared_ptr<response> ttl(const key_t& key);
+        std::shared_ptr<response> expire(const std::string& key, expiry_t expiry);
+        std::shared_ptr<response> persist(const std::string& key);
+        std::shared_ptr<response> ttl(const std::string& key);
 
         std::string swarm_status();
 

@@ -25,18 +25,18 @@ namespace bzapi
 
         database(const async_database& db);
 
-        std::string create(const key_t& key, const value_t& value);
-        std::string read(const key_t& key);
-        std::string update(const key_t& key, const value_t& value);
-        std::string remove(const key_t& key);
+        std::string create(const std::string& key, const std::string& value);
+        std::string read(const std::string& key);
+        std::string update(const std::string& key, const std::string& value);
+        std::string remove(const std::string& key);
 
-        std::string quick_read(const key_t& key);
-        std::string has(const key_t& key);
+        std::string quick_read(const std::string& key);
+        std::string has(const std::string& key);
         std::string keys();
         std::string size();
-        std::string expire(const key_t& key, expiry_t expiry);
-        std::string persist(const key_t& key);
-        std::string ttl(const key_t& key);
+        std::string expire(const std::string& key, expiry_t expiry);
+        std::string persist(const std::string& key);
+        std::string ttl(const std::string& key);
 
         std::string swarm_status();
     };
