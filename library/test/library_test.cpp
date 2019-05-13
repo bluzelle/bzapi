@@ -16,7 +16,7 @@
 #include <gtest/gtest.h>
 #include <mocks/mock_boost_asio_beast.hpp>
 #include <swarm/swarm_factory.hpp>
-#include <bzapi.hpp>
+#include <defs.hpp>
 #include <crypto/null_crypto.hpp>
 #include <crypto/crypto.hpp>
 #include <library/library.hpp>

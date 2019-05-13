@@ -18,7 +18,7 @@
 #include <swarm/swarm.hpp>
 #include <boost_asio_beast.hpp>
 #include <swarm/swarm_factory.hpp>
-#include <bzapi.hpp>
+#include <defs.hpp>
 #include <crypto/crypto.hpp>
 #include <database/database.hpp>
 #include <database/db_impl.hpp>

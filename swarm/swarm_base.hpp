@@ -19,7 +19,7 @@
 #include <boost_asio_beast.hpp>
 #include <node/node_factory_base.hpp>
 #include <proto/status.pb.h>
-#include <bzapi.hpp>
+#include <defs.hpp>
 
 namespace bzapi
 {
