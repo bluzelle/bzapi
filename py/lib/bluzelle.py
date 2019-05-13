@@ -40,7 +40,7 @@ class Bluzelle:
             bzpy.terminate()
 
     def load_(self, *args, **kwargs):
-        method_handle = getattr(bzpy, kwargs['meth']+'_sync')
+        method_handle = getattr(bzpy, kwargs['meth'])
         resp = method_handle(*args[1:])
         return resp
 

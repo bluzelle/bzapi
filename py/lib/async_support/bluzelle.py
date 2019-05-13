@@ -67,7 +67,7 @@ class Bluzelle:
             res = await open_local_endpoint(self.localhost_ip, self.async_udp_port)
             self.datagram_endpoint = res[2]
             self.transport = res[1]
-        method_handle = getattr(bzpy, kwargs['meth'])
+        method_handle = getattr(bzpy, 'async_'+kwargs['meth'])
         resp = method_handle(*args[1:])
         resp.set_signal_id(self.async_udp_port)
         data, address = await self.datagram_endpoint._endpoint.receive()
