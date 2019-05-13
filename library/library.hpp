@@ -24,15 +24,19 @@ namespace bzapi
 
     void terminate();
 
+    bool has_db(const std::string& uuid);
+
+    std::shared_ptr<database> create_db(const std::string& uuid);
+
+    std::shared_ptr<database> open_db(const std::string& uuid);
+
     std::shared_ptr<response> async_has_db(const std::string& uuid);
 
     std::shared_ptr<response> async_create_db(const std::string& uuid);
 
     std::shared_ptr<response> async_open_db(const std::string& uuid);
 
-    bool has_db(const std::string& uuid);
+    int get_error();
 
-    std::shared_ptr<database> create_db(const std::string& uuid);
-
-    std::shared_ptr<database> open_db(const std::string& uuid);
+    std::string get_error_str();
 }

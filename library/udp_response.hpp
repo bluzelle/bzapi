@@ -57,11 +57,11 @@ namespace bzapi
         {
         }
 
-        int set_signal_id(int theirs) override
+        int set_signal_id(int signal_id) override
         {
             std::scoped_lock<std::mutex> lock(this->mutex);
 
-            this->their_id = theirs;
+            this->their_id = signal_id;
             if (this->deferred_signal)
             {
                 this->send_signal();
@@ -117,6 +117,11 @@ namespace bzapi
         {
             this->prom.set_value(error);
             this->signal(error);
+        }
+
+        int get_error() override
+        {
+            return this->error_val;
         }
 
         std::string get_result() override
