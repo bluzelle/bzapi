@@ -116,7 +116,7 @@ async_database::send_message_with_basic_response(database_msg& msg, std::shared_
 }
 
 std::shared_ptr<response>
-async_database::create(const key_t& key, const value_t& value)
+async_database::create(const std::string& key, const std::string& value)
 {
     auto resp = make_response();
     auto request = new database_create;
@@ -132,7 +132,7 @@ async_database::create(const key_t& key, const value_t& value)
 }
 
 std::shared_ptr<response>
-async_database::read(const key_t& key)
+async_database::read(const std::string& key)
 {
     auto resp = make_response();
     auto request = new database_read;
@@ -160,7 +160,7 @@ async_database::read(const key_t& key)
 }
 
 std::shared_ptr<response>
-async_database::update(const key_t& key, const value_t& value)
+async_database::update(const std::string& key, const std::string& value)
 {
     auto resp = make_response();
     auto request = new database_update;
@@ -176,7 +176,7 @@ async_database::update(const key_t& key, const value_t& value)
 }
 
 std::shared_ptr<response>
-async_database::remove(const key_t& key)
+async_database::remove(const std::string& key)
 {
     auto resp = make_response();
     auto request = new database_delete;
@@ -191,7 +191,7 @@ async_database::remove(const key_t& key)
 }
 
 std::shared_ptr<response>
-async_database::quick_read(const key_t& key)
+async_database::quick_read(const std::string& key)
 {
     auto resp = make_response();
     auto request = new database_read;
@@ -234,7 +234,7 @@ async_database::quick_read(const key_t& key)
 }
 
 std::shared_ptr<response>
-async_database::has(const key_t& key)
+async_database::has(const std::string& key)
 {
     auto resp = make_response();
     auto request = new database_has;
@@ -319,7 +319,7 @@ async_database::size()
 }
 
 std::shared_ptr<response>
-async_database::expire(const key_t& key, expiry_t expiry)
+async_database::expire(const std::string& key, expiry_t expiry)
 {
     auto resp = make_response();
     auto request = new database_expire;
@@ -335,7 +335,7 @@ async_database::expire(const key_t& key, expiry_t expiry)
 }
 
 std::shared_ptr<response>
-async_database::persist(const key_t& key)
+async_database::persist(const std::string& key)
 {
     auto resp = make_response();
     auto request = new database_read;
@@ -350,7 +350,7 @@ async_database::persist(const key_t& key)
 }
 
 std::shared_ptr<response>
-async_database::ttl(const key_t& key)
+async_database::ttl(const std::string& key)
 {
     auto resp = make_response();
     auto request = new database_read;

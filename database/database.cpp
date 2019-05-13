@@ -23,42 +23,42 @@ database::database(const async_database& db)
 }
 
 std::string
-database::create(const key_t& key, const value_t& value)
+database::create(const std::string& key, const std::string& value)
 {
     auto resp = async_database::create(key, value);
     return resp->get_result();
 }
 
 std::string
-database::read(const key_t& key)
+database::read(const std::string& key)
 {
     auto resp = async_database::read(key);
     return resp->get_result();
 }
 
 std::string
-database::update(const key_t& key, const value_t& value)
+database::update(const std::string& key, const std::string& value)
 {
     auto resp = async_database::update(key, value);
     return resp->get_result();
 }
 
 std::string
-database::remove(const key_t& key)
+database::remove(const std::string& key)
 {
     auto resp = async_database::remove(key);
     return resp->get_result();
 }
 
 std::string
-database::quick_read(const key_t& key)
+database::quick_read(const std::string& key)
 {
     auto resp = async_database::quick_read(key);
     return resp->get_result();
 }
 
 std::string
-database::has(const key_t& key)
+database::has(const std::string& key)
 {
     auto resp = async_database::has(key);
     return resp->get_result();
@@ -79,21 +79,21 @@ database::size()
 }
 
 std::string
-database::expire(const key_t& key, expiry_t expiry)
+database::expire(const std::string& key, expiry_t expiry)
 {
     auto resp = async_database::expire(key, expiry);
     return resp->get_result();
 }
 
 std::string
-database::persist(const key_t& key)
+database::persist(const std::string& key)
 {
     auto resp = async_database::persist(key);
     return resp->get_result();
 }
 
 std::string
-database::ttl(const key_t& key)
+database::ttl(const std::string& key)
 {
     auto resp = async_database::ttl(key);
     return resp->get_result();

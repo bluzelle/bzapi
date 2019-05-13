@@ -35,8 +35,6 @@ namespace bzapi
     using uuid_t = std::string;
     using endpoint_t = std::string;
     using completion_handler_t = std::function<void(const boost::system::error_code &error)>;
-    using key_t = std::string;
-    using value_t = std::string;
     using expiry_t = uint64_t;
 
     const uint16_t MAX_MESSAGE_SIZE = 1024;
