@@ -371,7 +371,7 @@ TEST_F(integration_test, test_has_db)
 
     expect_has_db();
 
-    auto response = has_db(uuid.c_str());
+    auto response = async_has_db(uuid.c_str());
     response->set_signal_id(100);
     auto resp = response->get_result();
     Json::Value resp_json;
@@ -398,7 +398,7 @@ TEST_F(integration_test, test_open_db)
     expect_swarm_initialize();
     expect_has_db();
 
-    auto response = open_db(uuid.c_str());
+    auto response = async_open_db(uuid.c_str());
     response->set_signal_id(100);
     auto resp = response->get_result();
     Json::Value resp_json;
@@ -427,7 +427,7 @@ TEST_F(integration_test, test_create)
     expect_swarm_initialize();
     expect_has_db();
 
-    auto response = open_db(uuid.c_str());
+    auto response = async_open_db(uuid.c_str());
     response->set_signal_id(100);
     auto db = response->get_db();
     ASSERT_TRUE(db != nullptr);
@@ -496,7 +496,7 @@ TEST_F(integration_test, test_read)
     expect_swarm_initialize();
     expect_has_db();
 
-    auto response = open_db(uuid.c_str());
+    auto response = async_open_db(uuid.c_str());
     response->set_signal_id(100);
     auto db = response->get_db();
     ASSERT_TRUE(db != nullptr);
@@ -639,7 +639,7 @@ TEST_F(integration_test, live_test)
 //    bool res = bzapi::initialize(pub_key, priv_key, "ws://75.96.163.85:51010");
     EXPECT_TRUE(res);
 
-    auto resp = bzapi::create_db(db_name.data());
+    auto resp = bzapi::async_create_db(db_name.data());
     resp->set_signal_id(my_id);
     recvfrom(sock, buf, 1024, 0, NULL, 0);
 
@@ -729,7 +729,7 @@ TEST_F(integration_test, blocking_live_test)
 //    bool res = bzapi::initialize(pub_key, priv_key, "ws://75.96.163.85:51010");
     EXPECT_TRUE(res);
 
-    auto resp = bzapi::create_db(db_name.data());
+    auto resp = bzapi::async_create_db(db_name.data());
     Json::Value res_json;
     std::stringstream(resp->get_result()) >> res_json;
     auto result = res_json["result"].asInt();
@@ -794,7 +794,7 @@ TEST_F(integration_test, sync_live_test)
 //    bool res = bzapi::initialize(pub_key, priv_key, "ws://75.96.163.85:51010");
     EXPECT_TRUE(res);
 
-    auto db = bzapi::create_db_sync(db_name.data());
+    auto db = bzapi::create_db(db_name.data());
     ASSERT_NE(db, nullptr);
 
     auto create_resp = db->create("test_key", "test_value");

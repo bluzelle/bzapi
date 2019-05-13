@@ -27,7 +27,7 @@
 
 namespace bzapi
 {
-    class database;
+    class async_database;
 
     class response
     {
@@ -43,7 +43,7 @@ namespace bzapi
 
         virtual std::string get_result() = 0;
 
-        virtual std::shared_ptr<database> get_db() = 0;
+        virtual std::shared_ptr<async_database> get_db() = 0;
 
         // producer
         virtual void set_result(const std::string& result) = 0;
@@ -52,7 +52,7 @@ namespace bzapi
 
         virtual void set_error(int error) = 0;
 
-        virtual void set_db(std::shared_ptr<database> db_ptr) = 0;
+        virtual void set_db(std::shared_ptr<async_database> db_ptr) = 0;
 
     };
 }

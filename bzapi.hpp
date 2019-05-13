@@ -15,24 +15,4 @@
 
 #pragma once
 
-#include <library/response.hpp>
-#include <database/database.hpp>
-
-namespace bzapi
-{
-    bool initialize(const std::string& public_key, const std::string& private_key, const std::string& endpoint);
-
-    void terminate();
-
-    std::shared_ptr<response> async_has_db(const std::string& uuid);
-
-    std::shared_ptr<response> async_create_db(const std::string& uuid);
-
-    std::shared_ptr<response> async_open_db(const std::string& uuid);
-
-    bool has_db(const std::string& uuid);
-
-    std::shared_ptr<database> create_db(const std::string& uuid);
-
-    std::shared_ptr<database> open_db(const std::string& uuid);
-}
+#include "library/library.hpp"

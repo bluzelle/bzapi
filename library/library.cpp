@@ -20,7 +20,7 @@
 #include <swarm/swarm_factory.hpp>
 #include <defs.hpp>
 #include <crypto/crypto.hpp>
-#include <database/database.hpp>
+#include <database/async_database.hpp>
 #include <database/db_impl.hpp>
 #include <jsoncpp/src/jsoncpp/include/json/value.h>
 #include <library/udp_response.hpp>
@@ -91,7 +91,7 @@ namespace bzapi
     }
 
     std::shared_ptr<response>
-    has_db(const std::string& uuid)
+    async_has_db(const std::string& uuid)
     {
         std::string uuidstr{uuid};
         auto resp = make_response();
@@ -108,7 +108,7 @@ namespace bzapi
     }
 
     std::shared_ptr<response>
-    create_db(const std::string& uuid)
+    async_create_db(const std::string& uuid)
     {
         std::string uuidstr{uuid};
         auto resp = make_response();
@@ -121,7 +121,7 @@ namespace bzapi
                     if (sw)
                     {
                         auto dbi = std::make_shared<db_impl>(io_context, sw, uuidstr);
-                        auto db = std::make_shared<database>(dbi);
+                        auto db = std::make_shared<async_database>(dbi);
                         db->open([sw, resp, db, uuidstr](auto ec)
                         {
                             if (ec)
@@ -176,7 +176,7 @@ namespace bzapi
     }
 
     std::shared_ptr<response>
-    open_db(const std::string& uuid)
+    async_open_db(const std::string& uuid)
     {
         std::string uuidstr{uuid};
         auto resp = make_response();
@@ -189,7 +189,7 @@ namespace bzapi
                     if (sw)
                     {
                         auto dbi = std::make_shared<db_impl>(io_context, sw, uuidstr);
-                        auto db = std::make_shared<database>(dbi);
+                        auto db = std::make_shared<async_database>(dbi);
                         db->open([resp, db](auto ec)
                         {
                             if (ec)
@@ -232,9 +232,9 @@ namespace bzapi
     }
 
     bool
-    has_db_sync(const std::string& uuid)
+    has_db_(const std::string& uuid)
     {
-        auto resp = has_db(uuid);
+        auto resp = async_has_db(uuid);
         auto result = resp->get_result();
 
         Json::Value json;
@@ -243,29 +243,29 @@ namespace bzapi
         return json["result"].asInt();
     }
 
-    std::shared_ptr<database_sync>
-    create_db_sync(const std::string& uuid)
+    std::shared_ptr<database>
+    create_db(const std::string& uuid)
     {
-        auto resp = create_db(uuid);
+        auto resp = async_create_db(uuid);
         auto result = resp->get_result();
 
         Json::Value json;
         std::stringstream(result) >> json;
 
-        return json["result"].asInt() ? std::make_shared<database_sync>(*(resp->get_db()))
+        return json["result"].asInt() ? std::make_shared<database>(*(resp->get_db()))
             : nullptr;
     }
 
-    std::shared_ptr<database_sync>
-    open_db_sync(const std::string& uuid)
+    std::shared_ptr<database>
+    open_db(const std::string& uuid)
     {
-        auto resp = open_db(uuid);
+        auto resp = async_open_db(uuid);
         auto result = resp->get_result();
 
         Json::Value json;
         std::stringstream(result) >> json;
 
-        return json["result"].asInt() ? std::make_shared<database_sync>(*(resp->get_db()))
+        return json["result"].asInt() ? std::make_shared<database>(*(resp->get_db()))
             : nullptr;
     }
 }
