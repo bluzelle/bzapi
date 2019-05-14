@@ -1,5 +1,4 @@
 add_library(swarm swarm.cpp swarm.hpp swarm_base.hpp swarm_factory.hpp swarm_factory.cpp)
-add_dependencies(jsoncpp openssl)
 target_include_directories(swarm PRIVATE . ${JSONCPP_INCLUDE_DIRS})
-target_link_libraries(swarm node crypto proto ${Protobuf_LIBRARIES} ${JSONCPP_LIBRARIES} ${OPENSSL_LIBRARIES} pthread)
+target_link_libraries(swarm node crypto proto ${Protobuf_LIBRARIES} ${OPENSSL_LIBRARIES} pthread)
 add_subdirectory(test)

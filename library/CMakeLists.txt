@@ -1,10 +1,15 @@
 add_library(bzapi SHARED library.cpp library.hpp ../include/boost_asio_beast.hpp ../database/db_base.hpp response.hpp udp_response.hpp ../bzapi.hpp)
+include_directories(${PROTOBUF_INCLUDE_DIR} ${JSONCPP_INCLUDE_DIRS})
 set_source_files_properties(../swig/py/bzpy.i PROPERTIES CPLUSPLUS ON)
 include_directories(bzapi ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/database)
-add_dependencies(jsoncpp openssl)
+get_cmake_property(_variableNames VARIABLES)
+list (SORT _variableNames)
+foreach (_variableName ${_variableNames})
+    message(STATUS "${_variableName}=${${_variableName}}")
+endforeach()
 target_include_directories(bzapi PRIVATE . ${JSONCPP_INCLUDE_DIRS})
-target_link_libraries(bzapi crypto proto swarm node database ${Protobuf_LIBRARIES} ${JSONCPP_LIBRARIES} ${OPENSSL_LIBRARIES} pthread)
 
+target_link_libraries(bzapi crypto proto swarm node database ${JSONCPP_LIBRARIES} ${Protobuf_LIBRARIES} ${OPENSSL_LIBRARIES} pthread)
 target_compile_features(bzapi PUBLIC cxx_std_17)
 
 find_package(PythonLibs 3 REQUIRED)

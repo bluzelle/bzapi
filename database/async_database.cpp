@@ -14,7 +14,7 @@
 //
 
 #include <database/async_database.hpp>
-#include <jsoncpp/src/jsoncpp/include/json/value.h>
+#include <json/value.h>
 
 using namespace bzapi;
 

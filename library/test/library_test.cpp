@@ -20,8 +20,8 @@
 #include <crypto/null_crypto.hpp>
 #include <crypto/crypto.hpp>
 #include <library/library.hpp>
-#include <jsoncpp/src/jsoncpp/include/json/value.h>
-#include <jsoncpp/src/jsoncpp/include/json/reader.h>
+#include <json/value.h>
+#include <json/reader.h>
 #include <library/udp_response.hpp>
 #include <random>
 
