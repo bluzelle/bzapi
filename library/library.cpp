@@ -98,6 +98,7 @@ namespace bzapi
         {
             io_context->stop();
             io_thread->join();
+            initialized = false;
         }
     }
 
