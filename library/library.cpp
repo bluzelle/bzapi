@@ -98,6 +98,10 @@ namespace bzapi
         {
             io_context->stop();
             io_thread->join();
+
+            initialized = false;
+            error_str = "Not Initialized";
+            error_val = -1;
         }
     }
 
