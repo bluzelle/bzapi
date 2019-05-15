@@ -5,7 +5,7 @@ import json
 
 from ecdsa import SigningKey
 import logging
-from build.library import bzpy
+from build.library import bzapi
 from lib.udp.udp_support import *
 from lib.db import DB
 
@@ -27,7 +27,7 @@ class Bluzelle:
         full_url = f"ws://{ws_address}:{ws_port}"
 
         self.init_happened = False
-        if (not bzpy.initialize(self.pub_key, self.priv_key, full_url)):
+        if (not bzapi.initialize(self.pub_key, self.priv_key, full_url)):
             raise Exception('Could not run initialize the Bluzelle object')
         else:
             self.init_happened = True
@@ -37,10 +37,10 @@ class Bluzelle:
 
     def __del__(self):
         if (self.init_happened):
-            bzpy.terminate()
+            bzapi.terminate()
 
     def load_(self, *args, **kwargs):
-        method_handle = getattr(bzpy, kwargs['meth'])
+        method_handle = getattr(bzapi, kwargs['meth'])
         resp = method_handle(*args[1:])
         return resp
 

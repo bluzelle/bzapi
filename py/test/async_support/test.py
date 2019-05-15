@@ -12,7 +12,7 @@ from socket import *
 import uuid
 from lib.udp.udp_support import *
 from lib.async_support import bluzelle
-from build.library import bzpy
+from build.library import bzapi
 
 class TestLibrary(unittest.TestCase):
 

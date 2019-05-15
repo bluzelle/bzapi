@@ -1,4 +1,4 @@
-%module bzpy
+%module bzapi
 
 %include <std_shared_ptr.i>
 %{

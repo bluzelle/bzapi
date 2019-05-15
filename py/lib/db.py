@@ -3,7 +3,7 @@ import asyncio
 import sys
 import json
 
-from build.library import bzpy
+from build.library import bzapi
 from lib.udp.udp_support import *
 from lib.udp.test_udp import *
 
