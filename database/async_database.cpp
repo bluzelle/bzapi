@@ -306,10 +306,10 @@ async_database::size()
                 Json::Value result;
                 const database_size_response &size_resp = response.size();
                 result["result"] = 1;
-                result["bytes"] = size_resp.bytes();
+                result["bytes"] = static_cast<Json::Value::UInt64>(size_resp.bytes());
                 result["keys"] = size_resp.keys();
-                result["remaining_bytes"] = size_resp.remaining_bytes();
-                result["max_size"] = size_resp.max_size();
+                result["remaining_bytes"] = static_cast<Json::Value::UInt64>(size_resp.remaining_bytes());
+                result["max_size"] = static_cast<Json::Value::UInt64>(size_resp.max_size());
                 resp->set_result(result.toStyledString());
                 resp->set_ready();
             });
@@ -368,7 +368,7 @@ async_database::ttl(const std::string& key)
                 const database_ttl_response &read_resp = response.ttl();
                 result["result"] = 1;
                 result["key"] = read_resp.key();
-                result["ttl"] = read_resp.ttl();
+                result["ttl"] = static_cast<Json::Value::UInt64>(read_resp.ttl());
                 resp->set_result(result.toStyledString());
                 resp->set_ready();
             });

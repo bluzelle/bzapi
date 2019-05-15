@@ -2,8 +2,6 @@ cmake_minimum_required(VERSION 3.10)
 
 project(bzapi CXX)
 
-set(CMAKE_BUILD_TYPE Debug)
-
 #include(cmake/swarm_version.cmake)
 
 #message("Build version ${PROJECT_VERSION}")
@@ -46,21 +44,22 @@ include(cmake/add_gmock_test.cmake)
 
 include(FindProtobuf)
 find_package(Protobuf REQUIRED)
+include_directories(SYSTEM ${PROTOBUF_INCLUDE_DIR})
 
 find_package(CURL REQUIRED)
 find_package(PkgConfig REQUIRED)
 
 
-find_package(Boost REQUIRED filesystem system log thread)
+find_package(Boost     REQUIRED filesystem system log thread)
+
 include(FindPkgConfig)
 
 pkg_search_module(JSONCPP REQUIRED jsoncpp)
 
-include_directories(SYSTEM ${PROTOBUF_INCLUDE_DIR} ${JSONCPP_INCLUDE_DIRS})
+include_directories(SYSTEM ${JSONCPP_INCLUDE_DIRS})
 link_directories(${JSONCPP_LIBRARY_DIRS})
 
 #include(cmake/jsoncpp.cmake)
-
 #include(cmake/rocksdb.cmake)
 include(cmake/googletest.cmake)
 include(cmake/openssl.cmake)
