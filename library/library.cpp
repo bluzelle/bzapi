@@ -22,10 +22,10 @@
 #include <crypto/crypto.hpp>
 #include <database/async_database.hpp>
 #include <database/db_impl.hpp>
-#include <jsoncpp/src/jsoncpp/include/json/value.h>
+#include <json/value.h>
 #include <library/udp_response.hpp>
-#include <jsoncpp/src/jsoncpp/include/json/value.h>
-#include <jsoncpp/src/jsoncpp/include/json/reader.h>
+#include <json/value.h>
+#include <json/reader.h>
 
 namespace bzapi
 {

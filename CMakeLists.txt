@@ -50,7 +50,14 @@ find_package(CURL REQUIRED)
 
 find_package(Boost     REQUIRED filesystem system log thread)
 
-include(cmake/jsoncpp.cmake)
+include(FindPkgConfig)
+
+pkg_search_module(JSONCPP REQUIRED jsoncpp)
+
+include_directories(SYSTEM ${JSONCPP_INCLUDE_DIRS})
+link_directories(${JSONCPP_LIBRARY_DIRS})
+
+#include(cmake/jsoncpp.cmake)
 #include(cmake/rocksdb.cmake)
 include(cmake/googletest.cmake)
 include(cmake/openssl.cmake)
