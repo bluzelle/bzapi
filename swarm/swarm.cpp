@@ -330,7 +330,7 @@ swarm::get_status()
         info["uuid"] = i.first;
         info["host"] = i.second.host;
         info["port"] = i.second.port;
-        info["latency"] = static_cast<Json::Value::Int>(i.second.last_status_duration.count());
+        info["latency"] = static_cast<Json::Value::UInt64>(i.second.last_status_duration.count());
         // what to do about last send/receive?
 
         node_list.append(info);
