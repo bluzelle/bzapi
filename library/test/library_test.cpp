@@ -34,6 +34,7 @@ namespace bzapi
     extern std::shared_ptr<swarm_factory> the_swarm_factory;
     extern std::shared_ptr<crypto_base> the_crypto;
     extern std::shared_ptr<bzn::beast::websocket_base> ws_factory;
+    extern bool initialized;
 }
 
 namespace
@@ -51,7 +52,7 @@ uint16_t get_node_from_sock(const boost::asio::ip::tcp::socket& sock)
 {
     for (auto& n : sock_map)
     {
-        if (n.second== &sock)
+        if (n.second == (&sock))
         {
             return n.first - 50000;
         }
@@ -93,7 +94,7 @@ struct mock_websocket
     {
         auto websocket = std::make_unique<bzn::beast::Mockwebsocket_stream_base>();
 
-        EXPECT_CALL(*websocket, async_handshake(_, _, _)).WillOnce(Invoke([&](auto, auto, auto lambda)
+        EXPECT_CALL(*websocket, async_handshake(_, _, _)).WillOnce(Invoke([](auto, auto, auto lambda)
         {
             lambda(boost::system::error_code{});
         }));
@@ -170,6 +171,7 @@ public:
         ws_factory = mock_ws_factory;
         the_swarm_factory = std::make_shared<swarm_factory>(io_context, ws_factory, the_crypto, this->uuid);
         the_swarm_factory->temporary_set_default_endpoint("ws://127.0.0.1:50000");
+        bzapi::initialized = true;
     }
 
     void teardown()
@@ -177,6 +179,7 @@ public:
         the_swarm_factory = nullptr;
         io_context = nullptr;
         ws_factory = nullptr;
+        this->nodes.clear();
     }
 
     status_response make_status_response()
@@ -209,14 +212,20 @@ public:
 
     void expect_has_db()
     {
-//    EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).Times(AtLeast(1)).WillRepeatedly(Invoke([]()
-//    {
-//        return std::make_unique<NiceMock<bzn::asio::Mocksteady_timer_base>>();
-//    }));
-
         EXPECT_CALL(*mock_io_context, make_unique_tcp_socket()).Times(Exactly(1)).WillOnce(Invoke([]()
         {
-            auto tcp_sock = std::make_unique<my_mock_tcp_socket>();
+            auto tcp_sock = std::make_unique<bzn::asio::Mocktcp_socket_base>();
+
+            EXPECT_CALL(*tcp_sock, async_connect(_, _)).Times(AtLeast(1))
+                .WillRepeatedly(Invoke([](auto, auto callback)
+                {
+                    callback(boost::system::error_code{});
+                }));
+
+            static boost::asio::ip::tcp::socket socket{real_io_context};
+            EXPECT_CALL(*tcp_sock, get_tcp_socket()).Times(AtLeast(1))
+                .WillRepeatedly(ReturnRef(socket));
+
             return tcp_sock;
         })).RetiresOnSaturation();
 
@@ -234,7 +243,6 @@ public:
 
                 EXPECT_TRUE(db_msg.has_has_db());
                 EXPECT_TRUE(db_msg.header().db_uuid() == uuid);
-
             };
 
             ws.read_func = [uuid](const auto& /*buffer*/)
@@ -264,9 +272,22 @@ public:
 
     void expect_swarm_initialize()
     {
+        uint16_t node_count = 0;
+
         EXPECT_CALL(*mock_io_context, make_unique_tcp_socket()).Times(Exactly(this->nodes.size())).WillRepeatedly(Invoke([]()
         {
-            auto tcp_sock = std::make_unique<my_mock_tcp_socket>();
+            auto tcp_sock = std::make_unique<bzn::asio::Mocktcp_socket_base>();
+
+            EXPECT_CALL(*tcp_sock, async_connect(_, _)).Times(AtLeast(1))
+                .WillRepeatedly(Invoke([](auto, auto callback)
+                {
+                    callback(boost::system::error_code{});
+                }));
+
+            static boost::asio::ip::tcp::socket socket{real_io_context};
+            EXPECT_CALL(*tcp_sock, get_tcp_socket()).Times(AtLeast(1))
+                .WillRepeatedly(ReturnRef(socket));
+
             return tcp_sock;
         }));
 
@@ -275,41 +296,38 @@ public:
             return std::make_unique<NiceMock<bzn::asio::Mocksteady_timer_base>>();
         }));
 
-        for (uint16_t i = 0; i < this->nodes.size(); i++)
-        {
-            EXPECT_CALL(*mock_ws_factory, make_unique_websocket_stream(ResultOf(get_node_from_sock, Eq(i)))).Times(
-                    Exactly(1))
-                .WillOnce(Invoke([uuid = this->uuid, this](auto &sock) {
-                    auto node_id = get_node_from_sock(sock);
-                    mock_websocket &ws = this->nodes[node_id];
+        EXPECT_CALL(*mock_ws_factory, make_unique_websocket_stream(_)).Times(Exactly(this->nodes.size()))
+            .WillRepeatedly(Invoke([&node_count, uuid = this->uuid, this](auto &/*sock*/)
+            {
+                auto node_id = node_count++;
+                mock_websocket &ws = this->nodes[node_id];
 
-                    ws.write_func = [uuid](const boost::asio::mutable_buffers_1 &buffer)
-                    {
-                        bzn_envelope env;
-                        EXPECT_TRUE(
-                            env.ParseFromString(
-                                std::string(static_cast<const char *>(buffer.data()), buffer.size())));
+                ws.write_func = [uuid](const boost::asio::mutable_buffers_1 &buffer)
+                {
+                    bzn_envelope env;
+                    EXPECT_TRUE(
+                        env.ParseFromString(
+                            std::string(static_cast<const char *>(buffer.data()), buffer.size())));
 
-                        status_request sr;
-                        EXPECT_TRUE(sr.ParseFromString(env.status_request()));
-                    };
+                    status_request sr;
+                    EXPECT_TRUE(sr.ParseFromString(env.status_request()));
+                };
 
-                    ws.read_func = [this, node_id, &ws](const auto & /*buffer*/)
-                    {
-                        status_response sr = this->make_status_response();
-                        bzn_envelope env;
-                        env.set_status_response(sr.SerializeAsString());
-                        env.set_sender("node_" + std::to_string(node_id));
-                        auto message = env.SerializeAsString();
-                        boost::asio::buffer_copy(ws.read_buffer->prepare(message.size()), boost::asio::buffer(
-                            message));
-                        ws.read_buffer->commit(message.size());
-                        ws.read_handler(boost::system::error_code{}, message.size());
-                    };
+                ws.read_func = [this, node_id, &ws](const auto & /*buffer*/)
+                {
+                    status_response sr = this->make_status_response();
+                    bzn_envelope env;
+                    env.set_status_response(sr.SerializeAsString());
+                    env.set_sender("node_" + std::to_string(node_id));
+                    auto message = env.SerializeAsString();
+                    boost::asio::buffer_copy(ws.read_buffer->prepare(message.size()), boost::asio::buffer(
+                        message));
+                    ws.read_buffer->commit(message.size());
+                    ws.read_handler(boost::system::error_code{}, message.size());
+                };
 
-                    return ws.get();
-                }));
-        }
+                return ws.get();
+            }));
     }
 
     uint32_t generate_random_number(uint32_t min, uint32_t max)
@@ -625,7 +643,7 @@ TEST_F(integration_test, blocking_response_test)
 }
 
 
-TEST_F(integration_test, live_test)
+TEST_F(integration_test, DISABLED_live_test)
 {
     uint16_t my_id = 0;
     int sock = create_socket(my_id);
@@ -719,7 +737,7 @@ TEST_F(integration_test, live_test)
     std::cout << status << std::endl;
 }
 
-TEST_F(integration_test, blocking_live_test)
+TEST_F(integration_test, DISABLED_blocking_live_test)
 {
     auto rand = generate_random_number(0, 100000);
     std::string db_name = "testdb_" + std::to_string(rand);
@@ -784,7 +802,7 @@ TEST_F(integration_test, blocking_live_test)
     std::cout << status << std::endl;
 }
 
-TEST_F(integration_test, sync_live_test)
+TEST_F(integration_test, DISABLED_sync_live_test)
 {
     auto rand = generate_random_number(0, 100000);
     std::string db_name = "testdb_" + std::to_string(rand);

@@ -96,7 +96,7 @@ protected:
         srm.set_uptime(UPTIME);
 
         Json::Value pbft_status;
-        pbft_status["primary"]["uuid"] = this->primary_node;
+        pbft_status["status"]["primary"]["uuid"] = this->primary_node;
 
         Json::Value peer_index;
         for (const auto& p : this->nodes)
@@ -108,9 +108,9 @@ protected:
             peer_index.append(peer);
         }
 
-        pbft_status["peer_index"] = peer_index;
+        pbft_status["status"]["peer_index"] = peer_index;
         Json::Value module_status;
-        module_status["pbft"] = pbft_status;
+        module_status["module"][0] = pbft_status;
         srm.set_module_status_json(module_status.toStyledString());
 
         return srm;
@@ -189,7 +189,9 @@ TEST_F(swarm_test, test_swarm_node_management)
             return self->nodes[count++].node;
         }));
 
-    this->the_swarm->initialize([](auto& /*ec*/){});
+    std::promise<int> prom;
+    this->the_swarm->initialize([&prom](auto& /*ec*/){prom.set_value(1);});
+    prom.get_future().get();
     boost::this_thread::sleep_for(boost::chrono::seconds(1));
 
     auto status_str = this->the_swarm->get_status();

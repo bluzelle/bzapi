@@ -59,7 +59,7 @@ swarm::has_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
 
     // TODO: should this call a static method inside db_impl? Not ideal having the swarm
     // process a database message
-    uuid_node->register_message_handler([uuid, callback](const std::string& data)
+    uuid_node->register_message_handler([uuid, callback, uuid_node](const std::string& data)
     {
         bzn_envelope env;
         database_response response;
@@ -78,8 +78,8 @@ swarm::has_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
             return true;
         }
 
-        //node->register_message_handler([](const auto, auto){return true;});
         callback(response.has_db().has());
+        uuid_node->register_message_handler([](const auto){return true;});
         return true;
     });
 
