@@ -90,7 +90,7 @@ add_subdirectory(node)
 add_subdirectory(database)
 if (NOT OMIT_LIBRARY)
     add_subdirectory(library)
-endif(OMIT_LIBRARY)
+endif(NOT OMIT_LIBRARY)
 
 include(cmake/static_analysis.cmake)
 
