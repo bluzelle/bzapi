@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.10)
 
 project(bzapi CXX)
 
+option(OMIT_LIBRARY "Omit compiling the shared library" OFF)
+
 #include(cmake/swarm_version.cmake)
 
 #message("Build version ${PROJECT_VERSION}")
@@ -86,7 +88,9 @@ add_subdirectory(crypto)
 add_subdirectory(swarm)
 add_subdirectory(node)
 add_subdirectory(database)
-add_subdirectory(library)
+if (NOT OMIT_LIBRARY)
+    add_subdirectory(library)
+endif(OMIT_LIBRARY)
 
 include(cmake/static_analysis.cmake)
 
