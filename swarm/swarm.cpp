@@ -59,7 +59,7 @@ swarm::has_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
 
     // TODO: should this call a static method inside db_impl? Not ideal having the swarm
     // process a database message
-    uuid_node->register_message_handler([uuid, callback, uuid_node](const std::string& data)
+    uuid_node->register_message_handler([uuid, callback, uuid_node, weak_this = weak_from_this()](const std::string& data)
     {
         bzn_envelope env;
         database_response response;
@@ -68,6 +68,13 @@ swarm::has_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
         {
             LOG(error) << "Dropping invalid response to has_db: " << std::string(data, MAX_MESSAGE_SIZE);
             callback(false);
+            return true;
+        }
+
+        auto strong_this = weak_this.lock();
+        if (strong_this && !strong_this->crypto->verify(env))
+        {
+            LOG(error) << "Dropping message with invalid signature: " << env.DebugString().substr(0, MAX_MESSAGE_SIZE);
             return true;
         }
 
@@ -124,7 +131,7 @@ swarm::create_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
 
     // TODO: should this call a static method inside db_impl? Not ideal having the swarm
     // process a database message
-    uuid_node->register_message_handler([weak_this = weak_from_this(), uuid, callback](const std::string& data)->bool
+    uuid_node->register_message_handler([weak_this = weak_from_this(), uuid, callback, uuid_node](const std::string& data)->bool
     {
         auto strong_this = weak_this.lock();
         if (strong_this)
@@ -138,9 +145,16 @@ swarm::create_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
                 return true;
             }
 
+            if (!strong_this->crypto->verify(env))
+            {
+                LOG(error) << "Dropping message with invalid signature: " << env.DebugString().substr(0, MAX_MESSAGE_SIZE);
+                return true;
+            }
+
             callback(!(response.has_error()));
         }
 
+        uuid_node->register_message_handler([](const auto){return true;});
         return true;
     });
 

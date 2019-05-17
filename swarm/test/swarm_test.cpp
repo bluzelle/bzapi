@@ -23,6 +23,7 @@
 #include <boost/chrono.hpp>
 #include <boost/thread/thread.hpp>
 #include <crypto/null_crypto.hpp>
+#include <proto/database.pb.h>
 
 using namespace testing;
 using namespace bzapi;
@@ -130,7 +131,7 @@ protected:
                 this->nodes[meta.id].handler = handler;
             }));
 
-        EXPECT_CALL(*meta.node, send_message(_, _)).Times(AtLeast(1))
+        EXPECT_CALL(*meta.node, send_message(ResultOf(is_status, Eq(true)), _)).Times(AtLeast(0))
             .WillRepeatedly(Invoke([this, meta](auto /*msg*/, auto callback)
             {
                 // schedule status response
@@ -153,6 +154,13 @@ protected:
             }));
 
         this->nodes[meta.id] = meta;
+    }
+
+    static bool
+    is_status(const std::string& msg)
+    {
+        bzn_envelope env;
+        return (env.ParseFromString(msg) && env.payload_case() == bzn_envelope::kStatusRequest);
     }
 };
 
@@ -228,6 +236,160 @@ TEST_F(swarm_test, test_swarm_node_management)
 
 TEST_F(swarm_test, test_send_policy)
 {
+    this->init();
+
+    this->add_node(0, 20);
+    this->add_node(1, 110);
+    this->primary_node = "node_1";
+
+    EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).WillRepeatedly(Invoke([this]
+    {
+        static size_t count = 0;
+        size_t n = count;
+        count++;
+
+        auto timer = std::make_unique<bzn::asio::Mocksteady_timer_base>();
+        EXPECT_CALL(*timer, expires_from_now(_)).Times(AtLeast(1));
+        EXPECT_CALL(*timer, async_wait(_)).WillRepeatedly(Invoke([this, n](auto handler)
+        {
+            this->nodes[n].timer_callback = handler;
+        }));
+        return timer;
+    }));
+
+    EXPECT_CALL(*node_factory, create_node(_, _, _, _)).Times(Exactly(this->nodes.size()))
+        .WillRepeatedly(Invoke([self = this](auto, auto, auto, auto)
+        {
+            static size_t count = 0;
+            return self->nodes[count++].node;
+        }));
+
+    std::promise<int> prom;
+    this->the_swarm->initialize([&prom](auto& /*ec*/){prom.set_value(1);});
+    prom.get_future().get();
+    boost::this_thread::sleep_for(boost::chrono::seconds(1));
+
+    auto status_str = this->the_swarm->get_status();
+    Json::Value status;
+    std::stringstream(status_str) >> status;
+    EXPECT_EQ(status["fastest_node"].asString(), "node_0");
+    EXPECT_EQ(status["primary_node"].asString(), this->primary_node);
+    EXPECT_EQ(status["nodes"].size(), this->nodes.size());
+
+    auto env = std::make_shared<bzn_envelope>();
+    database_msg request;
+    database_header header;
+    header.set_db_uuid("my_uuid");
+    header.set_nonce(1);
+    request.set_allocated_header(new database_header(header));
+    request.set_allocated_has_db(new database_has_db());
+    env->set_database_msg(request.SerializeAsString());
+
+    auto respond = [](node_meta& meta)
+    {
+        auto node = meta.node;
+        bzn_envelope env;
+        database_response response;
+        database_has_db_response has_response;
+        has_response.set_has(true);
+        has_response.set_uuid("my_uuid");
+        response.set_allocated_has_db(new database_has_db_response(has_response));
+        env.set_database_response(response.SerializeAsString());
+        env.set_sender("node_" + std::to_string(meta.id));
+        auto env_str = env.SerializeAsString();
+        ASSERT_NE(meta.handler, nullptr);
+        EXPECT_EQ(meta.handler(env_str), false);
+    };
+
+    size_t called = 0;
+    the_swarm->register_response_handler(bzn_envelope::PayloadCase::kDatabaseResponse,
+        [&called](auto&, const auto&)
+        {
+            called++;
+            return false;
+        });
+
+    // normal policy - should go through primary
+    auto& meta0 = this->nodes[1];
+    EXPECT_CALL(*meta0.node, send_message(ResultOf(is_status, Eq(false)), _)).Times(Exactly(1))
+        .WillRepeatedly(Invoke([this, &meta0, respond](auto /*msg*/, auto callback)
+        {
+            callback(boost::system::error_code{});
+            respond(meta0);
+        })).RetiresOnSaturation();
+    the_swarm->send_request(env, send_policy::normal);
+    EXPECT_EQ(called, 1u);
+
+    // fastest policy - should go through fastest node
+    auto meta1 = this->nodes[0];
+    EXPECT_CALL(*meta1.node, send_message(ResultOf(is_status, Eq(false)), _)).Times(Exactly(1))
+        .WillRepeatedly(Invoke([this, &meta1, respond](auto /*msg*/, auto callback)
+        {
+            callback(boost::system::error_code{});
+            respond(meta1);
+        })).RetiresOnSaturation();
+    the_swarm->send_request(env, send_policy::fastest);
+    EXPECT_EQ(called, 2u);
+
+    // broadcast - should go to both
+    auto meta2 = this->nodes[0];
+    EXPECT_CALL(*meta2.node, send_message(ResultOf(is_status, Eq(false)), _)).Times(Exactly(1))
+        .WillRepeatedly(Invoke([this, &meta2, respond](auto /*msg*/, auto callback)
+        {
+            callback(boost::system::error_code{});
+            respond(meta2);
+        }));
+    auto meta3 = this->nodes[1];
+    EXPECT_CALL(*meta3.node, send_message(ResultOf(is_status, Eq(false)), _)).Times(Exactly(1))
+        .WillRepeatedly(Invoke([this, &meta3, respond](auto /*msg*/, auto callback)
+        {
+            callback(boost::system::error_code{});
+            respond(meta3);
+        }));
+    the_swarm->send_request(env, send_policy::broadcast);
+    EXPECT_EQ(called, 4u);
+
+
+    this->real_io_context->stop();
+    this->io_thread->join();
+
+    for (auto& n : this->nodes)
+    {
+        EXPECT_TRUE(Mock::VerifyAndClearExpectations(n.second.node.get()));
+    }
+}
+
+TEST_F(swarm_test, test_create_uuid)
+{
+    this->add_node(0, 10);
+    EXPECT_CALL(*node_factory, create_node(_, _, _, _)).Times(Exactly(1))
+        .WillOnce(Invoke([self = this](auto, auto, auto, auto)
+        {
+            return self->nodes[0].node;
+        }));
+
+    auto& meta = this->nodes[0];
+    EXPECT_CALL(*meta.node, send_message(ResultOf(is_status, Eq(false)), _)).Times(Exactly(1))
+        .WillRepeatedly(Invoke([this, &meta](auto /*msg*/, auto callback)
+        {
+            callback(boost::system::error_code{});
+
+            auto node = meta.node;
+            bzn_envelope env;
+            database_response response;
+            env.set_database_response(response.SerializeAsString());
+            env.set_sender("node_" + std::to_string(meta.id));
+            auto env_str = env.SerializeAsString();
+            ASSERT_NE(meta.handler, nullptr);
+            EXPECT_EQ(meta.handler(env_str), true);
+        }));
+
+    this->the_swarm->create_uuid("test_uuid", [](bool res)
+    {
+        EXPECT_EQ(res, true);
+    });
+
+    EXPECT_TRUE(Mock::VerifyAndClearExpectations(meta.node.get()));
 }
 
 TEST_F(swarm_test, test_bad_status)

@@ -30,8 +30,7 @@
 namespace bzapi
 {
     std::shared_ptr<bzn::asio::io_context_base> io_context;
-    boost::asio::signal_set *signals = nullptr;
-    std::thread *io_thread;
+    std::shared_ptr<std::thread> io_thread;
     std::shared_ptr<swarm_factory> the_swarm_factory;
     std::shared_ptr<crypto_base> the_crypto;
     std::shared_ptr<bzn::beast::websocket_base> ws_factory;
@@ -53,23 +52,10 @@ namespace bzapi
             try
             {
                 io_context = std::make_shared<bzn::asio::io_context>();
-
-                signals = new boost::asio::signal_set(io_context->get_io_context(), SIGINT);
-                signals->async_wait([](const boost::system::error_code& error, int signal_number)
+                io_thread = std::make_shared<std::thread>([]()
                 {
-                    if (!error)
-                    {
-                        LOG(info) << "signal received -- shutting down (" << signal_number << ")";
-                        io_context->stop();
-                    }
-                    else
-                    {
-                        LOG(error) << "Error: " << error.value() << ", " << error.category().name() << std::endl;
-                    }
-                });
-
-                io_thread = new std::thread([]()
-                {
+                    auto& io = io_context->get_io_context();
+                    boost::asio::executor_work_guard<decltype(io.get_executor())> work{io.get_executor()};
                     auto res = io_context->run();
                     LOG(debug) << "Events run: " << res << std::endl;
                 });

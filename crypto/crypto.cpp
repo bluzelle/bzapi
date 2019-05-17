@@ -41,29 +41,9 @@ crypto::extract_payload(const bzn_envelope& msg)
         {
             return msg.database_msg();
         }
-        case bzn_envelope::kPbftInternalRequest :
-        {
-            return msg.pbft_internal_request();
-        }
         case bzn_envelope::kDatabaseResponse :
         {
             return msg.database_response();
-        }
-        case bzn_envelope::kJson :
-        {
-            return msg.json();
-        }
-        case bzn_envelope::kAudit :
-        {
-            return msg.audit();
-        }
-        case bzn_envelope::kPbft :
-        {
-            return msg.pbft();
-        }
-        case bzn_envelope::kPbftMembership :
-        {
-            return msg.pbft_membership();
         }
         case bzn_envelope::kStatusRequest:
         {
