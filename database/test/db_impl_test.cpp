@@ -45,13 +45,15 @@ TEST_F(db_impl_test, basic_test)
     swarm_response_handler_t swarm_response_handler;
     completion_handler_t timer_callback;
 
-    EXPECT_CALL(*swarm, initialize(_));
+    EXPECT_CALL(*swarm, initialize(_)).WillOnce(Invoke([](auto handler) { handler(boost::system::error_code{}); }));
     EXPECT_CALL(*swarm, register_response_handler(_, _)).WillOnce(Invoke([&](auto, auto handler)
     {
         swarm_response_handler = handler;
         return true;
     }));
-    db->initialize([](auto){});
+    std::promise<int> prom;
+    db->initialize([&prom](auto){prom.set_value(1);});
+    prom.get_future().get();
 
     EXPECT_CALL(*swarm, send_request(_, _)).Times(Exactly(1)).WillOnce(Invoke([&](auto e, auto)
     {
@@ -62,6 +64,7 @@ TEST_F(db_impl_test, basic_test)
         *response.mutable_header() = request.header();
         env.set_database_response(response.SerializeAsString());
         env.set_sender("node1");
+        env.set_signature("xxx");
         swarm_response_handler("node1", env);
         return 0;
     }));
@@ -133,6 +136,7 @@ TEST_F(db_impl_test, collation_and_timeout_test)
     database_response response;
     *response.mutable_header() = request.header();
     env.set_database_response(response.SerializeAsString());
+    env.set_signature("xxx");
 
     env.set_sender("node1");
     swarm_response_handler("node1", env);

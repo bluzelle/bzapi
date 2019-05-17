@@ -19,11 +19,14 @@
 
 using namespace testing;
 
+boost::asio::io_context real_io_context;
+
 class node_test : public Test
 {
 public:
     void init_test()
     {
+        EXPECT_CALL(*io_context, get_io_context()).Times(AtLeast(1)).WillRepeatedly(ReturnRef(real_io_context));
         this->node = std::make_shared<bzapi::node>(io_context, ws_factory, "127.0.0.1", 80);
 
         EXPECT_CALL(*io_context, make_unique_tcp_socket()).WillOnce(Invoke([&]()
@@ -63,6 +66,8 @@ TEST_F(node_test, test_send_and_receive_message)
         .WillOnce(Invoke([&](auto& /*sock*/)
         {
             auto websocket = std::make_unique<bzn::beast::Mockwebsocket_stream_base>();
+
+            EXPECT_CALL(*websocket, binary(_)).Times(AtLeast(1));
 
             EXPECT_CALL(*websocket, async_handshake(_, _, _)).WillOnce(Invoke([&](auto, auto, auto lambda)
             {

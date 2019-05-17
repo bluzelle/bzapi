@@ -18,6 +18,12 @@
 #include <boost/system/error_code.hpp>
 #include <string_view>
 #include <libgen.h>
+#include <iostream>
+#include <map>
+#include <set>
+#include <vector>
+#include <list>
+#include <string>
 
 namespace bzapi::utils
 {

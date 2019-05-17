@@ -209,6 +209,7 @@ swarm_factory::has_db(const uuid_t& uuid, std::function<void(db_error result)> c
     {
         if (res)
         {
+            // TODO: revisit this
             auto strong_this = weak_this.lock();
             if (strong_this)
             {

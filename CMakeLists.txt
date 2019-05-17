@@ -50,6 +50,7 @@ find_package(CURL REQUIRED)
 find_package(PkgConfig REQUIRED)
 
 
+set(REQUIRED_BOOST "1.68.0")
 find_package(Boost     REQUIRED filesystem system log thread)
 
 include(FindPkgConfig)
@@ -87,7 +88,7 @@ add_subdirectory(node)
 add_subdirectory(database)
 add_subdirectory(library)
 
-#include(cmake/static_analysis.cmake)
+include(cmake/static_analysis.cmake)
 
 # git commit used to build
 #add_custom_command(
