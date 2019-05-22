@@ -33,6 +33,7 @@ namespace
     const std::string SWARM_VERSION{".."};
     const std::string SWARM_GIT_COMMIT{".."};
     const std::string UPTIME{"1:03:01"};
+    const std::string SWARM_ID{"my_swarm"};
 }
 
 class swarm_test : public Test
@@ -60,7 +61,7 @@ protected:
     std::shared_ptr<crypto_base> crypto = std::make_shared<null_crypto>();
     std::shared_ptr<bzn::beast::websocket_base> ws_factory = std::make_shared<bzn::beast::Mockwebsocket_base>();
     std::shared_ptr<swarm_base> the_swarm = std::make_shared<swarm>(node_factory, ws_factory, mock_io_context, crypto
-        , "ws://127.0.0.1:0", "my_uuid");
+        , "ws://127.0.0.1:0", SWARM_ID, "my_uuid");
     std::vector<std::shared_ptr<mock_node>> mock_nodes;
 
     std::map<uint16_t, node_meta> nodes;
@@ -144,6 +145,7 @@ protected:
                     bzn_envelope env;
                     env.set_status_response(this->make_status_response().SerializeAsString());
                     env.set_sender("node_" + std::to_string(node.id));
+                    env.set_swarm_id(SWARM_ID);
                     auto env_str = env.SerializeAsString();
                     ASSERT_NE(node.handler, nullptr);
                     EXPECT_EQ(node.handler(env_str), false);
@@ -296,6 +298,7 @@ TEST_F(swarm_test, test_send_policy)
         response.set_allocated_has_db(new database_has_db_response(has_response));
         env.set_database_response(response.SerializeAsString());
         env.set_sender("node_" + std::to_string(meta.id));
+        env.set_swarm_id(SWARM_ID);
         auto env_str = env.SerializeAsString();
         ASSERT_NE(meta.handler, nullptr);
         EXPECT_EQ(meta.handler(env_str), false);
@@ -379,6 +382,7 @@ TEST_F(swarm_test, test_create_uuid)
             database_response response;
             env.set_database_response(response.SerializeAsString());
             env.set_sender("node_" + std::to_string(meta.id));
+            env.set_swarm_id(SWARM_ID);
             auto env_str = env.SerializeAsString();
             ASSERT_NE(meta.handler, nullptr);
             EXPECT_EQ(meta.handler(env_str), true);

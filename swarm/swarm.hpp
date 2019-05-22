@@ -33,6 +33,7 @@ namespace bzapi
             , std::shared_ptr<bzn::beast::websocket_base> ws_factory
             , std::shared_ptr<bzn::asio::io_context_base> io_context
             , std::shared_ptr<crypto_base> crypto, const endpoint_t& initial_endpoint
+            , const swarm_id_t& swarm_id
             , const uuid_t& uuid);
 
         ~swarm();
@@ -69,6 +70,7 @@ namespace bzapi
         std::shared_ptr<bzn::asio::io_context_base> io_context;
         std::shared_ptr<crypto_base> crypto;
         endpoint_t initial_endpoint;
+        swarm_id_t swarm_id;
         uuid_t my_uuid;
         std::shared_ptr<std::unordered_map<uuid_t, node_info>> nodes;
         std::unordered_map<payload_t, swarm_response_handler_t> response_handlers;

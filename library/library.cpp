@@ -45,7 +45,8 @@ namespace bzapi
     }
 
     bool
-    initialize(const std::string& public_key, const std::string& private_key, const std::string& endpoint)
+    initialize(const std::string& public_key, const std::string& private_key
+        , const std::string& endpoint, const std::string& swarm_id)
     {
         if (!initialized)
         {
@@ -63,7 +64,7 @@ namespace bzapi
                 the_crypto = std::make_shared<crypto>(private_key);
                 ws_factory = std::make_shared<bzn::beast::websocket>();
                 the_swarm_factory = std::make_shared<swarm_factory>(io_context, ws_factory, the_crypto, public_key);
-                the_swarm_factory->temporary_set_default_endpoint(endpoint);
+                the_swarm_factory->temporary_set_default_endpoint(endpoint, swarm_id);
             }
             catch (...)
             {

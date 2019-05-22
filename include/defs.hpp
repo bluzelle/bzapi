@@ -39,6 +39,7 @@ namespace bzapi::utils
 namespace bzapi
 {
     using uuid_t = std::string;
+    using swarm_id_t = std::string;
     using endpoint_t = std::string;
     using completion_handler_t = std::function<void(const boost::system::error_code &error)>;
     using expiry_t = uint64_t;

@@ -180,7 +180,7 @@ public:
         mock_ws_factory = std::make_shared<bzn::beast::Mockwebsocket_base>();
         ws_factory = mock_ws_factory;
         the_swarm_factory = std::make_shared<swarm_factory>(io_context, ws_factory, the_crypto, this->uuid);
-        the_swarm_factory->temporary_set_default_endpoint("ws://127.0.0.1:50000");
+        the_swarm_factory->temporary_set_default_endpoint("ws://127.0.0.1:50000", "");
         bzapi::initialized = true;
     }
 
@@ -190,6 +190,7 @@ public:
         io_context = nullptr;
         ws_factory = nullptr;
         this->nodes.clear();
+        bzapi::initialized = false;
     }
 
     status_response make_status_response()
@@ -480,7 +481,7 @@ TEST_F(integration_test, test_initialize)
     EXPECT_EQ(bzapi::get_error(), -1);
     EXPECT_EQ(bzapi::get_error_str(), std::string{"Not Initialized"});
 
-    bool result = bzapi::initialize(pub_key, priv_key, "ws://127.0.0.1:50000");
+    bool result = bzapi::initialize(pub_key, priv_key, "ws://127.0.0.1:50000", "");
     EXPECT_TRUE(result);
     EXPECT_EQ(bzapi::get_error(), 0);
     EXPECT_EQ(bzapi::get_error_str(), std::string{""});
@@ -779,8 +780,9 @@ TEST_F(integration_test, blocking_response_test)
     thr.join();
 }
 
+#if 0 // these tests need to be run manually with an active swarm
 
-TEST_F(integration_test, DISABLED_live_test)
+TEST_F(integration_test, live_test)
 {
     uint16_t my_id = 0;
     int sock = create_socket(my_id);
@@ -789,7 +791,7 @@ TEST_F(integration_test, DISABLED_live_test)
     auto rand = generate_random_number(0, 100000);
     std::string db_name = "testdb_" + std::to_string(rand);
 
-    bool res = bzapi::initialize(pub_key, priv_key, "ws://localhost:50000");
+    bool res = bzapi::initialize(pub_key, priv_key, "ws://localhost:50000", "");
 //    bool res = bzapi::initialize(pub_key, priv_key, "ws://127.0.0.1:50000");
 //    bool res = bzapi::initialize(pub_key, priv_key, "ws://75.96.163.85:51010");
     EXPECT_TRUE(res);
@@ -874,12 +876,12 @@ TEST_F(integration_test, DISABLED_live_test)
     std::cout << status << std::endl;
 }
 
-TEST_F(integration_test, DISABLED_blocking_live_test)
+TEST_F(integration_test, blocking_live_test)
 {
     auto rand = generate_random_number(0, 100000);
     std::string db_name = "testdb_" + std::to_string(rand);
 
-    bool res = bzapi::initialize(pub_key, priv_key, "ws://localhost:50000");
+    bool res = bzapi::initialize(pub_key, priv_key, "ws://localhost:50000", "");
 //    bool res = bzapi::initialize(pub_key, priv_key, "ws://127.0.0.1:50000");
 //    bool res = bzapi::initialize(pub_key, priv_key, "ws://75.96.163.85:51010");
     EXPECT_TRUE(res);
@@ -939,12 +941,12 @@ TEST_F(integration_test, DISABLED_blocking_live_test)
     std::cout << status << std::endl;
 }
 
-TEST_F(integration_test, DISABLED_sync_live_test)
+TEST_F(integration_test, sync_live_test)
 {
     auto rand = generate_random_number(0, 100000);
     std::string db_name = "testdb_" + std::to_string(rand);
 
-    bool res = bzapi::initialize(pub_key, priv_key, "ws://localhost:50000");
+    bool res = bzapi::initialize(pub_key, priv_key, "ws://localhost:50000", "");
 //    bool res = bzapi::initialize(pub_key, priv_key, "ws://127.0.0.1:50000");
 //    bool res = bzapi::initialize(pub_key, priv_key, "ws://75.96.163.85:51010");
     EXPECT_TRUE(res);
@@ -995,3 +997,5 @@ TEST_F(integration_test, DISABLED_sync_live_test)
 
     std::cout << status << std::endl;
 }
+
+#endif // these tests need to be run manually with an active swarm

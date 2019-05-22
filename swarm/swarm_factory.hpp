@@ -35,7 +35,7 @@ class swarm_factory : public std::enable_shared_from_this<swarm_factory>
         void has_db(const uuid_t& uuid, std::function<void(db_error result)>);
         void create_db(const uuid_t& uuid, std::function<void(std::shared_ptr<swarm_base>)>);
 
-        void temporary_set_default_endpoint(const endpoint_t& endpoint);
+        void temporary_set_default_endpoint(const endpoint_t& endpoint, const swarm_id_t& swarm_id);
 
     private:
         std::shared_ptr<bzn::asio::io_context_base> io_context;
@@ -45,7 +45,7 @@ class swarm_factory : public std::enable_shared_from_this<swarm_factory>
         std::map<uuid_t, std::weak_ptr<swarm_base>> uuids;
         std::map<endpoint_t, std::weak_ptr<swarm_base>> swarms;
         std::shared_ptr<node_factory_base> node_factory;
-        std::set<endpoint_t> endpoints;
+        std::set<std::pair<endpoint_t, swarm_id_t>> endpoints;
 
     std::shared_ptr<swarm_base> get_default_swarm();
 

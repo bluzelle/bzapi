@@ -20,7 +20,8 @@
 
 namespace bzapi
 {
-    bool initialize(const std::string& public_key, const std::string& private_key, const std::string& endpoint);
+    bool initialize(const std::string& public_key, const std::string& private_key
+        , const std::string& endpoint, const std::string& swarm_id);
 
     void terminate();
 

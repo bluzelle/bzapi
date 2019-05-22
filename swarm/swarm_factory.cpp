@@ -150,12 +150,9 @@ swarm_factory::create_db(const uuid_t& uuid, std::function<void(std::shared_ptr<
 }
 
 void
-swarm_factory::temporary_set_default_endpoint(const endpoint_t& endpoint)
+swarm_factory::temporary_set_default_endpoint(const endpoint_t& endpoint, const swarm_id_t& swarm_id)
 {
-    this->endpoints.insert(endpoint);
-
-//    this->swarms[endpoint] = std::make_shared<swarm>(this->node_factory, this->ws_factory, this->io_context
-//        , this->crypto, endpoint, my_uuid);
+    this->endpoints.insert(std::make_pair(endpoint, swarm_id));
 }
 
 std::shared_ptr<swarm_base>
@@ -171,7 +168,7 @@ swarm_factory::get_default_swarm()
     }
 
     auto sw = std::make_shared<swarm>(this->node_factory, this->ws_factory, this->io_context, this->crypto
-        , *ep, my_uuid);
+        , ep->first, ep->second, my_uuid);
     return sw;
 
 

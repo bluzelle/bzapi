@@ -33,9 +33,10 @@ swarm::swarm(std::shared_ptr<node_factory_base> node_factory
     , std::shared_ptr<bzn::asio::io_context_base> io_context
     , std::shared_ptr<crypto_base> crypto
     , const endpoint_t& initial_endpoint
+    , const swarm_id_t& swarm_id
     , const uuid_t& uuid)
 : node_factory(std::move(node_factory)), ws_factory(std::move(ws_factory)), io_context(std::move(io_context))
-    , crypto(std::move(crypto)), initial_endpoint(initial_endpoint), my_uuid(uuid)
+    , crypto(std::move(crypto)), initial_endpoint(initial_endpoint), swarm_id(swarm_id), my_uuid(uuid)
 {
 }
 
@@ -98,6 +99,7 @@ swarm::has_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
     request.set_allocated_header(new database_header(header));
     request.set_allocated_has_db(new database_has_db());
     env.set_database_msg(request.SerializeAsString());
+    env.set_swarm_id(swarm_id);
     env.set_sender(my_uuid);
     env.set_timestamp(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch()).count()));
