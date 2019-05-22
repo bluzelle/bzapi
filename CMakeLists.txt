@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 
 project(bzapi CXX)
+set(CMAKE_BUILD_TYPE Debug)
+
 
 option(OMIT_LIBRARY "Omit compiling the shared library" OFF)
 
