@@ -13,14 +13,14 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 //
 
-#include <library/library.hpp>
+#include <include/bzapi.hpp>
 #include <boost/asio.hpp>
 #include <swarm/swarm.hpp>
 #include <boost_asio_beast.hpp>
 #include <swarm/swarm_factory.hpp>
-#include <defs.hpp>
+#include <bluzelle.hpp>
 #include <crypto/crypto.hpp>
-#include <database/async_database.hpp>
+#include <database/database_impl.hpp>
 #include <database/db_impl.hpp>
 #include <json/value.h>
 #include <library/udp_response.hpp>
@@ -38,7 +38,7 @@ namespace bzapi
     int error_val = -1;
     bool initialized = false;
 
-    std::shared_ptr<response>
+    std::shared_ptr<mutable_response>
     make_response()
     {
         return std::make_shared<udp_response>();
@@ -133,7 +133,7 @@ namespace bzapi
                         if (sw)
                         {
                             auto dbi = std::make_shared<db_impl>(io_context, sw, uuidstr);
-                            auto db = std::make_shared<async_database>(dbi);
+                            auto db = std::make_shared<async_database_impl>(dbi);
                             db->open([sw, resp, db, uuidstr](auto ec)
                             {
                                 if (ec)
@@ -209,7 +209,7 @@ namespace bzapi
                         if (sw)
                         {
                             auto dbi = std::make_shared<db_impl>(io_context, sw, uuidstr);
-                            auto db = std::make_shared<async_database>(dbi);
+                            auto db = std::make_shared<async_database_impl>(dbi);
                             db->open([resp, db](auto ec)
                             {
                                 if (ec)
@@ -294,7 +294,7 @@ namespace bzapi
             error_val = resp->get_error();
             error_str = json["error"].asString();
 
-            return json["result"].asInt() ? std::make_shared<database>(*(resp->get_db()))
+            return json["result"].asInt() ? std::make_shared<database_impl>(resp->get_db())
                 : nullptr;
         }
         else
@@ -318,7 +318,7 @@ namespace bzapi
             error_val = resp->get_error();
             error_str = json["error"].asString();
 
-            return json["result"].asInt() ? std::make_shared<database>(*(resp->get_db()))
+            return json["result"].asInt() ? std::make_shared<database_impl>(resp->get_db())
                 : nullptr;
         }
         else

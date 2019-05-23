@@ -15,11 +15,18 @@
 
 #pragma once
 
-#include <library/response.hpp>
+#include <library/mutable_response.hpp>
+#include <atomic>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <stdexcept>
+#include <string.h>
+#include <functional>
 
 namespace bzapi
 {
-    class udp_response : public response
+    class udp_response : public mutable_response
     {
     public:
         udp_response()

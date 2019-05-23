@@ -13,95 +13,95 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 //
 
-#include <database/database.hpp>
+#include <database/database_impl.hpp>
 
 using namespace bzapi;
 
-database::database(const async_database& db)
-: async_database(db)
+database_impl::database_impl(std::shared_ptr<async_database> db)
+: db(db)
 {
 }
 
 std::string
-database::create(const std::string& key, const std::string& value)
+database_impl::create(const std::string& key, const std::string& value)
 {
-    auto resp = async_database::create(key, value);
+    auto resp = db->create(key, value);
     return resp->get_result();
 }
 
 std::string
-database::read(const std::string& key)
+database_impl::read(const std::string& key)
 {
-    auto resp = async_database::read(key);
+    auto resp = db->read(key);
     return resp->get_result();
 }
 
 std::string
-database::update(const std::string& key, const std::string& value)
+database_impl::update(const std::string& key, const std::string& value)
 {
-    auto resp = async_database::update(key, value);
+    auto resp = db->update(key, value);
     return resp->get_result();
 }
 
 std::string
-database::remove(const std::string& key)
+database_impl::remove(const std::string& key)
 {
-    auto resp = async_database::remove(key);
+    auto resp = db->remove(key);
     return resp->get_result();
 }
 
 std::string
-database::quick_read(const std::string& key)
+database_impl::quick_read(const std::string& key)
 {
-    auto resp = async_database::quick_read(key);
+    auto resp = db->quick_read(key);
     return resp->get_result();
 }
 
 std::string
-database::has(const std::string& key)
+database_impl::has(const std::string& key)
 {
-    auto resp = async_database::has(key);
+    auto resp = db->has(key);
     return resp->get_result();
 }
 
 std::string
-database::keys()
+database_impl::keys()
 {
-    auto resp = async_database::keys();
+    auto resp = db->keys();
     return resp->get_result();
 }
 
 std::string
-database::size()
+database_impl::size()
 {
-    auto resp = async_database::size();
+    auto resp = db->size();
     return resp->get_result();
 }
 
 std::string
-database::expire(const std::string& key, expiry_t expiry)
+database_impl::expire(const std::string& key, expiry_t expiry)
 {
-    auto resp = async_database::expire(key, expiry);
+    auto resp = db->expire(key, expiry);
     return resp->get_result();
 }
 
 std::string
-database::persist(const std::string& key)
+database_impl::persist(const std::string& key)
 {
-    auto resp = async_database::persist(key);
+    auto resp = db->persist(key);
     return resp->get_result();
 }
 
 std::string
-database::ttl(const std::string& key)
+database_impl::ttl(const std::string& key)
 {
-    auto resp = async_database::ttl(key);
+    auto resp = db->ttl(key);
     return resp->get_result();
 }
 
 
 std::string
-database::swarm_status()
+database_impl::swarm_status()
 {
-    return async_database::swarm_status();
+    return db->swarm_status();
 }
