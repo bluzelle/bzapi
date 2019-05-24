@@ -16,10 +16,10 @@
 #include <gtest/gtest.h>
 #include <mocks/mock_boost_asio_beast.hpp>
 #include <swarm/swarm_factory.hpp>
-#include <defs.hpp>
+#include <bluzelle.hpp>
 #include <crypto/null_crypto.hpp>
 #include <crypto/crypto.hpp>
-#include <library/library.hpp>
+#include <include/bzapi.hpp>
 #include <json/value.h>
 #include <json/reader.h>
 #include <library/udp_response.hpp>
@@ -872,8 +872,9 @@ TEST_F(integration_test, live_test)
     EXPECT_EQ(has_json["result"].asInt(), 0);
 
     auto status = db->swarm_status();
-
     std::cout << status << std::endl;
+
+    bzapi::terminate();
 }
 
 TEST_F(integration_test, blocking_live_test)
@@ -937,8 +938,9 @@ TEST_F(integration_test, blocking_live_test)
     EXPECT_EQ(has_json["result"].asInt(), 0);
 
     auto status = db->swarm_status();
-
     std::cout << status << std::endl;
+
+    bzapi::terminate();
 }
 
 TEST_F(integration_test, sync_live_test)
@@ -994,8 +996,9 @@ TEST_F(integration_test, sync_live_test)
     EXPECT_EQ(has_json["result"].asInt(), 0);
 
     auto status = db->swarm_status();
-
     std::cout << status << std::endl;
+
+    bzapi::terminate();
 }
 
 #endif // these tests need to be run manually with an active swarm

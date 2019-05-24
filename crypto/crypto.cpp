@@ -16,7 +16,7 @@
 #include <openssl/pem.h>
 #include <openssl/err.h>
 #include <openssl/crypto.h>
-#include <defs.hpp>
+#include <bluzelle.hpp>
 
 using namespace bzapi;
 

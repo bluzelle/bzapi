@@ -15,7 +15,7 @@
 
 #include <gtest/gtest.h>
 #include <mocks/mock_db_impl.hpp>
-#include <database/database.hpp>
+#include <database/database_impl.hpp>
 #include <json/value.h>
 #include <json/reader.h>
 
@@ -32,8 +32,8 @@ public:
 
 protected:
     std::shared_ptr<mock_db_impl> dbi = std::make_shared<mock_db_impl>();
-    async_database adb{dbi};
-    database db{adb};
+    std::shared_ptr<async_database_impl> adb = std::make_shared<async_database_impl>(dbi);
+    database_impl db{adb};
 };
 
 
@@ -44,7 +44,7 @@ TEST_F(database_test, test_open)
         handler(boost::system::error_code{});
     }));
 
-    adb.open([](const auto& ec)
+    adb->open([](const auto& ec)
     {
         EXPECT_EQ(ec.value(), 0);
     });
