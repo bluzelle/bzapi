@@ -26,6 +26,7 @@
 #include <library/udp_response.hpp>
 #include <json/value.h>
 #include <json/reader.h>
+#include <library/log.hpp>
 
 namespace bzapi
 {
@@ -50,6 +51,8 @@ namespace bzapi
     {
         if (!initialized)
         {
+            log(100, "Test log message - initializing library");
+
             try
             {
                 io_context = std::make_shared<bzn::asio::io_context>();
