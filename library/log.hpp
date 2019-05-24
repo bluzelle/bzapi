@@ -17,12 +17,5 @@
 
 namespace bzapi
 {
-    class logger
-    {
-    public:
-        virtual ~logger() = default;
-        virtual void log(int level, std::string message) = 0;
-    };
-
-    void set_logger(logger* logger);
+    void log(int level, const std::string& message);
 }

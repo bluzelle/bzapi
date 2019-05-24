@@ -1,5 +1,5 @@
 add_definitions(-D_LIBCPP_ENABLE_CXX17_REMOVED_FEATURES)
-add_library(bzapi SHARED library.cpp ../include/bzapi.hpp ../include/response.hpp udp_response.hpp mutable_response.hpp)
+add_library(bzapi SHARED library.cpp ../include/bzapi.hpp ../include/response.hpp udp_response.hpp mutable_response.hpp ../include/logger.hpp log.cpp log.hpp)
 include_directories(${PROTOBUF_INCLUDE_DIR} ${JSONCPP_INCLUDE_DIRS})
 set_source_files_properties(../swig/py/bzapi.i PROPERTIES CPLUSPLUS ON)
 include_directories(bzapi ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/database)
