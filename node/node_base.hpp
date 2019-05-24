@@ -17,7 +17,7 @@
 
 #include <cstdint>
 #include <boost_asio_beast.hpp>
-#include <defs.hpp>
+#include <bluzelle.hpp>
 
 namespace bzapi
 {

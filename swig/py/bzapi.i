@@ -2,10 +2,10 @@
 
 %include <std_shared_ptr.i>
 %{
-#include "library/response.hpp"
-#include "database/async_database.hpp"
-#include "database/database.hpp"
-#include "library/library.hpp"
+#include "include/response.hpp"
+#include "include/async_database.hpp"
+#include "include/database.hpp"
+#include "include/bzapi.hpp"
 
 using namespace bzapi;
 %}
@@ -19,8 +19,8 @@ $result = PyString_FromString($1.c_str());
 %shared_ptr(bzapi::async_database)
 
 using std::string;
-%include "library/response.hpp"
-%include "database/async_database.hpp"
-%include "database/database.hpp"
-%include "library/library.hpp"
+%include "include/response.hpp"
+%include "include/async_database.hpp"
+%include "include/database.hpp"
+%include "include/bzapi.hpp"
 

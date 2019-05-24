@@ -15,44 +15,26 @@
 
 #pragma once
 
-#include <string>
-#include <atomic>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <stdexcept>
-#include <string.h>
-#include <memory>
-#include <functional>
+#include <include/response.hpp>
 
 namespace bzapi
 {
     class async_database;
 
-    class response
+    /// response object used to determine the outcome of an asynchronous
+    /// bzapi swarmDB operation. The caller can be notified of a result by calling
+    // set_signal_id() with the port of a UDP socket which will be written to when
+    // a result or error is available, at which time get_result() will not block.
+    // Alternatively, the caller can call get_result() at any time, which will block
+    // until the result or error is available.
+    class mutable_response : public response
     {
     public:
-        response()
-        {}
-
-        virtual ~response()
-        {}
-
-        // consumer
-        virtual int set_signal_id(int signal_id) = 0;
-
-        virtual std::string get_result() = 0;
-
-        virtual std::shared_ptr<async_database> get_db() = 0;
-
-        // producer
         virtual void set_result(const std::string& result) = 0;
 
         virtual void set_ready() = 0;
 
         virtual void set_error(int error) = 0;
-
-        virtual int get_error() = 0;
 
         virtual void set_db(std::shared_ptr<async_database> db_ptr) = 0;
 

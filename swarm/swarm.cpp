@@ -16,7 +16,7 @@
 #include <swarm.hpp>
 #include <boost/lexical_cast.hpp>
 #include <json/json.h>
-#include <defs.hpp>
+#include <bluzelle.hpp>
 #include <boost/format.hpp>
 #include <proto/database.pb.h>
 

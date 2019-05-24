@@ -1,4 +1,4 @@
-add_library(bzapi SHARED library.cpp library.hpp ../include/boost_asio_beast.hpp ../database/db_base.hpp response.hpp udp_response.hpp ../bzapi.hpp)
+add_library(bzapi SHARED library.cpp ../include/bzapi.hpp ../include/response.hpp udp_response.hpp mutable_response.hpp)
 include_directories(${PROTOBUF_INCLUDE_DIR} ${JSONCPP_INCLUDE_DIRS})
 set_source_files_properties(../swig/py/bzapi.i PROPERTIES CPLUSPLUS ON)
 include_directories(bzapi ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/database)
@@ -7,7 +7,6 @@ list (SORT _variableNames)
 foreach (_variableName ${_variableNames})
     message(STATUS "${_variableName}=${${_variableName}}")
 endforeach()
-target_include_directories(bzapi PRIVATE . ${JSONCPP_INCLUDE_DIRS})
 
 target_link_libraries(bzapi crypto proto swarm node database ${JSONCPP_LIBRARIES} ${Protobuf_LIBRARIES} ${OPENSSL_LIBRARIES} pthread)
 target_compile_features(bzapi PUBLIC cxx_std_17)
@@ -47,3 +46,11 @@ swig_link_libraries(bzapi ${PYTHON_LIBRARIES} bzapi)
 set_target_properties(_bzapi PROPERTIES SUFFIX ".so")
 
 add_subdirectory(test)
+
+
+set_target_properties(bzapi PROPERTIES PUBLIC_HEADER "../include/bzapi.hpp;../include/response.hpp;../include/database.hpp;../include/async_database.hpp")
+
+INSTALL(TARGETS bzapi
+        LIBRARY DESTINATION /usr/local/lib
+        PUBLIC_HEADER DESTINATION /usr/local/include/bzapi/
+        )

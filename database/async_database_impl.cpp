@@ -13,23 +13,23 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 //
 
-#include <database/async_database.hpp>
+#include <database/async_database_impl.hpp>
 #include <json/value.h>
 
 using namespace bzapi;
 
 namespace bzapi
 {
-    std::shared_ptr<response> make_response();
+    std::shared_ptr<mutable_response> make_response();
 }
 
-async_database::async_database(std::shared_ptr<db_impl_base> db_impl)
+async_database_impl::async_database_impl(std::shared_ptr<db_impl_base> db_impl)
 : db_impl(db_impl)
 {
 }
 
 void
-async_database::open(completion_handler_t handler)
+async_database_impl::open(completion_handler_t handler)
 {
     if (this->state != init_state::none)
     {
@@ -53,8 +53,8 @@ async_database::open(completion_handler_t handler)
 }
 
 void
-async_database::translate_swarm_response(const database_response& db_response, const boost::system::error_code& ec
-    , std::shared_ptr<response> resp
+async_database_impl::translate_swarm_response(const database_response& db_response, const boost::system::error_code& ec
+    , std::shared_ptr<mutable_response> resp
     , std::function<void(const database_response& response)> handler)
 {
     Json::Value result;
@@ -80,7 +80,7 @@ async_database::translate_swarm_response(const database_response& db_response, c
 }
 
 std::string
-async_database::swarm_status()
+async_database_impl::swarm_status()
 {
     if (this->state != init_state::initialized)
     {
@@ -100,7 +100,7 @@ uninit_error()
 }
 
 void
-async_database::send_message_with_basic_response(database_msg& msg, std::shared_ptr<response> resp)
+async_database_impl::send_message_with_basic_response(database_msg& msg, std::shared_ptr<mutable_response> resp)
 {
     this->db_impl->send_message_to_swarm(msg, send_policy::normal
         , [resp](const database_response &response, const boost::system::error_code &error)
@@ -116,7 +116,7 @@ async_database::send_message_with_basic_response(database_msg& msg, std::shared_
 }
 
 std::shared_ptr<response>
-async_database::create(const std::string& key, const std::string& value)
+async_database_impl::create(const std::string& key, const std::string& value)
 {
     auto resp = make_response();
     auto request = new database_create;
@@ -132,7 +132,7 @@ async_database::create(const std::string& key, const std::string& value)
 }
 
 std::shared_ptr<response>
-async_database::read(const std::string& key)
+async_database_impl::read(const std::string& key)
 {
     auto resp = make_response();
     auto request = new database_read;
@@ -160,7 +160,7 @@ async_database::read(const std::string& key)
 }
 
 std::shared_ptr<response>
-async_database::update(const std::string& key, const std::string& value)
+async_database_impl::update(const std::string& key, const std::string& value)
 {
     auto resp = make_response();
     auto request = new database_update;
@@ -176,7 +176,7 @@ async_database::update(const std::string& key, const std::string& value)
 }
 
 std::shared_ptr<response>
-async_database::remove(const std::string& key)
+async_database_impl::remove(const std::string& key)
 {
     auto resp = make_response();
     auto request = new database_delete;
@@ -191,7 +191,7 @@ async_database::remove(const std::string& key)
 }
 
 std::shared_ptr<response>
-async_database::quick_read(const std::string& key)
+async_database_impl::quick_read(const std::string& key)
 {
     auto resp = make_response();
     auto request = new database_read;
@@ -234,7 +234,7 @@ async_database::quick_read(const std::string& key)
 }
 
 std::shared_ptr<response>
-async_database::has(const std::string& key)
+async_database_impl::has(const std::string& key)
 {
     auto resp = make_response();
     auto request = new database_has;
@@ -259,7 +259,7 @@ async_database::has(const std::string& key)
 }
 
 std::shared_ptr<response>
-async_database::keys()
+async_database_impl::keys()
 {
     auto resp = make_response();
     auto request = new database_request;
@@ -290,7 +290,7 @@ async_database::keys()
 }
 
 std::shared_ptr<response>
-async_database::size()
+async_database_impl::size()
 {
     auto resp = make_response();
     auto request = new database_request;
@@ -319,7 +319,7 @@ async_database::size()
 }
 
 std::shared_ptr<response>
-async_database::expire(const std::string& key, expiry_t expiry)
+async_database_impl::expire(const std::string& key, expiry_t expiry)
 {
     auto resp = make_response();
     auto request = new database_expire;
@@ -335,7 +335,7 @@ async_database::expire(const std::string& key, expiry_t expiry)
 }
 
 std::shared_ptr<response>
-async_database::persist(const std::string& key)
+async_database_impl::persist(const std::string& key)
 {
     auto resp = make_response();
     auto request = new database_read;
@@ -350,7 +350,7 @@ async_database::persist(const std::string& key)
 }
 
 std::shared_ptr<response>
-async_database::ttl(const std::string& key)
+async_database_impl::ttl(const std::string& key)
 {
     auto resp = make_response();
     auto request = new database_read;
