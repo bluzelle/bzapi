@@ -7,4 +7,6 @@ add_library(crypto
 target_link_libraries(crypto proto)
 add_dependencies(crypto openssl)
 target_include_directories(crypto PRIVATE ${PROTO_INCLUDE_DIR})
-add_subdirectory(test)
+if (NOT OMIT_LIBRARY)
+    add_subdirectory(test)
+endif(NOT OMIT_LIBRARY)

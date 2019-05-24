@@ -24,6 +24,7 @@
 #include <json/reader.h>
 #include <library/udp_response.hpp>
 #include <random>
+#include <include/logger.hpp>
 
 using namespace testing;
 using namespace bzapi;
@@ -165,12 +166,21 @@ struct mock_websocket
     completion_handler_t timer_callback;
 };
 
+class my_logger : public bzapi::logger
+{
+    void log(const std::string& severity, const std::string& message)
+    {
+        std::cout << severity << ": " << message << std::endl;
+    }
+};
 
 class integration_test : public Test
 {
 public:
     void initialize(bzapi::uuid_t _uuid)
     {
+        bzapi::set_logger(&mylogger);
+
         this->uuid = _uuid;
         mock_io_context = std::make_shared<bzn::asio::Mockio_context_base>();
         EXPECT_CALL(*mock_io_context, get_io_context()).Times(AtLeast(1)).WillRepeatedly(ReturnRef(real_io_context));
@@ -450,6 +460,7 @@ protected:
     std::set<my_mock_tcp_socket*> sockets;
     std::shared_ptr<bzn::asio::Mockio_context_base> mock_io_context;
     std::shared_ptr<bzn::beast::Mockwebsocket_base> mock_ws_factory;
+    my_logger mylogger;
 };
 
 TEST_F(integration_test, test_uninitialized)
@@ -791,6 +802,7 @@ TEST_F(integration_test, live_test)
     auto rand = generate_random_number(0, 100000);
     std::string db_name = "testdb_" + std::to_string(rand);
 
+    bzapi::set_logger(&mylogger);
     bool res = bzapi::initialize(pub_key, priv_key, "ws://localhost:50000", "");
 //    bool res = bzapi::initialize(pub_key, priv_key, "ws://127.0.0.1:50000");
 //    bool res = bzapi::initialize(pub_key, priv_key, "ws://75.96.163.85:51010");

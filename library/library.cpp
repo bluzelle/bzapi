@@ -26,6 +26,7 @@
 #include <library/udp_response.hpp>
 #include <json/value.h>
 #include <json/reader.h>
+#include <library/log.hpp>
 
 namespace bzapi
 {
@@ -48,6 +49,7 @@ namespace bzapi
     initialize(const std::string& public_key, const std::string& private_key
         , const std::string& endpoint, const std::string& swarm_id)
     {
+        init_logging();
         if (!initialized)
         {
             try
@@ -89,6 +91,8 @@ namespace bzapi
             initialized = false;
             error_str = "Not Initialized";
             error_val = -1;
+
+            end_logging();
         }
     }
 
