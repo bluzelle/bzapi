@@ -24,5 +24,7 @@ namespace bzapi
         virtual void log(int level, std::string message) = 0;
     };
 
-    void set_logger(logger* logger);
+    void set_logger(logger* logger){
+        logger->log(1, "from_cpp");
+    };
 }
