@@ -3,7 +3,7 @@ import asyncio
 import sys
 import json
 
-from build.library import bzpy
+from build.library import bzapi
 from lib.udp.udp_support import *
 from lib.udp.test_udp import *
 
@@ -22,65 +22,108 @@ class DB:
         results = json.loads(self.load_(self, *args, **kwargs, meth = sys._getframe().f_code.co_name))
         if 'result' in results:
             return results['result'] == 1
+        elif 'error' in results:
+            raise Exception(results['error'])
         else:
-            return False
+            raise Exception("Unknown error")
 
     def update(self, *args, **kwargs):
         response = self.load_(self, *args, **kwargs, meth = sys._getframe().f_code.co_name)
         results = json.loads(response)
         if 'result' in results:
             return results['result'] == 1
+        elif 'error' in results:
+            raise Exception(results['error'])
         else:
-            return False
+            raise Exception("Unknown error")
 
     def remove(self, *args, **kwargs):
         response = self.load_(self, *args, **kwargs, meth = sys._getframe().f_code.co_name)
         results = json.loads(response)
         if 'result' in results:
             return results['result'] == 1
+        elif 'error' in results:
+            raise Exception(results['error'])
         else:
-            return False
+            raise Exception("Unknown error")
 
     def has(self, *args, **kwargs):
         response = self.load_(self, *args, **kwargs, meth = sys._getframe().f_code.co_name)
         results = json.loads(response)
         if 'result' in results:
             return results['result'] == 1
+        elif 'error' in results:
+            raise Exception(results['error'])
         else:
-            return False
+            raise Exception("Unknown error")
 
     def read(self, *args, **kwargs):
-        return json.loads(self.load_(self, *args, **kwargs, meth = sys._getframe().f_code.co_name))
+        response = self.load_(self, *args, **kwargs, meth=sys._getframe().f_code.co_name)
+        results = json.loads(response)
+        if 'value' in results:
+            return results['value']
+        elif 'error' in results:
+            raise Exception(results['error'])
+        else:
+            raise Exception("Unknown error")
 
     def quick_read(self, *args, **kwargs):
         response = self.load_(self, *args, **kwargs, meth = sys._getframe().f_code.co_name)
         results = json.loads(response)
-        return results
+        if 'value' in results:
+            return results['value']
+        elif 'error' in results:
+            raise Exception(results['error'])
+        else:
+            raise Exception("Unknown error")
 
     def expire(self, *args, **kwargs):
         response = self.load_(self, *args, **kwargs, meth = sys._getframe().f_code.co_name)
         results = json.loads(response)
-        return results
+        if 'result' in results:
+            return results['result'] == 1
+        elif 'error' in results:
+            raise Exception(results['error'])
+        else:
+            raise Exception("Unknown error")
 
     def persist(self, *args, **kwargs):
         response = self.load_(self, *args, **kwargs, meth = sys._getframe().f_code.co_name)
         results = json.loads(response)
-        return results
+        if 'result' in results:
+            return results['result'] == 1
+        elif 'error' in results:
+            raise Exception(results['error'])
+        else:
+            raise Exception("Unknown error")
 
     def ttl(self, *args, **kwargs):
         response = self.load_(self, *args, **kwargs, meth = sys._getframe().f_code.co_name)
         results = json.loads(response)
-        return results
+        if 'error' in results:
+            raise Exception(results['error'])
+        elif 'ttl' in results:
+            return results['ttl']
+        else:
+            raise Exception("Unknown error")
 
     def keys(self):
         response = self.load_(self, meth = sys._getframe().f_code.co_name)
         results = json.loads(response)
-        return results['keys']
+        if 'keys' in results:
+            return results['keys']
+        elif 'error' in results:
+            raise Exception(results['error'])
+        else:
+            raise Exception("Unknown error")
 
     def size(self):
         response = self.load_(self, meth = sys._getframe().f_code.co_name)
         results = json.loads(response)
-        return results
+        if 'error' in results:
+            raise Exception(results['error'])
+        else:
+            return results
 
 
     def swarm_status(self):

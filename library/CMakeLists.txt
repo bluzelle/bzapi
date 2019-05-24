@@ -1,6 +1,6 @@
 add_library(bzapi SHARED library.cpp library.hpp ../include/boost_asio_beast.hpp ../database/db_base.hpp response.hpp udp_response.hpp ../bzapi.hpp)
 include_directories(${PROTOBUF_INCLUDE_DIR} ${JSONCPP_INCLUDE_DIRS})
-set_source_files_properties(../swig/py/bzpy.i PROPERTIES CPLUSPLUS ON)
+set_source_files_properties(../swig/py/bzapi.i PROPERTIES CPLUSPLUS ON)
 include_directories(bzapi ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/database)
 get_cmake_property(_variableNames VARIABLES)
 list (SORT _variableNames)
@@ -30,7 +30,7 @@ set(Boost_USE_STATIC_RUNTIME OFF)
 find_package(SWIG REQUIRED)
 include(${SWIG_USE_FILE})
 
-set(SWIG_MODULE_NAME bzpy)
+set(SWIG_MODULE_NAME bzapi)
 
 add_compile_options("-fdiagnostics-color=auto")
 add_compile_options("-fPIC")
@@ -39,11 +39,11 @@ add_compile_options("-Wall")
 add_compile_options("-Wextra")
 add_compile_options("-Wno-unused-parameter")
 
-include_directories(bzpy ${PYTHON_INCLUDE_PATH} ${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(_bzapi ${PYTHON_INCLUDE_PATH} ${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${Boost_INCLUDE_DIRS})
 
-swig_add_library(bzpy TYPE SHARED LANGUAGE python SOURCES ../swig/py/bzpy.i)
-swig_link_libraries(bzpy ${PYTHON_LIBRARIES} bzapi)
-set_target_properties(_bzpy PROPERTIES SUFFIX ".so")
+swig_add_library(bzapi TYPE SHARED LANGUAGE python SOURCES ../swig/py/bzapi.i)
+swig_link_libraries(bzapi ${PYTHON_LIBRARIES} bzapi)
+set_target_properties(_bzapi PROPERTIES SUFFIX ".so")
 
 add_subdirectory(test)

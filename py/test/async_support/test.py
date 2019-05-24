@@ -12,17 +12,17 @@ from socket import *
 import uuid
 from lib.udp.udp_support import *
 from lib.async_support import bluzelle
-from build.library import bzpy
+from build.library import bzapi
 
 class TestLibrary(unittest.TestCase):
 
     def setUp(self):
 
         self.priv_key = "-----BEGIN EC PRIVATE KEY-----\n" \
-               "MHQCAQEEIBWDWE/MAwtXaFQp6d2Glm2Uj7ROBlDKFn5RwqQsDEbyoAcGBSuBBAAK\n" \
-               "oUQDQgAEiykQ5A02u+02FR1nftxT5VuUdqLO6lvNoL5aAIyHvn8NS0wgXxbPfpuq\n" \
-               "UPpytiopiS5D+t2cYzXJn19MQmnl/g==\n" \
-               "-----END EC PRIVATE KEY-----"
+                        "MHQCAQEEIBWDWE/MAwtXaFQp6d2Glm2Uj7ROBlDKFn5RwqQsDEbyoAcGBSuBBAAK\n" \
+                        "oUQDQgAEiykQ5A02u+02FR1nftxT5VuUdqLO6lvNoL5aAIyHvn8NS0wgXxbPfpuq\n" \
+                        "UPpytiopiS5D+t2cYzXJn19MQmnl/g==\n" \
+                        "-----END EC PRIVATE KEY-----"
 
         self.uuid = str(uuid.uuid4())
         self.bluzelle = bluzelle.Bluzelle(self.priv_key)
@@ -45,6 +45,8 @@ class TestLibrary(unittest.TestCase):
 
     def test_create_db(self):
         async def go():
+            with self.assertRaises(Exception):
+                await self.bluzelle.open_db(self.uuid)
             await self.bluzelle.create_db(self.uuid)
             self.assertEqual(await self.bluzelle.has_db(self.uuid), True, "database was created successfully")
         self.loop.run_until_complete(go())
@@ -68,12 +70,12 @@ class TestLibrary(unittest.TestCase):
     def test_db_create_read(self):
         async def go():
             db = await self.bluzelle.create_db(self.uuid)
-            res0 = await db.read("a")
-            self.assertEqual(res0['error'], 'RECORD_NOT_FOUND', "cannot read yet")
+            with self.assertRaises(Exception):
+                await db.read("a")
             res1 = await db.create("a", "b")
             self.assertEqual(res1, True, "created a db value successfully")
             res2 = await db.read("a")
-            self.assertEqual(res2['value'], "b", "wrote and read a db value successfully")
+            self.assertEqual(res2, "b", "wrote and read a db value successfully")
         self.loop.run_until_complete(go())
 
     def test_db_has_remove(self):
@@ -85,22 +87,21 @@ class TestLibrary(unittest.TestCase):
             self.assertEqual(res2, True, "created a db value successfully")
             res3 = await db.has("a")
             self.assertEqual(res3, True, "after we create they key, it should exist")
-            res4 = await db.remove("zzz")
-            self.assertEqual(res4, False, "we cannot remove non-existing records")
+            with self.assertRaises(Exception):
+                await db.remove("zzz")
             res5 = await db.remove("a")
-            self.assertEqual(res4, False, "we can remove existing records")
+            self.assertEqual(res5, True, "we can remove existing records")
         self.loop.run_until_complete(go())
-
 
     def test_db_create_quick_read(self):
         async def go():
             db = await self.bluzelle.create_db(self.uuid)
-            res0 = await db.quick_read("a")
-            self.assertEqual(res0['error'], 'RECORD_NOT_FOUND', "cannot read yet")
+            with self.assertRaises(Exception):
+                await db.quick_read("a")
             res1 = await db.create("a", "b")
             self.assertEqual(res1, True, "created a db value successfully")
             res2 = await db.quick_read("a")
-            self.assertEqual(res2['value'], "b", "wrote and read a db value successfully")
+            self.assertEqual(res2, "b", "wrote and read a db value successfully")
         self.loop.run_until_complete(go())
 
     def test_db_create_update(self):
@@ -149,8 +150,10 @@ class TestLibrary(unittest.TestCase):
             db = await self.bluzelle.create_db(self.uuid)
             res0 = await db.create("a", "1")
             self.assertEqual(res0, True, "Record created")
-            res1 = await db.ttl("a")
-            # todo: test res1 once c++ support is provided
+            with self.assertRaises(Exception):
+                await db.ttl("a")
+
+            # todo: tests res1 once c++ support is provided
         self.loop.run_until_complete(go())
 
     def test_expire(self):
@@ -159,7 +162,7 @@ class TestLibrary(unittest.TestCase):
             res0 = await db.create("a", "1")
             self.assertEqual(res0, True, "Record created")
             #res1 = await db.expire("a", 1)
-            # todo: test res1 once c++ support is provided
+            # todo: tests res1 once c++ support is provided
         self.loop.run_until_complete(go())
 
     def test_persist(self):
@@ -167,8 +170,9 @@ class TestLibrary(unittest.TestCase):
             db = await self.bluzelle.create_db(self.uuid)
             res0 = await db.create("a", "1")
             self.assertEqual(res0, True, "Record created")
-            res1 = await db.persist("a")
-            # todo: test res1 once c++ support is provided
+            with self.assertRaises(Exception):
+                await db.persist("a")
+            # todo: tests res1 once c++ support is provided
         self.loop.run_until_complete(go())
 
     def test_swarm_status(self):

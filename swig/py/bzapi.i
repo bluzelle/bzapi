@@ -1,10 +1,10 @@
-%module bzpy
+%module bzapi
 
 %include <std_shared_ptr.i>
 %{
 #include "library/response.hpp"
-#include "database/database.hpp"
 #include "database/async_database.hpp"
+#include "database/database.hpp"
 #include "library/library.hpp"
 
 using namespace bzapi;
@@ -20,7 +20,7 @@ $result = PyString_FromString($1.c_str());
 
 using std::string;
 %include "library/response.hpp"
-%include "database/database.hpp"
 %include "database/async_database.hpp"
+%include "database/database.hpp"
 %include "library/library.hpp"
 
