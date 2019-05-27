@@ -16,8 +16,8 @@ using namespace bzapi;
 $result = PyString_FromString($1.c_str());
 }
 %include std_string.i
-%include exception.i
 %include stdint.i
+%include exception.i
 
 %feature("director") bzapi::logger;
 
