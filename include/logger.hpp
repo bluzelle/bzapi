@@ -17,12 +17,17 @@
 
 namespace bzapi
 {
+    /// The logger class is used to send log messages to the client application.
+    /// Derive a class from logger and implement the log() function
+    /// then register it using the set_logger function
     class logger
     {
     public:
         virtual ~logger() = default;
-        virtual void log(int level, std::string message) = 0;
+        virtual void log(const std::string& severity, const std::string& message) = 0;
     };
 
+    /// Sets the object used to receive log messages.
+    /// @param logger - pointer to the logger object to use
     void set_logger(logger* logger);
 }

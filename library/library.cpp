@@ -49,10 +49,9 @@ namespace bzapi
     initialize(const std::string& public_key, const std::string& private_key
         , const std::string& endpoint, const std::string& swarm_id)
     {
+        init_logging();
         if (!initialized)
         {
-            log(100, "Test log message - initializing library");
-
             try
             {
                 io_context = std::make_shared<bzn::asio::io_context>();
