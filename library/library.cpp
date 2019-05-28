@@ -91,6 +91,8 @@ namespace bzapi
             initialized = false;
             error_str = "Not Initialized";
             error_val = -1;
+
+            end_logging();
         }
     }
 

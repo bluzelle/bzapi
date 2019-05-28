@@ -64,19 +64,25 @@ namespace bzapi
 
     boost::shared_ptr<log_pusher> pusher;
 
-void init_logging()
-{
-    pusher = boost::make_shared<log_pusher>();
-    boost::shared_ptr< boost::log::core > core = boost::log::core::get();
+    void init_logging()
+    {
+        pusher = boost::make_shared<log_pusher>();
+        boost::shared_ptr< boost::log::core > core = boost::log::core::get();
 
-    typedef sinks::synchronous_sink< log_pusher > sink_t;
-    boost::shared_ptr< sink_t > sink(new sink_t(pusher));
+        typedef sinks::synchronous_sink< log_pusher > sink_t;
+        boost::shared_ptr< sink_t > sink(new sink_t(pusher));
 
-    core->add_sink(sink);
-}
+        core->add_sink(sink);
+    }
 
-void set_logger(logger* logger)
-{
-    the_logger = logger;
-}
+    void end_logging()
+    {
+        boost::shared_ptr< boost::log::core > core = boost::log::core::get();
+        core->remove_all_sinks();
+    }
+
+    void set_logger(logger* logger)
+    {
+        the_logger = logger;
+    }
 }

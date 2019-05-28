@@ -46,10 +46,12 @@ swig_add_library(bzapi TYPE SHARED LANGUAGE python SOURCES ../swig/py/bzapi.i)
 swig_link_libraries(bzapi ${PYTHON_LIBRARIES} bzapi)
 set_target_properties(_bzapi PROPERTIES SUFFIX ".so")
 
-add_subdirectory(test)
+if (NOT OMIT_LIBRARY)
+    add_subdirectory(test)
+endif(NOT OMIT_LIBRARY)
 
+set_target_properties(bzapi PROPERTIES PUBLIC_HEADER "../include/bzapi.hpp;../include/response.hpp;../include/database.hpp;../include/async_database.hpp;../include/logger.hpp")
 
-set_target_properties(bzapi PROPERTIES PUBLIC_HEADER "../include/bzapi.hpp;../include/response.hpp;../include/database.hpp;../include/async_database.hpp")
 
 INSTALL(TARGETS bzapi
         LIBRARY DESTINATION /usr/local/lib
