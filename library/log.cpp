@@ -75,8 +75,14 @@ void init_logging()
     core->add_sink(sink);
 }
 
-void set_logger(logger* logger)
-{
-    the_logger = logger;
-}
+    void end_logging()
+    {
+        boost::shared_ptr< boost::log::core > core = boost::log::core::get();
+        core->remove_all_sinks();
+    }
+
+    void set_logger(logger* logger)
+    {
+        the_logger = logger;
+    }
 }

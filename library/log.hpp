@@ -18,5 +18,6 @@
 namespace bzapi
 {
     void init_logging();
+    void end_logging();
     void log(int level, const std::string& message);
 }
