@@ -16,6 +16,7 @@
 
 #include <boost/log/trivial.hpp>
 #include <boost/system/error_code.hpp>
+#include <boost/exception/all.hpp>
 #include <string_view>
 #include <libgen.h>
 #include <iostream>
@@ -35,6 +36,23 @@ namespace bzapi::utils
 }
 
 #define LOG(x) BOOST_LOG_TRIVIAL(x) << "(" << bzapi::utils::basename(__FILE__) << ":"  << __LINE__ << ") - "
+
+#define CATCHALL(action) \
+catch (boost::exception& be) \
+{ \
+    LOG(error) << "Exception caught " << boost::diagnostic_information(be); \
+    action; \
+} \
+catch (std::exception& e) \
+{ \
+    LOG(error) << "Exception caught: " << e.what(); \
+    action; \
+} \
+catch(...) \
+{ \
+    LOG(error) << "Unknown exception caught"; \
+    action; \
+}
 
 namespace bzapi
 {

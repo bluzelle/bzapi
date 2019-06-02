@@ -24,6 +24,11 @@
 #include <string.h>
 #include <functional>
 
+namespace
+{
+    std::string ERROR_RESULT{"{ error: \"An exception occurred getting result\""};
+}
+
 namespace bzapi
 {
     class udp_response : public mutable_response
@@ -133,8 +138,13 @@ namespace bzapi
 
         std::string get_result() override
         {
-            this->prom.get_future().get();
-            return this->result_str;
+            try
+            {
+                this->prom.get_future().get();
+                return this->result_str;
+            }
+            CATCHALL();
+            return ERROR_RESULT;
         }
 
         void set_db(std::shared_ptr<async_database> db_ptr) override

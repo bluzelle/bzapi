@@ -118,262 +118,317 @@ async_database_impl::send_message_with_basic_response(database_msg& msg, std::sh
 std::shared_ptr<response>
 async_database_impl::create(const std::string& key, const std::string& value)
 {
-    auto resp = make_response();
-    auto request = new database_create;
-    request->set_key(key);
-    request->set_value(value);
+    try
+    {
+        auto resp = make_response();
+        auto request = new database_create;
+        request->set_key(key);
+        request->set_value(value);
 
-    database_msg msg;
-    msg.set_allocated_create(request);
+        database_msg msg;
+        msg.set_allocated_create(request);
 
-    send_message_with_basic_response(msg, resp);
+        send_message_with_basic_response(msg, resp);
 
-    return resp;
+        return resp;
+    }
+    CATCHALL();
+    return nullptr;
 }
 
 std::shared_ptr<response>
 async_database_impl::read(const std::string& key)
 {
-    auto resp = make_response();
-    auto request = new database_read;
-    request->set_key(key);
+    try
+    {
+        auto resp = make_response();
+        auto request = new database_read;
+        request->set_key(key);
 
-    database_msg msg;
-    msg.set_allocated_read(request);
+        database_msg msg;
+        msg.set_allocated_read(request);
 
-    this->db_impl->send_message_to_swarm(msg, send_policy::normal
-        , [resp](const database_response &response, const boost::system::error_code &error)
-        {
-            translate_swarm_response(response, error, resp, [resp](const database_response &response)
+        this->db_impl->send_message_to_swarm(msg, send_policy::normal
+            , [resp](const database_response &response, const boost::system::error_code &error)
             {
-                Json::Value result;
-                const database_read_response &read_resp = response.read();
-                result["result"] = 1;
-                result["key"] = read_resp.key();
-                result["value"] = read_resp.value();
-                resp->set_result(result.toStyledString());
-                resp->set_ready();
+                translate_swarm_response(response, error, resp, [resp](const database_response &response)
+                {
+                    Json::Value result;
+                    const database_read_response &read_resp = response.read();
+                    result["result"] = 1;
+                    result["key"] = read_resp.key();
+                    result["value"] = read_resp.value();
+                    resp->set_result(result.toStyledString());
+                    resp->set_ready();
+                });
             });
-        });
 
-    return resp;
+        return resp;
+    }
+    CATCHALL();
+    return nullptr;
 }
 
 std::shared_ptr<response>
 async_database_impl::update(const std::string& key, const std::string& value)
 {
-    auto resp = make_response();
-    auto request = new database_update;
-    request->set_key(key);
-    request->set_value(value);
+    try
+    {
+        auto resp = make_response();
+        auto request = new database_update;
+        request->set_key(key);
+        request->set_value(value);
 
-    database_msg msg;
-    msg.set_allocated_update(request);
+        database_msg msg;
+        msg.set_allocated_update(request);
 
-    send_message_with_basic_response(msg, resp);
+        send_message_with_basic_response(msg, resp);
 
-    return resp;
+        return resp;
+    }
+    CATCHALL();
+    return nullptr;
 }
 
 std::shared_ptr<response>
 async_database_impl::remove(const std::string& key)
 {
-    auto resp = make_response();
-    auto request = new database_delete;
-    request->set_key(key);
+    try
+    {
+        auto resp = make_response();
+        auto request = new database_delete;
+        request->set_key(key);
 
-    database_msg msg;
-    msg.set_allocated_delete_(request);
+        database_msg msg;
+        msg.set_allocated_delete_(request);
 
-    send_message_with_basic_response(msg, resp);
+        send_message_with_basic_response(msg, resp);
 
-    return resp;
+        return resp;
+    }
+    CATCHALL();
+    return nullptr;
 }
 
 std::shared_ptr<response>
 async_database_impl::quick_read(const std::string& key)
 {
-    auto resp = make_response();
-    auto request = new database_read;
-    request->set_key(key);
+    try
+    {
+        auto resp = make_response();
+        auto request = new database_read;
+        request->set_key(key);
 
-    database_msg msg;
-    msg.set_allocated_quick_read(request);
+        database_msg msg;
+        msg.set_allocated_quick_read(request);
 
-    this->db_impl->send_message_to_swarm(msg, send_policy::fastest
-        , [resp](const database_response &response, const boost::system::error_code &ec)
-        {
-            Json::Value result;
-            if (ec)
+        this->db_impl->send_message_to_swarm(msg, send_policy::fastest
+            , [resp](const database_response &response, const boost::system::error_code &ec)
             {
-                result["error"] = ec.message();
-                resp->set_result(result.toStyledString());
-                resp->set_error(static_cast<int>(db_error::connection_error));
-            }
-            else
-            {
-                const database_quick_read_response &rr = response.quick_read();
-                if (!rr.error().empty())
+                Json::Value result;
+                if (ec)
                 {
-                    result["error"] = rr.error();
+                    result["error"] = ec.message();
                     resp->set_result(result.toStyledString());
-                    resp->set_error(static_cast<int>(db_error::database_error));
+                    resp->set_error(static_cast<int>(db_error::connection_error));
                 }
                 else
                 {
-                    result["result"] = 1;
-                    result["key"] = rr.key();
-                    result["value"] = rr.value();
-                    resp->set_result(result.toStyledString());
-                    resp->set_ready();
+                    const database_quick_read_response &rr = response.quick_read();
+                    if (!rr.error().empty())
+                    {
+                        result["error"] = rr.error();
+                        resp->set_result(result.toStyledString());
+                        resp->set_error(static_cast<int>(db_error::database_error));
+                    }
+                    else
+                    {
+                        result["result"] = 1;
+                        result["key"] = rr.key();
+                        result["value"] = rr.value();
+                        resp->set_result(result.toStyledString());
+                        resp->set_ready();
+                    }
                 }
-            }
-        });
+            });
 
-    return resp;
+        return resp;
+    }
+    CATCHALL();
+    return nullptr;
 }
 
 std::shared_ptr<response>
 async_database_impl::has(const std::string& key)
 {
-    auto resp = make_response();
-    auto request = new database_has;
-    request->set_key(key);
+    try
+    {
+        auto resp = make_response();
+        auto request = new database_has;
+        request->set_key(key);
 
-    database_msg msg;
-    msg.set_allocated_has(request);
+        database_msg msg;
+        msg.set_allocated_has(request);
 
-    this->db_impl->send_message_to_swarm(msg, send_policy::normal
-        , [resp](const database_response &response, const boost::system::error_code &error)
-        {
-            translate_swarm_response(response, error, resp, [resp](const database_response &response)
+        this->db_impl->send_message_to_swarm(msg, send_policy::normal
+            , [resp](const database_response &response, const boost::system::error_code &error)
             {
-                Json::Value result;
-                result["result"] = response.has().has();
-                resp->set_result(result.toStyledString());
-                resp->set_ready();
+                translate_swarm_response(response, error, resp, [resp](const database_response &response)
+                {
+                    Json::Value result;
+                    result["result"] = response.has().has();
+                    resp->set_result(result.toStyledString());
+                    resp->set_ready();
+                });
             });
-        });
 
-    return resp;
+        return resp;
+    }
+    CATCHALL();
+    return nullptr;
 }
 
 std::shared_ptr<response>
 async_database_impl::keys()
 {
-    auto resp = make_response();
-    auto request = new database_request;
+    try
+    {
+        auto resp = make_response();
+        auto request = new database_request;
 
-    database_msg msg;
-    msg.set_allocated_keys(request);
+        database_msg msg;
+        msg.set_allocated_keys(request);
 
-    this->db_impl->send_message_to_swarm(msg, send_policy::normal
-        , [resp](const database_response &response, const boost::system::error_code &ec)
-        {
-            translate_swarm_response(response, ec, resp, [resp](const database_response &response)
+        this->db_impl->send_message_to_swarm(msg, send_policy::normal
+            , [resp](const database_response &response, const boost::system::error_code &ec)
             {
-                Json::Value result;
-                const database_keys_response &keys_resp = response.keys();
-                Json::Value keys;
-                for (int i = 0; i < keys_resp.keys_size(); i++)
+                translate_swarm_response(response, ec, resp, [resp](const database_response &response)
                 {
-                    keys.append(keys_resp.keys(i));
-                }
-                result["keys"] = keys;
+                    Json::Value result;
+                    const database_keys_response &keys_resp = response.keys();
+                    Json::Value keys;
+                    for (int i = 0; i < keys_resp.keys_size(); i++)
+                    {
+                        keys.append(keys_resp.keys(i));
+                    }
+                    result["keys"] = keys;
 
-                resp->set_result(result.toStyledString());
-                resp->set_ready();
+                    resp->set_result(result.toStyledString());
+                    resp->set_ready();
+                });
             });
-        });
 
-    return resp;
+        return resp;
+    }
+    CATCHALL();
+    return nullptr;
 }
 
 std::shared_ptr<response>
 async_database_impl::size()
 {
-    auto resp = make_response();
-    auto request = new database_request;
+    try
+    {
+        auto resp = make_response();
+        auto request = new database_request;
 
-    database_msg msg;
-    msg.set_allocated_size(request);
+        database_msg msg;
+        msg.set_allocated_size(request);
 
-    this->db_impl->send_message_to_swarm(msg, send_policy::normal
-        , [resp](const database_response &response, const boost::system::error_code &ec)
-        {
-            translate_swarm_response(response, ec, resp, [resp](const database_response &response)
+        this->db_impl->send_message_to_swarm(msg, send_policy::normal
+            , [resp](const database_response &response, const boost::system::error_code &ec)
             {
-                Json::Value result;
-                const database_size_response &size_resp = response.size();
-                result["result"] = 1;
-                result["bytes"] = static_cast<Json::Value::UInt64>(size_resp.bytes());
-                result["keys"] = size_resp.keys();
-                result["remaining_bytes"] = static_cast<Json::Value::UInt64>(size_resp.remaining_bytes());
-                result["max_size"] = static_cast<Json::Value::UInt64>(size_resp.max_size());
-                resp->set_result(result.toStyledString());
-                resp->set_ready();
+                translate_swarm_response(response, ec, resp, [resp](const database_response &response)
+                {
+                    Json::Value result;
+                    const database_size_response &size_resp = response.size();
+                    result["result"] = 1;
+                    result["bytes"] = static_cast<Json::Value::UInt64>(size_resp.bytes());
+                    result["keys"] = size_resp.keys();
+                    result["remaining_bytes"] = static_cast<Json::Value::UInt64>(size_resp.remaining_bytes());
+                    result["max_size"] = static_cast<Json::Value::UInt64>(size_resp.max_size());
+                    resp->set_result(result.toStyledString());
+                    resp->set_ready();
+                });
             });
-        });
 
-    return resp;
+        return resp;
+    }
+    CATCHALL();
+    return nullptr;
 }
 
 std::shared_ptr<response>
 async_database_impl::expire(const std::string& key, expiry_t expiry)
 {
-    auto resp = make_response();
-    auto request = new database_expire;
-    request->set_key(key);
-    request->set_expire(expiry);
+    try
+    {
+        auto resp = make_response();
+        auto request = new database_expire;
+        request->set_key(key);
+        request->set_expire(expiry);
 
-    database_msg msg;
-    msg.set_allocated_expire(request);
+        database_msg msg;
+        msg.set_allocated_expire(request);
 
-    send_message_with_basic_response(msg, resp);
+        send_message_with_basic_response(msg, resp);
 
-    return resp;
+        return resp;
+    }
+    CATCHALL();
+    return nullptr;
 }
 
 std::shared_ptr<response>
 async_database_impl::persist(const std::string& key)
 {
-    auto resp = make_response();
-    auto request = new database_read;
-    request->set_key(key);
+    try
+    {
+        auto resp = make_response();
+        auto request = new database_read;
+        request->set_key(key);
 
-    database_msg msg;
-    msg.set_allocated_persist(request);
+        database_msg msg;
+        msg.set_allocated_persist(request);
 
-    send_message_with_basic_response(msg, resp);
+        send_message_with_basic_response(msg, resp);
 
-    return resp;
+        return resp;
+    }
+    CATCHALL();
+    return nullptr;
 }
 
 std::shared_ptr<response>
 async_database_impl::ttl(const std::string& key)
 {
-    auto resp = make_response();
-    auto request = new database_read;
-    request->set_key(key);
+    try
+    {
+        auto resp = make_response();
+        auto request = new database_read;
+        request->set_key(key);
 
-    database_msg msg;
-    msg.set_allocated_ttl(request);
+        database_msg msg;
+        msg.set_allocated_ttl(request);
 
-    this->db_impl->send_message_to_swarm(msg, send_policy::normal
-        , [resp](const database_response &response, const boost::system::error_code &ec)
-        {
-            translate_swarm_response(response, ec, resp, [resp](const database_response &response)
+        this->db_impl->send_message_to_swarm(msg, send_policy::normal
+            , [resp](const database_response &response, const boost::system::error_code &ec)
             {
-                Json::Value result;
-                const database_ttl_response &read_resp = response.ttl();
-                result["result"] = 1;
-                result["key"] = read_resp.key();
-                result["ttl"] = static_cast<Json::Value::UInt64>(read_resp.ttl());
-                resp->set_result(result.toStyledString());
-                resp->set_ready();
+                translate_swarm_response(response, ec, resp, [resp](const database_response &response)
+                {
+                    Json::Value result;
+                    const database_ttl_response &read_resp = response.ttl();
+                    result["result"] = 1;
+                    result["key"] = read_resp.key();
+                    result["ttl"] = static_cast<Json::Value::UInt64>(read_resp.ttl());
+                    resp->set_result(result.toStyledString());
+                    resp->set_ready();
+                });
             });
-        });
 
-    return resp;
+        return resp;
+    }
+    CATCHALL();
+    return nullptr;
 }
 
