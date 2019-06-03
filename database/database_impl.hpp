@@ -25,7 +25,7 @@ namespace bzapi
     public:
         database_impl(std::shared_ptr<async_database> db);
 
-        std::string create(const std::string& key, const std::string& value) override;
+        std::string create(const std::string& key, const std::string& value, uint64_t expiry) override;
         std::string read(const std::string& key) override;
         std::string update(const std::string& key, const std::string& value) override;
         std::string remove(const std::string& key) override;

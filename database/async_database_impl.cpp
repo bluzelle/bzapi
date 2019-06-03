@@ -116,7 +116,7 @@ async_database_impl::send_message_with_basic_response(database_msg& msg, std::sh
 }
 
 std::shared_ptr<response>
-async_database_impl::create(const std::string& key, const std::string& value)
+async_database_impl::create(const std::string& key, const std::string& value, uint64_t expiry)
 {
     try
     {
@@ -124,6 +124,7 @@ async_database_impl::create(const std::string& key, const std::string& value)
         auto request = new database_create;
         request->set_key(key);
         request->set_value(value);
+        request->set_expire(expiry);
 
         database_msg msg;
         msg.set_allocated_create(request);

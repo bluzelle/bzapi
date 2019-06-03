@@ -28,10 +28,11 @@ namespace bzapi
         /// create a key/value in the database.
         /// @param key - name of the key to create
         /// @param value - value to set the key to
+        /// @param expiry - lifetime of key/value in seconds (0 = forever)
         /// @return - JSON structure with the following members:
         /// result - set to 1 on success, or
         /// error - set to error message
-        virtual std::string create(const std::string& key, const std::string& value) = 0;
+        virtual std::string create(const std::string& key, const std::string& value, uint64_t expiry) = 0;
 
         /// get the value of a key in the database.
         /// @param key - name of the key to read

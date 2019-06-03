@@ -57,13 +57,14 @@ TEST_F(database_test, test_create)
         EXPECT_TRUE(msg.has_create());
         EXPECT_EQ(msg.create().key(), "key");
         EXPECT_EQ(msg.create().value(), "value");
+        EXPECT_EQ(msg.create().expire(), 0u);
         EXPECT_EQ(policy, send_policy::normal);
 
         database_response response;
         handler(response, boost::system::error_code{});
     }));
 
-    auto result = db.create("key", "value");
+    auto result = db.create("key", "value", 0);
     Json::Value resp_json;
     Json::Reader reader;
     EXPECT_TRUE(reader.parse(result, resp_json));

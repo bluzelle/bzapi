@@ -624,7 +624,7 @@ TEST_F(integration_test, test_create)
         };
     }
 
-    auto create_response = db->create("test_key", "test_value");
+    auto create_response = db->create("test_key", "test_value", 0);
     create_response->set_signal_id(100);
 
     for (size_t i = 0; i < 4; i++)
@@ -819,7 +819,7 @@ TEST_F(integration_test, live_test)
     auto db = resp->get_db();
     ASSERT_NE(db, nullptr);
 
-    auto create_resp = db->create("test_key", "test_value");
+    auto create_resp = db->create("test_key", "test_value", 0);
     create_resp->set_signal_id(my_id);
     recvfrom(sock, buf, 1024, 0, NULL, 0);
 
@@ -907,7 +907,7 @@ TEST_F(integration_test, blocking_live_test)
     auto db = resp->get_db();
     ASSERT_NE(db, nullptr);
 
-    auto create_resp = db->create("test_key", "test_value");
+    auto create_resp = db->create("test_key", "test_value", 0);
     Json::Value create_json;
     std::stringstream(create_resp->get_result()) >> create_json;
     EXPECT_EQ(create_json["result"].asInt(), 1);
@@ -965,7 +965,7 @@ TEST_F(integration_test, sync_live_test)
     auto db = bzapi::create_db(db_name.data());
     ASSERT_NE(db, nullptr);
 
-    auto create_resp = db->create("test_key", "test_value");
+    auto create_resp = db->create("test_key", "test_value", 0);
     Json::Value create_json;
     std::stringstream(create_resp) >> create_json;
     EXPECT_EQ(create_json["result"].asInt(), 1);

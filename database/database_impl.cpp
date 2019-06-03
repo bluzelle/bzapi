@@ -23,9 +23,9 @@ database_impl::database_impl(std::shared_ptr<async_database> db)
 }
 
 std::string
-database_impl::create(const std::string& key, const std::string& value)
+database_impl::create(const std::string& key, const std::string& value, uint64_t expiry)
 {
-    auto resp = db->create(key, value);
+    auto resp = db->create(key, value, expiry);
     return resp->get_result();
 }
 
