@@ -82,21 +82,7 @@ async_database_impl::translate_swarm_response(const database_response& db_respon
 std::string
 async_database_impl::swarm_status()
 {
-    if (this->state != init_state::initialized)
-    {
-        return "Not initialized";
-    }
-
     return this->db_impl->swarm_status();
-}
-
-Json::Value
-uninit_error()
-{
-    Json::Value result;
-    result["result"] = 0;
-    result["error"] = "Database not initialized";
-    return result;
 }
 
 void

@@ -295,4 +295,3 @@ TEST_F(database_test, test_ttl)
     EXPECT_EQ(resp_json["key"].asString(), "key");
     EXPECT_EQ(resp_json["ttl"].asInt(), 123);
 }
-

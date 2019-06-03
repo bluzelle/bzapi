@@ -531,6 +531,12 @@ TEST_F(integration_test, test_open_db)
     auto db = open_db(uuid);
     EXPECT_NE(db, nullptr);
 
+    auto status_str = db->swarm_status();
+    Json::Value status;
+    std::stringstream(status_str) >> status;
+    EXPECT_EQ(status["primary_node"].asString(), this->primary_node);
+    EXPECT_EQ(status["nodes"].size(), this->nodes.size());
+
     this->teardown();
 
 }
