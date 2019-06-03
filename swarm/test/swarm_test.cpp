@@ -371,6 +371,11 @@ TEST_F(swarm_test, test_create_uuid)
             return self->nodes[0].node;
         }));
 
+    EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).Times(Exactly(1)).WillOnce(Invoke([]()
+    {
+        return std::make_unique<NiceMock<bzn::asio::Mocksteady_timer_base>>();
+    })).RetiresOnSaturation();;
+
     auto& meta = this->nodes[0];
     EXPECT_CALL(*meta.node, send_message(ResultOf(is_status, Eq(false)), _)).Times(Exactly(1))
         .WillRepeatedly(Invoke([this, &meta](auto /*msg*/, auto callback)
@@ -388,9 +393,9 @@ TEST_F(swarm_test, test_create_uuid)
             EXPECT_EQ(meta.handler(env_str), true);
         }));
 
-    this->the_swarm->create_uuid("test_uuid", [](bool res)
+    this->the_swarm->create_uuid("test_uuid", [](db_error res)
     {
-        EXPECT_EQ(res, true);
+        EXPECT_EQ(res, db_error::success);
     });
 
     EXPECT_TRUE(Mock::VerifyAndClearExpectations(meta.node.get()));

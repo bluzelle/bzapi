@@ -70,6 +70,8 @@ async_database_impl::translate_swarm_response(const database_response& db_respon
         {
             result["error"] = db_response.error().message();
             resp->set_result(result.toStyledString());
+
+            // TODO: propagate other error codes (e.g. timeout) here
             resp->set_error(static_cast<int>(db_error::database_error));
         }
         else

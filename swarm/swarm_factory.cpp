@@ -85,25 +85,20 @@ swarm_factory::get_swarm(const uuid_t& /*uuid*/, std::function<void(std::shared_
 }
 
 void
-swarm_factory::create_db(const uuid_t& uuid, std::function<void(std::shared_ptr<swarm_base>)> callback)
+swarm_factory::create_db(const uuid_t& uuid, std::function<void(db_error, std::shared_ptr<swarm_base>)> callback)
 {
 #if 1
     auto sw = get_default_swarm();
     sw->create_uuid(uuid, [callback, sw, weak_this = weak_from_this(), uuid](auto res)
     {
-        if (res)
+        if (res == db_error::success)
         {
-            auto strong_this = weak_this.lock();
-            if (strong_this)
-            {
-                callback(sw);
-                return;
-            }
+            callback(res, sw);
         }
         else
         {
             // TODO: needs error code/message
-            callback(nullptr);
+            callback(res, nullptr);
         }
     });
 
@@ -204,19 +199,7 @@ swarm_factory::has_db(const uuid_t& uuid, std::function<void(db_error result)> c
     auto sw = this->get_default_swarm();
     sw->has_uuid(uuid, [weak_this = weak_from_this(), uuid, callback, sw](auto res)
     {
-        if (res)
-        {
-            // TODO: revisit this
-            auto strong_this = weak_this.lock();
-            if (strong_this)
-            {
-                callback(db_error::success);
-            }
-        }
-        else
-        {
-            callback(db_error::no_database);
-        }
+        callback(res);
     });
 
 

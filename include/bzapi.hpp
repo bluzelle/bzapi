@@ -31,6 +31,10 @@ namespace bzapi
     bool initialize(const std::string& public_key, const std::string& private_key
         , const std::string& endpoint, const std::string& swarm_id);
 
+    /// Set the number of seconds after which a request wil time out
+    /// @param seconds - length of time to wait for a response
+    void set_timeout(uint64_t seconds);
+
     /// Close down the bzapi library. Should be called prior to exit to allow
     /// cleanup of library state.
     void terminate();
@@ -76,11 +80,13 @@ namespace bzapi
     /// @return - response that can be queried for the result of the operation
     std::shared_ptr<response> async_open_db(const std::string& uuid);
 
-    /// Get the numerical identifier for the most recent error that occurred.
+    /// Get the numerical identifier for the most recent error that occurred
+    /// after calling has_db(), create_db() or open_db()
     /// @return - error number
     int get_error();
 
-    /// Get the text description of the most recent error that occurred.
+    /// Get the text description of the most recent error that occurred
+    /// after calling has_db(), create_db() or open_db()
     /// @return - error message
     std::string get_error_str();
 }

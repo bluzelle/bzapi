@@ -64,5 +64,17 @@ namespace bzapi
 
     const uint16_t MAX_MESSAGE_SIZE = 1024;
     const uint16_t MAX_SHORT_MESSAGE_SIZE = 32;
+
+    enum class db_error
+    {
+        success = 0,
+        connection_error,
+        database_error,
+        timeout_error,
+        no_database
+    };
+
+    uint64_t get_timeout();
+    std::string get_error_str(db_error err);
 }
 

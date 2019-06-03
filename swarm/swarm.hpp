@@ -38,9 +38,9 @@ namespace bzapi
 
         ~swarm();
 
-        void has_uuid(const uuid_t& uuid, std::function<void(bool)> callback) override;
+        void has_uuid(const uuid_t& uuid, std::function<void(db_error)> callback) override;
 
-        void create_uuid(const uuid_t& uuid, std::function<void(bool)> callback) override;
+        void create_uuid(const uuid_t& uuid, std::function<void(db_error)> callback) override;
 
         void initialize(completion_handler_t handler) override;
 
@@ -81,6 +81,7 @@ namespace bzapi
         status_response last_status;
         completion_handler_t init_handler = nullptr;
         std::string private_key;
+        std::shared_ptr<bzn::asio::steady_timer_base> timeout_timer;
 
         std::pair<std::string, uint16_t> parse_endpoint(const std::string& endpoint);
 
@@ -91,6 +92,8 @@ namespace bzapi
         bool handle_node_message(const std::string& uuid, const std::string& data);
 
         void send_node_request(std::shared_ptr<node_base> node, std::shared_ptr<bzn_envelope> request);
+
+        void setup_client_timeout(std::shared_ptr<node_base> node, std::function<void(db_error)> callback);
 
     };
 }

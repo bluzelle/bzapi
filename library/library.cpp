@@ -28,15 +28,22 @@
 #include <json/reader.h>
 #include <library/log.hpp>
 
-namespace bzapi
+namespace
 {
-    std::shared_ptr<bzn::asio::io_context_base> io_context;
     std::shared_ptr<std::thread> io_thread;
-    std::shared_ptr<swarm_factory> the_swarm_factory;
-    std::shared_ptr<crypto_base> the_crypto;
-    std::shared_ptr<bzn::beast::websocket_base> ws_factory;
     std::string error_str = "Not Initialized";
     int error_val = -1;
+    uint64_t DEFAULT_TIMEOUT = 30;
+    uint64_t api_timeout = DEFAULT_TIMEOUT;
+}
+
+namespace bzapi
+{
+    // these need to be accessible to unit tssts
+    std::shared_ptr<bzn::asio::io_context_base> io_context;
+    std::shared_ptr<bzapi::swarm_factory> the_swarm_factory;
+    std::shared_ptr<bzapi::crypto_base> the_crypto;
+    std::shared_ptr<bzn::beast::websocket_base> ws_factory;
     bool initialized = false;
 
     std::shared_ptr<mutable_response>
@@ -145,7 +152,7 @@ namespace bzapi
                 {
                     if (res == db_error::no_database)
                     {
-                        the_swarm_factory->create_db(uuidstr, [uuidstr, resp](auto sw)
+                        the_swarm_factory->create_db(uuidstr, [uuidstr, resp](auto res, auto sw)
                         {
                             if (sw)
                             {
@@ -176,10 +183,10 @@ namespace bzapi
                             {
                                 LOG(error) << "Error creating database for: " << uuidstr;
                                 Json::Value result;
-                                result["error"] = "Error creating database";
+                                result["error"] = get_error_str(res);
                                 result["uuid"] = uuidstr;
                                 resp->set_result(result.toStyledString());
-                                resp->set_error(static_cast<int>(db_error::no_database));
+                                resp->set_error(static_cast<int>(res));
                             }
                         });
                     }
@@ -195,10 +202,10 @@ namespace bzapi
                     else
                     {
                         Json::Value result;
-                        result["error"] = "Connection error";
+                        result["error"] = get_error_str(res);
                         result["uuid"] = uuidstr;
                         resp->set_result(result.toStyledString());
-                        resp->set_error(static_cast<int>(db_error::connection_error));
+                        resp->set_error(static_cast<int>(res));
                     }
                 });
 
@@ -268,9 +275,9 @@ namespace bzapi
                     {
                         LOG(debug) << "Failed to open database: " << uuidstr;
                         Json::Value result;
-                        result["error"] = "UUID not found";
+                        result["error"] = get_error_str(res);
                         resp->set_result(result.toStyledString());
-                        resp->set_error(static_cast<int>(db_error::no_database));
+                        resp->set_error(static_cast<int>(res));
                    }
                 });
 
@@ -382,5 +389,37 @@ namespace bzapi
     get_error_str()
     {
         return error_str;
+    }
+
+    std::string
+    get_error_str(db_error err)
+    {
+        switch (err)
+        {
+        case db_error::success:
+            return "Success";
+        case db_error::connection_error:
+            return "Connection error";
+        case db_error::database_error:
+            return "Database error";
+        case db_error::timeout_error:
+            return "Timeout error";
+        case db_error::no_database:
+            return "No database";
+        }
+
+        return "Unknown error";
+    }
+
+    void
+    set_timeout(uint64_t seconds)
+    {
+        api_timeout = seconds;
+    }
+
+    uint64_t
+    get_timeout()
+    {
+        return api_timeout;
     }
 }

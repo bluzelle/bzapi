@@ -22,14 +22,6 @@
 
 namespace bzapi
 {
-    enum class db_error
-    {
-        success = 0,
-        connection_error,
-        database_error,
-        no_database
-    };
-
     class db_impl_base;
 
     class async_database_impl : public async_database, public std::enable_shared_from_this<async_database_impl>

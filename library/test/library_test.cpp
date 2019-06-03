@@ -233,6 +233,11 @@ public:
 
     void expect_has_db(bool value = true)
     {
+        EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).Times(Exactly(1)).WillOnce(Invoke([]()
+        {
+            return std::make_unique<NiceMock<bzn::asio::Mocksteady_timer_base>>();
+        })).RetiresOnSaturation();;
+
         EXPECT_CALL(*mock_io_context, make_unique_tcp_socket()).Times(Exactly(1)).WillOnce(Invoke([]()
         {
             auto tcp_sock = std::make_unique<bzn::asio::Mocktcp_socket_base>();
@@ -295,6 +300,11 @@ public:
 
     void expect_create_db()
     {
+        EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).Times(Exactly(1)).WillOnce(Invoke([]()
+        {
+            return std::make_unique<NiceMock<bzn::asio::Mocksteady_timer_base>>();
+        })).RetiresOnSaturation();;
+
         EXPECT_CALL(*mock_io_context, make_unique_tcp_socket()).Times(Exactly(1)).WillOnce(Invoke([]()
         {
             auto tcp_sock = std::make_unique<bzn::asio::Mocktcp_socket_base>();
@@ -957,6 +967,7 @@ TEST_F(integration_test, blocking_live_test)
 
 TEST_F(integration_test, sync_live_test)
 {
+    bzapi::set_timeout(1);
     auto rand = generate_random_number(0, 100000);
     std::string db_name = "testdb_" + std::to_string(rand);
 
