@@ -388,7 +388,7 @@ TEST_F(swarm_test, test_create_uuid)
             EXPECT_EQ(meta.handler(env_str), true);
         }));
 
-    this->the_swarm->create_uuid("test_uuid", [](bool res)
+    this->the_swarm->create_uuid("test_uuid", 0, false, [](bool res)
     {
         EXPECT_EQ(res, true);
     });

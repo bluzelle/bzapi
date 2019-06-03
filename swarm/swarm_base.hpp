@@ -41,7 +41,7 @@ namespace bzapi
 
         virtual void has_uuid(const uuid_t& uuid, std::function<void(bool)> callback) = 0;
 
-        virtual void create_uuid(const uuid_t& uuid, std::function<void(bool)> callback) = 0;
+        virtual void create_uuid(const uuid_t& uuid, uint64_t max_size, bool random_evict, std::function<void(bool)> callback) = 0;
 
         virtual void initialize(completion_handler_t handler) = 0;
 

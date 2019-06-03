@@ -24,7 +24,7 @@ namespace bzapi
     {
     public:
         MOCK_METHOD2(has_uuid, void(const uuid_t& uuid, std::function<void(bool)> callback));
-        MOCK_METHOD2(create_uuid, void(const uuid_t& uuid, std::function<void(bool)> callback));
+        MOCK_METHOD4(create_uuid, void(const uuid_t& uuid, uint64_t max_size, bool random_evict, std::function<void(bool)> callback));
         MOCK_METHOD1(initialize, void(completion_handler_t));
         MOCK_METHOD2(send_request, int(std::shared_ptr<bzn_envelope>, send_policy));
         MOCK_METHOD2(register_response_handler, bool(payload_t, swarm_response_handler_t));

@@ -133,7 +133,7 @@ namespace bzapi
     }
 
     std::shared_ptr<response>
-    async_create_db(const std::string& uuid)
+    async_create_db(const std::string& uuid, uint64_t max_size, bool random_evict)
     {
         try
         {
@@ -141,11 +141,11 @@ namespace bzapi
             {
                 std::string uuidstr{uuid};
                 auto resp = make_response();
-                the_swarm_factory->has_db(uuidstr, [resp, uuidstr](auto res)
+                the_swarm_factory->has_db(uuidstr, [resp, uuidstr, max_size, random_evict](auto res)
                 {
                     if (res == db_error::no_database)
                     {
-                        the_swarm_factory->create_db(uuidstr, [uuidstr, resp](auto sw)
+                        the_swarm_factory->create_db(uuidstr, max_size, random_evict, [uuidstr, resp](auto sw)
                         {
                             if (sw)
                             {
@@ -315,13 +315,13 @@ namespace bzapi
     }
 
     std::shared_ptr<database>
-    create_db(const std::string& uuid)
+    create_db(const std::string& uuid, uint64_t max_size, bool random_evict)
     {
         try
         {
             if (initialized)
             {
-                auto resp = async_create_db(uuid);
+                auto resp = async_create_db(uuid, max_size, random_evict);
                 auto result = resp->get_result();
 
                 Json::Value json;

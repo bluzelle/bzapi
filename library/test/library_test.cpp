@@ -468,10 +468,7 @@ TEST_F(integration_test, test_uninitialized)
     EXPECT_EQ(bzapi::async_has_db("test_uuid"), nullptr);
     EXPECT_EQ(bzapi::get_error(), -1);
 
-    EXPECT_EQ(bzapi::async_create_db("test_uuid"), nullptr);
-    EXPECT_EQ(bzapi::get_error(), -1);
-
-    EXPECT_EQ(bzapi::async_create_db("test_uuid"), nullptr);
+    EXPECT_EQ(bzapi::async_create_db("test_uuid", 0, false), nullptr);
     EXPECT_EQ(bzapi::get_error(), -1);
 
     EXPECT_EQ(bzapi::async_open_db("test_uuid"), nullptr);
@@ -480,7 +477,7 @@ TEST_F(integration_test, test_uninitialized)
     EXPECT_EQ(bzapi::has_db("test_uuid"), false);
     EXPECT_EQ(bzapi::get_error(), -1);
 
-    EXPECT_EQ(bzapi::create_db("test_uuid"), nullptr);
+    EXPECT_EQ(bzapi::create_db("test_uuid", 0, false), nullptr);
     EXPECT_EQ(bzapi::get_error(), -1);
 
     EXPECT_EQ(bzapi::open_db("test_uuid"), nullptr);
@@ -509,7 +506,7 @@ TEST_F(integration_test, test_has_db)
 
     expect_has_db();
 
-    bool result = has_db(uuid.c_str());
+    bool result = has_db(uuid);
     EXPECT_EQ(result, true);
 
     this->teardown();
@@ -531,7 +528,7 @@ TEST_F(integration_test, test_open_db)
     expect_swarm_initialize();
     expect_has_db();
 
-    auto db = open_db(uuid.c_str());
+    auto db = open_db(uuid);
     EXPECT_NE(db, nullptr);
 
     this->teardown();
@@ -581,7 +578,7 @@ TEST_F(integration_test, test_create_db)
         };
     }
 
-    auto db = create_db(uuid.c_str());
+    auto db = create_db(uuid, 0, false);
     EXPECT_NE(db, nullptr);
 
     this->teardown();
@@ -603,7 +600,7 @@ TEST_F(integration_test, test_create)
     expect_swarm_initialize();
     expect_has_db();
 
-    auto response = async_open_db(uuid.c_str());
+    auto response = async_open_db(uuid);
     response->set_signal_id(100);
     auto db = response->get_db();
     ASSERT_TRUE(db != nullptr);
@@ -672,7 +669,7 @@ TEST_F(integration_test, test_read)
     expect_swarm_initialize();
     expect_has_db();
 
-    auto response = async_open_db(uuid.c_str());
+    auto response = async_open_db(uuid);
     response->set_signal_id(100);
     auto db = response->get_db();
     ASSERT_TRUE(db != nullptr);

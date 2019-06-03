@@ -62,31 +62,35 @@ swarm::has_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
     // process a database message
     uuid_node->register_message_handler([uuid, callback, uuid_node, weak_this = weak_from_this()](const std::string& data)
     {
-        bzn_envelope env;
-        database_response response;
-        database_has_db_response has_db;
-        if (!env.ParseFromString(data) || !response.ParseFromString(env.database_response()))
-        {
-            LOG(error) << "Dropping invalid response to has_db: " << std::string(data, MAX_MESSAGE_SIZE);
-            callback(false);
-            return true;
-        }
-
         auto strong_this = weak_this.lock();
-        if (strong_this && !strong_this->crypto->verify(env))
+        if (strong_this)
         {
-            LOG(error) << "Dropping message with invalid signature: " << env.DebugString().substr(0, MAX_MESSAGE_SIZE);
-            return true;
+            bzn_envelope env;
+            database_response response;
+            database_has_db_response has_db;
+
+            if (!env.ParseFromString(data) || !response.ParseFromString(env.database_response()))
+            {
+                LOG(error) << "Dropping invalid response to has_db: " << std::string(data, MAX_MESSAGE_SIZE);
+                callback(false);
+            }
+            else if (!strong_this->crypto->verify(env))
+            {
+                LOG(error) << "Dropping message with invalid signature: "
+                        << env.DebugString().substr(0, MAX_MESSAGE_SIZE);
+                callback(false);
+            }
+            else if (response.has_db().uuid() != uuid)
+            {
+                LOG(error) << "Invalid uuid response to has_db: " << std::string(data, MAX_MESSAGE_SIZE);
+                callback(false);
+            }
+            else
+            {
+                callback(response.has_db().has());
+            }
         }
 
-        if (response.has_db().uuid() != uuid)
-        {
-            LOG(error) << "Invalid uuid response to has_db: " << std::string(data, MAX_MESSAGE_SIZE);
-            callback(false);
-            return true;
-        }
-
-        callback(response.has_db().has());
         uuid_node->register_message_handler([](const auto){return true;});
         return true;
     });
@@ -120,7 +124,7 @@ swarm::has_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
 
 // TODO: refactor
 void
-swarm::create_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
+swarm::create_uuid(const uuid_t& uuid, uint64_t max_size, bool random_evict, std::function<void(bool)> callback)
 {
     auto endpoint = this->parse_endpoint(initial_endpoint);
     auto uuid_node = node_factory->create_node(io_context, ws_factory, endpoint.first, endpoint.second);
@@ -133,7 +137,7 @@ swarm::create_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
 
     // TODO: should this call a static method inside db_impl? Not ideal having the swarm
     // process a database message
-    uuid_node->register_message_handler([weak_this = weak_from_this(), uuid, callback, uuid_node](const std::string& data)->bool
+    uuid_node->register_message_handler([weak_this = weak_from_this(), uuid, callback, uuid_node](const std::string& data)
     {
         auto strong_this = weak_this.lock();
         if (strong_this)
@@ -144,16 +148,15 @@ swarm::create_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
             {
                 LOG(error) << "Dropping invalid response to has_db: " << std::string(data, MAX_MESSAGE_SIZE);
                 callback(false);
-                return true;
             }
-
-            if (!strong_this->crypto->verify(env))
+            else if (!strong_this->crypto->verify(env))
             {
                 LOG(error) << "Dropping message with invalid signature: " << env.DebugString().substr(0, MAX_MESSAGE_SIZE);
-                return true;
             }
-
-            callback(!(response.has_error()));
+            else
+            {
+                callback(!(response.has_error()));
+            }
         }
 
         uuid_node->register_message_handler([](const auto){return true;});
@@ -161,8 +164,8 @@ swarm::create_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
     });
 
     database_create_db db_msg;
-    db_msg.set_eviction_policy(database_create_db::NONE);
-    db_msg.set_max_size(0);
+    db_msg.set_eviction_policy(random_evict ? database_create_db::RANDOM : database_create_db::NONE);
+    db_msg.set_max_size(max_size);
 
     database_header header;
     header.set_db_uuid(uuid);
@@ -192,7 +195,6 @@ swarm::create_uuid(const uuid_t& uuid, std::function<void(bool)> callback)
     });
 }
 
-// this should be void and send the result later when we have status
 void
 swarm::initialize(completion_handler_t handler)
 {

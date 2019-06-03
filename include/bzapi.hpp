@@ -44,9 +44,11 @@ namespace bzapi
     /// Create a new database with the given uuid on the network.
     /// This method blocks until the query is resolved.
     /// @param uuid - identity of the database to create
+    /// @param max_size - the maximum size of the database (0 for infinite)
+    /// @param random_evict - use random eviction policy?
     /// @return - a database object whose methods execute sychronously,
     /// or a nullptr if an error occurred
-    std::shared_ptr<database> create_db(const std::string& uuid);
+    std::shared_ptr<database> create_db(const std::string& uuid, uint64_t max_size, bool random_evict);
 
     /// Open an existing database with the given uuid on the network.
     /// This method blocks until the query is resolved.
@@ -65,8 +67,10 @@ namespace bzapi
     /// This method executes asynchronously and provides access to a
     /// database object whose methods execute asynchronously.
     /// @param uuid - identity of the database to create
+    /// @param max_size - the maximum size of the database (0 for infinite)
+    /// @param random_evict - use random eviction policy?
     /// @return - response that can be queried for the result of the operation
-    std::shared_ptr<response> async_create_db(const std::string& uuid);
+    std::shared_ptr<response> async_create_db(const std::string& uuid, uint64_t max_size, bool random_evict);
 
     /// Open an existing database with the given uuid on the network.
     /// Create a new database with the given uuid on the network.

@@ -40,7 +40,7 @@ namespace bzapi
 
         void has_uuid(const uuid_t& uuid, std::function<void(bool)> callback) override;
 
-        void create_uuid(const uuid_t& uuid, std::function<void(bool)> callback) override;
+        void create_uuid(const uuid_t& uuid, uint64_t max_size, bool random_evict, std::function<void(bool)> callback) override;
 
         void initialize(completion_handler_t handler) override;
 
