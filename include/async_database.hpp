@@ -27,6 +27,9 @@ namespace bzapi
     class async_database
     {
     public:
+        /// get the current status of the database's swarm
+        /// @return - JSON structure containing status information
+        virtual std::string swarm_status() = 0;
 
         /// create a key/value in the database.
         /// @param key - name of the key to create
@@ -117,9 +120,25 @@ namespace bzapi
         /// error - set to error message
         virtual std::shared_ptr<response> ttl(const std::string& key) = 0;
 
-        /// get the current status of the database's swarm
-        /// @return - JSON structure containing status information
-        virtual std::string swarm_status() = 0;
+        /// obtain a list of the users with write access to the database
+        /// @return - response containing JSON structure with the following members:
+        /// writers - array of strings containing the list of writers, or
+        /// error - set to error message
+        virtual std::shared_ptr<response> writers() = 0;
+
+        /// give a user write access to the database
+        /// @param writer - identity of user to give write access to
+        /// @return - response containing JSON structure with the following members:
+        /// result - set to 1 for success
+        /// error - set to error message
+        virtual std::shared_ptr<response> add_writer(const std::string& writer) = 0;
+
+        /// revoke a user's write access to the database
+        /// @param writer - identity of user to remove write access from
+        /// @return - response containing JSON structure with the following members:
+        /// result - set to 1 for success
+        /// error - set to error message
+        virtual std::shared_ptr<response> remove_writer(const std::string& writer) = 0;
 
         virtual ~async_database() = default;
     };

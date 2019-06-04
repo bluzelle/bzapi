@@ -38,6 +38,10 @@ namespace bzapi
         std::string persist(const std::string& key) override;
         std::string ttl(const std::string& key) override;
 
+        std::string writers() override;
+        std::string add_writer(const std::string& writer) override;
+        std::string remove_writer(const std::string& writer) override;
+
         std::string swarm_status();
 
     private:

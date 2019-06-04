@@ -53,6 +53,10 @@ namespace bzapi
         std::shared_ptr<response> persist(const std::string& key) override;
         std::shared_ptr<response> ttl(const std::string& key) override;
 
+        std::shared_ptr<response> writers() override;
+        std::shared_ptr<response> add_writer(const std::string& writer) override;
+        std::shared_ptr<response> remove_writer(const std::string& writer) override;
+
         std::string swarm_status() override;
 
     private:
