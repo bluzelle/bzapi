@@ -30,15 +30,15 @@ class TestLibrary(unittest.TestCase):
 
     def tearDown(self):
         del self.bluzelle # force .terminate to be called in c++
-
-    def test_create_db(self):
-        self.bluzelle.create_db(self.uuid)
-        self.assertEqual(self.bluzelle.has_db(self.uuid), True, "database was created successfully")
-
-    def test_open_db(self):
-        self.assertRaises(Exception, self.bluzelle.open_db,self.uuid)
-        self.bluzelle.create_db(self.uuid)
-        self.assertNotEqual(self.bluzelle.open_db(self.uuid), None, "database was opened successfully")
+    #
+    # def test_create_db(self):
+    #     self.bluzelle.create_db(self.uuid)
+    #     self.assertEqual(self.bluzelle.has_db(self.uuid), True, "database was created successfully")
+    #
+    # def test_open_db(self):
+    #     self.assertRaises(Exception, self.bluzelle.open_db,self.uuid)
+    #     self.bluzelle.create_db(self.uuid)
+    #     self.assertNotEqual(self.bluzelle.open_db(self.uuid), None, "database was opened successfully")
     #
     # def test_has_db(self):
     #     res0 = self.bluzelle.has_db(self.uuid)

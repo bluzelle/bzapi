@@ -28,15 +28,26 @@
 #include <json/reader.h>
 #include <library/log.hpp>
 
-namespace bzapi
+namespace
 {
     std::shared_ptr<bzn::asio::io_context_base> io_context;
     std::shared_ptr<std::thread> io_thread;
-    std::shared_ptr<swarm_factory> the_swarm_factory;
-    std::shared_ptr<crypto_base> the_crypto;
+    std::shared_ptr<bzapi::swarm_factory> the_swarm_factory;
+    std::shared_ptr<bzapi::crypto_base> the_crypto;
     std::shared_ptr<bzn::beast::websocket_base> ws_factory;
     std::string error_str = "Not Initialized";
     int error_val = -1;
+    uint64_t DEFAULT_TIMEOUT = 30;
+    uint64_t api_timeout = DEFAULT_TIMEOUT;
+}
+
+namespace bzapi
+{
+    // these need to be accessible to unit tssts
+    std::shared_ptr<bzn::asio::io_context_base> io_context;
+    std::shared_ptr<bzapi::swarm_factory> the_swarm_factory;
+    std::shared_ptr<bzapi::crypto_base> the_crypto;
+    std::shared_ptr<bzn::beast::websocket_base> ws_factory;
     bool initialized = false;
 
     std::shared_ptr<mutable_response>
@@ -49,291 +60,327 @@ namespace bzapi
     initialize(const std::string& public_key, const std::string& private_key
         , const std::string& endpoint, const std::string& swarm_id)
     {
-        init_logging();
-        if (!initialized)
+        try
         {
-            try
+            init_logging();
+            if (!initialized)
             {
-                io_context = std::make_shared<bzn::asio::io_context>();
-                io_thread = std::make_shared<std::thread>([]()
+                try
                 {
-                    auto& io = io_context->get_io_context();
-                    boost::asio::executor_work_guard<decltype(io.get_executor())> work{io.get_executor()};
-                    auto res = io_context->run();
-                    LOG(debug) << "Events run: " << res << std::endl;
-                });
+                    io_context = std::make_shared<bzn::asio::io_context>();
+                    io_thread = std::make_shared<std::thread>([]()
+                    {
+                        auto& io = io_context->get_io_context();
+                        boost::asio::executor_work_guard<decltype(io.get_executor())> work{io.get_executor()};
+                        auto res = io_context->run();
+                        LOG(debug) << "Events run: " << res << std::endl;
+                    });
 
-                the_crypto = std::make_shared<crypto>(private_key);
-                ws_factory = std::make_shared<bzn::beast::websocket>();
-                the_swarm_factory = std::make_shared<swarm_factory>(io_context, ws_factory, the_crypto, public_key);
-                the_swarm_factory->temporary_set_default_endpoint(endpoint, swarm_id);
-            }
-            catch (...)
-            {
-                return false;
-            }
+                    the_crypto = std::make_shared<crypto>(private_key);
+                    ws_factory = std::make_shared<bzn::beast::websocket>();
+                    the_swarm_factory = std::make_shared<swarm_factory>(io_context, ws_factory, the_crypto, public_key);
+                    the_swarm_factory->temporary_set_default_endpoint(endpoint, swarm_id);
+                }
+                CATCHALL(return false);
 
-            error_val = 0;
-            error_str = "";
-            initialized = true;
+                error_val = 0;
+                error_str = "";
+                initialized = true;
+            }
+            return true;
         }
-        return true;
+        CATCHALL();
+        return false;
     }
 
     void
     terminate()
     {
-        if (initialized)
+        try
         {
-            io_context->stop();
-            io_thread->join();
+            if (initialized)
+            {
+                io_context->stop();
+                io_thread->join();
 
-            initialized = false;
-            error_str = "Not Initialized";
-            error_val = -1;
+                initialized = false;
+                error_str = "Not Initialized";
+                error_val = -1;
 
-            end_logging();
+                end_logging();
+            }
         }
+        CATCHALL();
     }
 
     std::shared_ptr<response>
     async_has_db(const std::string& uuid)
     {
-        if (initialized)
+        try
         {
-            std::string uuidstr{uuid};
-            auto resp = make_response();
-            the_swarm_factory->has_db(uuid, [resp, uuidstr](auto res)
+            if (initialized)
             {
-                Json::Value result;
-                result["result"] = res == db_error::success ? 1 : 0;
-                result["uuid"] = uuidstr;
-                resp->set_result(result.toStyledString());
-                resp->set_ready();
-            });
+                std::string uuidstr{uuid};
+                auto resp = make_response();
+                the_swarm_factory->has_db(uuid, [resp, uuidstr](auto res)
+                {
+                    Json::Value result;
+                    result["result"] = res == db_error::success ? 1 : 0;
+                    result["uuid"] = uuidstr;
+                    resp->set_result(result.toStyledString());
+                    resp->set_ready();
+                });
 
-            return resp;
+                return resp;
+            }
+            else
+            {
+                LOG(error) << "bzapi async_has_db method called before initialization";
+                return nullptr;
+            }
         }
-        else
-        {
-            LOG(error) << "bzapi async_has_db method called before initialization";
-            return nullptr;
-        }
+        CATCHALL();
+        return nullptr;
     }
 
     std::shared_ptr<response>
-    async_create_db(const std::string& uuid)
+    async_create_db(const std::string& uuid, uint64_t max_size, bool random_evict)
     {
-        if (initialized)
+        try
         {
-            std::string uuidstr{uuid};
-            auto resp = make_response();
-            the_swarm_factory->has_db(uuidstr, [resp, uuidstr](auto res)
+            if (initialized)
             {
-                if (res == db_error::no_database)
+                std::string uuidstr{uuid};
+                auto resp = make_response();
+                the_swarm_factory->has_db(uuidstr, [resp, uuidstr, max_size, random_evict](auto res)
                 {
-                    the_swarm_factory->create_db(uuidstr, [uuidstr, resp](auto sw)
+                    if (res == db_error::no_database)
                     {
-                        if (sw)
+                        the_swarm_factory->create_db(uuidstr, max_size, random_evict, [uuidstr, resp](auto res, auto sw)
                         {
-                            auto dbi = std::make_shared<db_impl>(io_context, sw, uuidstr);
-                            auto db = std::make_shared<async_database_impl>(dbi);
-                            db->open([sw, resp, db, uuidstr](auto ec)
+                            if (sw)
                             {
-                                if (ec)
+                                auto dbi = std::make_shared<db_impl>(io_context, sw, uuidstr);
+                                auto db = std::make_shared<async_database_impl>(dbi);
+                                db->open([sw, resp, db, uuidstr](auto ec)
                                 {
-                                    LOG(error) << "Error initializing database: " << ec.message();
-                                    Json::Value result;
-                                    result["error"] = ec.message();
-                                    resp->set_result(result.toStyledString());
-                                    resp->set_error(static_cast<int>(db_error::connection_error));
-                                }
-                                else
-                                {
-                                    Json::Value result;
-                                    result["result"] = 1;
-                                    result["uuid"] = uuidstr;
-                                    resp->set_result(result.toStyledString());
-                                    resp->set_db(db);
-                                    resp->set_ready();
-                                }
-                            });
-                        }
-                        else
-                        {
-                            LOG(error) << "Error creating database for: " << uuidstr;
-                            Json::Value result;
-                            result["error"] = "Error creating database";
-                            result["uuid"] = uuidstr;
-                            resp->set_result(result.toStyledString());
-                            resp->set_error(static_cast<int>(db_error::no_database));
-                        }
-                    });
-                }
-                else if (res == db_error::success)
-                {
-                    LOG(debug) << "Unable to create existing database: " << uuidstr;
-                    Json::Value result;
-                    result["error"] = "UUID already exists";
-                    result["uuid"] = uuidstr;
-                    resp->set_result(result.toStyledString());
-                    resp->set_error(static_cast<int>(db_error::database_error));
-                }
-                else
-                {
-                    Json::Value result;
-                    result["error"] = "Connection error";
-                    result["uuid"] = uuidstr;
-                    resp->set_result(result.toStyledString());
-                    resp->set_error(static_cast<int>(db_error::connection_error));
-                }
-            });
+                                    if (ec)
+                                    {
+                                        LOG(error) << "Error initializing database: " << ec.message();
+                                        Json::Value result;
+                                        result["error"] = ec.message();
+                                        resp->set_result(result.toStyledString());
+                                        resp->set_error(static_cast<int>(db_error::connection_error));
+                                    }
+                                    else
+                                    {
+                                        Json::Value result;
+                                        result["result"] = 1;
+                                        result["uuid"] = uuidstr;
+                                        resp->set_result(result.toStyledString());
+                                        resp->set_db(db);
+                                        resp->set_ready();
+                                    }
+                                });
+                            }
+                            else
+                            {
+                                LOG(error) << "Error creating database for: " << uuidstr;
+                                Json::Value result;
+                                result["error"] = get_error_str(res);
+                                result["uuid"] = uuidstr;
+                                resp->set_result(result.toStyledString());
+                                resp->set_error(static_cast<int>(res));
+                            }
+                        });
+                    }
+                    else if (res == db_error::success)
+                    {
+                        LOG(debug) << "Unable to create existing database: " << uuidstr;
+                        Json::Value result;
+                        result["error"] = "UUID already exists";
+                        result["uuid"] = uuidstr;
+                        resp->set_result(result.toStyledString());
+                        resp->set_error(static_cast<int>(db_error::database_error));
+                    }
+                    else
+                    {
+                        Json::Value result;
+                        result["error"] = get_error_str(res);
+                        result["uuid"] = uuidstr;
+                        resp->set_result(result.toStyledString());
+                        resp->set_error(static_cast<int>(res));
+                    }
+                });
 
-            return resp;
+                return resp;
+            }
+            else
+            {
+                LOG(error) << "bzapi async_create_db method called before initialization";
+                return nullptr;
+            }
         }
-        else
-        {
-            LOG(error) << "bzapi async_create_db method called before initialization";
-            return nullptr;
-        }
+        CATCHALL();
+        return nullptr;
     }
 
     std::shared_ptr<response>
     async_open_db(const std::string& uuid)
     {
-        if (initialized)
+        try
         {
-            std::string uuidstr{uuid};
-            auto resp = make_response();
-            the_swarm_factory->has_db(uuidstr, [resp, uuidstr](auto res)
+            if (initialized)
             {
-                if (res == db_error::success)
+                std::string uuidstr{uuid};
+                auto resp = make_response();
+                the_swarm_factory->has_db(uuidstr, [resp, uuidstr](auto res)
                 {
-                    the_swarm_factory->get_swarm(uuidstr, [&](auto sw)
+                    if (res == db_error::success)
                     {
-                        if (sw)
+                        the_swarm_factory->get_swarm(uuidstr, [&](auto sw)
                         {
-                            auto dbi = std::make_shared<db_impl>(io_context, sw, uuidstr);
-                            auto db = std::make_shared<async_database_impl>(dbi);
-                            db->open([resp, db](auto ec)
+                            if (sw)
                             {
-                                if (ec)
+                                auto dbi = std::make_shared<db_impl>(io_context, sw, uuidstr);
+                                auto db = std::make_shared<async_database_impl>(dbi);
+                                db->open([resp, db](auto ec)
                                 {
-                                    LOG(error) << "Error initializing database: " << ec.message();
-                                    Json::Value result;
-                                    result["error"] = ec.message();
-                                    resp->set_result(result.toStyledString());
-                                    resp->set_error(static_cast<int>(db_error::connection_error));
-                                }
-                                else
-                                {
-                                    Json::Value result;
-                                    result["result"] = 1;
-                                    resp->set_result(result.toStyledString());
-                                    resp->set_db(db);
-                                    resp->set_ready();
-                                }
-                            });
-                        }
-                        else
-                        {
-                            LOG(error) << "Error getting swarm for: " << uuidstr;
-                            Json::Value result;
-                            result["error"] = "Error getting swarm";
-                            result["uuid"] = uuidstr;
-                            resp->set_result(result.toStyledString());
-                            resp->set_error(static_cast<int>(db_error::no_database));
-                        }
-                    });
-                }
-                else
-                {
-                    LOG(debug) << "Failed to open database: " << uuidstr;
-                    Json::Value result;
-                    result["error"] = "UUID not found";
-                    resp->set_result(result.toStyledString());
-                    resp->set_error(static_cast<int>(db_error::no_database));
-               }
-            });
+                                    if (ec)
+                                    {
+                                        LOG(error) << "Error initializing database: " << ec.message();
+                                        Json::Value result;
+                                        result["error"] = ec.message();
+                                        resp->set_result(result.toStyledString());
+                                        resp->set_error(static_cast<int>(db_error::connection_error));
+                                    }
+                                    else
+                                    {
+                                        Json::Value result;
+                                        result["result"] = 1;
+                                        resp->set_result(result.toStyledString());
+                                        resp->set_db(db);
+                                        resp->set_ready();
+                                    }
+                                });
+                            }
+                            else
+                            {
+                                LOG(error) << "Error getting swarm for: " << uuidstr;
+                                Json::Value result;
+                                result["error"] = "Error getting swarm";
+                                result["uuid"] = uuidstr;
+                                resp->set_result(result.toStyledString());
+                                resp->set_error(static_cast<int>(db_error::no_database));
+                            }
+                        });
+                    }
+                    else
+                    {
+                        LOG(debug) << "Failed to open database: " << uuidstr;
+                        Json::Value result;
+                        result["error"] = get_error_str(res);
+                        resp->set_result(result.toStyledString());
+                        resp->set_error(static_cast<int>(res));
+                   }
+                });
 
-            return resp;
+                return resp;
+            }
+            else
+            {
+                LOG(error) << "bzapi async_open_db method called before initialization";
+                return nullptr;
+            }
         }
-        else
-        {
-            LOG(error) << "bzapi async_open_db method called before initialization";
-            return nullptr;
-        }
+        CATCHALL();
+        return nullptr;
     }
 
     bool
     has_db(const std::string& uuid)
     {
-        if (initialized)
+        try
         {
-            auto resp = async_has_db(uuid);
-            auto result = resp->get_result();
+            if (initialized)
+            {
+                auto resp = async_has_db(uuid);
+                auto result = resp->get_result();
 
-            Json::Value json;
-            std::stringstream(result) >> json;
+                Json::Value json;
+                std::stringstream(result) >> json;
 
-            error_val = resp->get_error();
-            error_str = json["error"].asString();
+                error_val = resp->get_error();
+                error_str = json["error"].asString();
 
-            return json["result"].asInt();
+                return json["result"].asInt();
+            }
+            else
+            {
+                LOG(error) << "bzapi has_db method called before initialization";
+                return false;
+            }
         }
-        else
-        {
-            LOG(error) << "bzapi has_db method called before initialization";
-            return false;
-        }
+        CATCHALL();
+        return false;
     }
 
     std::shared_ptr<database>
-    create_db(const std::string& uuid)
+    create_db(const std::string& uuid, uint64_t max_size, bool random_evict)
     {
-        if (initialized)
+        try
         {
-            auto resp = async_create_db(uuid);
-            auto result = resp->get_result();
+            if (initialized)
+            {
+                auto resp = async_create_db(uuid, max_size, random_evict);
+                auto result = resp->get_result();
 
-            Json::Value json;
-            std::stringstream(result) >> json;
+                Json::Value json;
+                std::stringstream(result) >> json;
 
-            error_val = resp->get_error();
-            error_str = json["error"].asString();
+                error_val = resp->get_error();
+                error_str = json["error"].asString();
 
-            return json["result"].asInt() ? std::make_shared<database_impl>(resp->get_db())
-                : nullptr;
+                return json["result"].asInt() ? std::make_shared<database_impl>(resp->get_db())
+                    : nullptr;
+            }
+            else
+            {
+                LOG(error) << "bzapi create_db method called before initialization";
+                return nullptr;
+            }
         }
-        else
-        {
-            LOG(error) << "bzapi create_db method called before initialization";
-            return nullptr;
-        }
+        CATCHALL();
+        return nullptr;
     }
 
     std::shared_ptr<database>
     open_db(const std::string& uuid)
     {
-        if (initialized)
+        try
         {
-            auto resp = async_open_db(uuid);
-            auto result = resp->get_result();
+            if (initialized)
+            {
+                auto resp = async_open_db(uuid);
+                auto result = resp->get_result();
 
-            Json::Value json;
-            std::stringstream(result) >> json;
+                Json::Value json;
+                std::stringstream(result) >> json;
 
-            error_val = resp->get_error();
-            error_str = json["error"].asString();
+                error_val = resp->get_error();
+                error_str = json["error"].asString();
 
-            return json["result"].asInt() ? std::make_shared<database_impl>(resp->get_db())
-                : nullptr;
+                return json["result"].asInt() ? std::make_shared<database_impl>(resp->get_db())
+                    : nullptr;
+            }
+            else
+            {
+                LOG(error) << "bzapi open_db method called before initialization";
+                return nullptr;
+            }
         }
-        else
-        {
-            LOG(error) << "bzapi open_db method called before initialization";
-            return nullptr;
-        }
+        CATCHALL();
+        return nullptr;
     }
 
     int
@@ -346,5 +393,37 @@ namespace bzapi
     get_error_str()
     {
         return error_str;
+    }
+
+    std::string
+    get_error_str(db_error err)
+    {
+        switch (err)
+        {
+        case db_error::success:
+            return "Success";
+        case db_error::connection_error:
+            return "Connection error";
+        case db_error::database_error:
+            return "Database error";
+        case db_error::timeout_error:
+            return "Timeout error";
+        case db_error::no_database:
+            return "No database";
+        }
+
+        return "Unknown error";
+    }
+
+    void
+    set_timeout(uint64_t seconds)
+    {
+        api_timeout = seconds;
+    }
+
+    uint64_t
+    get_timeout()
+    {
+        return api_timeout;
     }
 }

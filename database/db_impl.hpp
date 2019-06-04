@@ -44,6 +44,7 @@ namespace bzapi
             send_policy policy;
             uint64_t responses_required;
             std::shared_ptr<bzn::asio::steady_timer_base> retry_timer;
+            std::shared_ptr<bzn::asio::steady_timer_base> timeout_timer;
             std::map<uuid_t, database_response> responses;
             db_response_handler_t handler;
         };
@@ -60,5 +61,6 @@ namespace bzapi
         bool handle_swarm_response(/*const uuid_t& uuid, */const bzn_envelope& response);
         bool qualify_response(msg_info& info, const uuid_t& sender) const;
         bool responses_are_equal(const database_response& r1, const database_response& r2) const;
+        void setup_client_timeout(nonce_t nonce, msg_info& info);
     };
 }

@@ -9,7 +9,7 @@ foreach (_variableName ${_variableNames})
     message(STATUS "${_variableName}=${${_variableName}}")
 endforeach()
 
-target_link_libraries(bzapi crypto proto swarm node database ${JSONCPP_LIBRARIES} ${Protobuf_LIBRARIES} ${OPENSSL_LIBRARIES} pthread)
+target_link_libraries(bzapi crypto proto swarm node database ${Protobuf_LIBRARIES} ${JSONCPP_LIBRARIES} ${OPENSSL_LIBRARIES} pthread)
 target_compile_features(bzapi PUBLIC cxx_std_17)
 
 find_package(PythonLibs 3 REQUIRED)
@@ -51,7 +51,6 @@ if (NOT OMIT_LIBRARY)
 endif(NOT OMIT_LIBRARY)
 
 set_target_properties(bzapi PROPERTIES PUBLIC_HEADER "../include/bzapi.hpp;../include/response.hpp;../include/database.hpp;../include/async_database.hpp;../include/logger.hpp")
-
 
 INSTALL(TARGETS bzapi
         LIBRARY DESTINATION /usr/local/lib

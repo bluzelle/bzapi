@@ -16,6 +16,7 @@
 
 #include <boost/log/trivial.hpp>
 #include <boost/system/error_code.hpp>
+#include <boost/exception/all.hpp>
 #include <string_view>
 #include <libgen.h>
 #include <iostream>
@@ -36,6 +37,23 @@ namespace bzapi::utils
 
 #define LOG(x) BOOST_LOG_TRIVIAL(x) << "(" << bzapi::utils::basename(__FILE__) << ":"  << __LINE__ << ") - "
 
+#define CATCHALL(action) \
+catch (boost::exception& be) \
+{ \
+    LOG(error) << "Exception caught " << boost::diagnostic_information(be); \
+    action; \
+} \
+catch (std::exception& e) \
+{ \
+    LOG(error) << "Exception caught: " << e.what(); \
+    action; \
+} \
+catch(...) \
+{ \
+    LOG(error) << "Unknown exception caught"; \
+    action; \
+}
+
 namespace bzapi
 {
     using uuid_t = std::string;
@@ -46,5 +64,17 @@ namespace bzapi
 
     const uint16_t MAX_MESSAGE_SIZE = 1024;
     const uint16_t MAX_SHORT_MESSAGE_SIZE = 32;
+
+    enum class db_error
+    {
+        success = 0,
+        connection_error,
+        database_error,
+        timeout_error,
+        no_database
+    };
+
+    uint64_t get_timeout();
+    std::string get_error_str(db_error err);
 }
 

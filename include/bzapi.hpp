@@ -31,6 +31,10 @@ namespace bzapi
     bool initialize(const std::string& public_key, const std::string& private_key
         , const std::string& endpoint, const std::string& swarm_id);
 
+    /// Set the number of seconds after which a request wil time out
+    /// @param seconds - length of time to wait for a response
+    void set_timeout(uint64_t seconds);
+
     /// Close down the bzapi library. Should be called prior to exit to allow
     /// cleanup of library state.
     void terminate();
@@ -44,9 +48,11 @@ namespace bzapi
     /// Create a new database with the given uuid on the network.
     /// This method blocks until the query is resolved.
     /// @param uuid - identity of the database to create
+    /// @param max_size - the maximum size of the database (0 for infinite)
+    /// @param random_evict - use random eviction policy?
     /// @return - a database object whose methods execute sychronously,
     /// or a nullptr if an error occurred
-    std::shared_ptr<database> create_db(const std::string& uuid);
+    std::shared_ptr<database> create_db(const std::string& uuid, uint64_t max_size, bool random_evict);
 
     /// Open an existing database with the given uuid on the network.
     /// This method blocks until the query is resolved.
@@ -65,8 +71,10 @@ namespace bzapi
     /// This method executes asynchronously and provides access to a
     /// database object whose methods execute asynchronously.
     /// @param uuid - identity of the database to create
+    /// @param max_size - the maximum size of the database (0 for infinite)
+    /// @param random_evict - use random eviction policy?
     /// @return - response that can be queried for the result of the operation
-    std::shared_ptr<response> async_create_db(const std::string& uuid);
+    std::shared_ptr<response> async_create_db(const std::string& uuid, uint64_t max_size, bool random_evict);
 
     /// Open an existing database with the given uuid on the network.
     /// Create a new database with the given uuid on the network.
@@ -76,11 +84,13 @@ namespace bzapi
     /// @return - response that can be queried for the result of the operation
     std::shared_ptr<response> async_open_db(const std::string& uuid);
 
-    /// Get the numerical identifier for the most recent error that occurred.
+    /// Get the numerical identifier for the most recent error that occurred
+    /// after calling has_db(), create_db() or open_db()
     /// @return - error number
     int get_error();
 
-    /// Get the text description of the most recent error that occurred.
+    /// Get the text description of the most recent error that occurred
+    /// after calling has_db(), create_db() or open_db()
     /// @return - error message
     std::string get_error_str();
 }

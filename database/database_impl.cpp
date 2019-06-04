@@ -23,9 +23,9 @@ database_impl::database_impl(std::shared_ptr<async_database> db)
 }
 
 std::string
-database_impl::create(const std::string& key, const std::string& value)
+database_impl::create(const std::string& key, const std::string& value, uint64_t expiry)
 {
-    auto resp = db->create(key, value);
+    auto resp = db->create(key, value, expiry);
     return resp->get_result();
 }
 
@@ -99,9 +99,30 @@ database_impl::ttl(const std::string& key)
     return resp->get_result();
 }
 
+std::string
+database_impl::writers()
+{
+    auto resp = db->writers();
+    return resp->get_result();
+}
+
+std::string
+database_impl::add_writer(const std::string& writer)
+{
+    auto resp = db->add_writer(writer);
+    return resp->get_result();
+}
+
+std::string
+database_impl::remove_writer(const std::string& writer)
+{
+    auto resp = db->remove_writer(writer);
+    return resp->get_result();
+}
 
 std::string
 database_impl::swarm_status()
 {
     return db->swarm_status();
 }
+

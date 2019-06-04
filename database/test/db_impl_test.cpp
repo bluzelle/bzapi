@@ -20,6 +20,7 @@
 #include <boost/chrono.hpp>
 #include <boost/thread/thread.hpp>
 #include <database/db_impl.hpp>
+#include <include/bzapi.hpp>
 
 using namespace testing;
 using namespace bzapi;
@@ -54,6 +55,12 @@ TEST_F(db_impl_test, basic_test)
     std::promise<int> prom;
     db->initialize([&prom](auto){prom.set_value(1);});
     prom.get_future().get();
+
+    EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).Times(Exactly(1))
+        .WillOnce(Invoke([&]
+        {
+            return std::make_unique<NiceMock<bzn::asio::Mocksteady_timer_base>>();
+        }));
 
     EXPECT_CALL(*swarm, send_request(_, _)).Times(Exactly(1)).WillOnce(Invoke([&](auto e, auto)
     {
@@ -92,7 +99,12 @@ TEST_F(db_impl_test, collation_and_timeout_test)
     }));
     db->initialize([](auto){});
 
-    EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).Times(AtLeast(1)).WillRepeatedly(Invoke([&]
+    EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).Times(AtLeast(2))
+    .WillOnce(Invoke([&]
+    {
+        return std::make_unique<NiceMock<bzn::asio::Mocksteady_timer_base>>();
+    }))
+    .WillRepeatedly(Invoke([&]
     {
         auto timer = std::make_unique<bzn::asio::Mocksteady_timer_base>();
         EXPECT_CALL(*timer, expires_from_now(_)).Times(AtLeast(1));
@@ -172,3 +184,56 @@ TEST_F(db_impl_test, collation_and_timeout_test)
     env.set_sender("node3");
     swarm_response_handler("node3", env);
 }
+
+TEST_F(db_impl_test, client_timeout_test)
+{
+    completion_handler_t timer_callback;
+
+    bzapi::set_timeout(1);
+
+    EXPECT_CALL(*swarm, initialize(_)).WillOnce(Invoke([](auto handler) { handler(boost::system::error_code{}); }));
+    EXPECT_CALL(*swarm, register_response_handler(_, _)).WillOnce(Invoke([&](auto, auto /*handler*/)
+    {
+        return true;
+    }));
+
+    std::promise<int> prom;
+    db->initialize([&prom](auto){prom.set_value(1);});
+    prom.get_future().get();
+
+    EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).Times(Exactly(1))
+        .WillOnce(Invoke([&]
+        {
+            auto timer = std::make_unique<bzn::asio::Mocksteady_timer_base>();
+            EXPECT_CALL(*timer, expires_from_now(_)).Times(AtLeast(1)).WillOnce(Invoke([](auto time)
+            {
+                EXPECT_EQ(time, std::chrono::seconds(1));
+                return 0;
+            }));
+
+            EXPECT_CALL(*timer, async_wait(_)).WillRepeatedly(Invoke([&](auto handler)
+            {
+                timer_callback = handler;
+            }));
+            return timer;
+        }));
+
+    EXPECT_CALL(*swarm, send_request(_, _)).Times(Exactly(1)).WillOnce(Invoke([&](auto /*e*/, auto)
+    {
+        timer_callback(boost::system::error_code{});
+        return 0;
+    }));
+
+    database_msg request;
+    bool called = false;
+    db->send_message_to_swarm(request, send_policy::fastest, [&](const auto& response, const auto& /*ec*/)
+    {
+        called = true;
+
+        EXPECT_TRUE(response.has_error());
+        EXPECT_EQ(response.error().message(), std::string("Request timeout"));
+    });
+
+    EXPECT_TRUE(called);
+}
+

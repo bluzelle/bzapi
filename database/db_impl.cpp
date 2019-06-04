@@ -63,8 +63,6 @@ db_impl::send_message_to_swarm(database_msg& msg, send_policy policy, db_respons
     auto header = new database_header;
     header->set_db_uuid(this->uuid);
     header->set_nonce(nonce);
-    // what about point_of_contact and request_hash?
-
     msg.set_allocated_header(header);
 
     auto env = std::make_shared<bzn_envelope>();
@@ -74,9 +72,11 @@ db_impl::send_message_to_swarm(database_msg& msg, send_policy policy, db_respons
     // store message info
     msg_info info;
     info.request = env;
+    this->setup_client_timeout(nonce, info);
     this->setup_request_policy(info, policy, nonce);
     info.handler = handler;
-    messages[nonce] = info;
+
+    this->messages[nonce] = info;
 
     LOG(debug) << "Sending database request for message " << nonce;
     this->swarm->send_request(env, policy);
@@ -248,4 +248,32 @@ db_impl::responses_are_equal(const database_response& r1, const database_respons
     // TODO: this needs to be made better
     return r1.response_case() == r2.response_case() &&
            r1.SerializeAsString() == r2.SerializeAsString();
+}
+
+void
+db_impl::setup_client_timeout(nonce_t nonce, msg_info& info)
+{
+    info.timeout_timer = this->io_context->make_unique_steady_timer();
+    info.timeout_timer->expires_from_now(std::chrono::milliseconds {std::chrono::seconds(get_timeout())});
+    info.timeout_timer->async_wait([weak_this = weak_from_this(), nonce](const auto& ec)
+    {
+        if (!ec)
+        {
+            auto strong_this = weak_this.lock();
+            if (strong_this)
+            {
+                auto i = strong_this->messages.find(nonce);
+                if (i != strong_this->messages.end())
+                {
+                    LOG(warning) << "Request timeout querying swarm";
+                    database_error error;
+                    error.set_message("Request timeout");
+                    database_response response;
+                    response.set_allocated_error(new database_error(error));
+                    i->second.handler(response, boost::system::error_code{});
+                    strong_this->messages.erase(nonce);
+                }
+            }
+        }
+    });
 }

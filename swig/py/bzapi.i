@@ -1,4 +1,4 @@
-%module(directors="1") bzapi
+%module(directors=1, threads=1) bzapi
 
 %include <std_shared_ptr.i>
 %{

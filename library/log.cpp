@@ -17,6 +17,7 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 //
 
+#include <include/bluzelle.hpp>
 #include <include/logger.hpp>
 #include <boost/log/sinks/text_ostream_backend.hpp>
 #include <boost/log/core/core.hpp>
@@ -50,9 +51,21 @@ namespace bzapi
         {
             if (the_logger)
             {
-                std::stringstream sev;
-                sev << rec[logging::trivial::severity];
-                the_logger->log(sev.str(), *rec[logging::expressions::smessage]);
+                try
+                {
+                    std::stringstream sev;
+                    sev << rec[logging::trivial::severity];
+                    the_logger->log(sev.str(), *rec[logging::expressions::smessage]);
+                }
+                // can't use CATCHALL here as it calls LOG()
+                catch(std::exception& e)
+                {
+                    std::cout << "Exception caught trying to log message: " << e.what() << std::endl;
+                }
+                catch(...)
+                {
+                    std::cout << "Unknown exception caught trying to log message" << std::endl;
+                }
             }
         }
 

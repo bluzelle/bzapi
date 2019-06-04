@@ -233,6 +233,11 @@ public:
 
     void expect_has_db(bool value = true)
     {
+        EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).Times(Exactly(1)).WillOnce(Invoke([]()
+        {
+            return std::make_unique<NiceMock<bzn::asio::Mocksteady_timer_base>>();
+        })).RetiresOnSaturation();;
+
         EXPECT_CALL(*mock_io_context, make_unique_tcp_socket()).Times(Exactly(1)).WillOnce(Invoke([]()
         {
             auto tcp_sock = std::make_unique<bzn::asio::Mocktcp_socket_base>();
@@ -295,6 +300,11 @@ public:
 
     void expect_create_db()
     {
+        EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).Times(Exactly(1)).WillOnce(Invoke([]()
+        {
+            return std::make_unique<NiceMock<bzn::asio::Mocksteady_timer_base>>();
+        })).RetiresOnSaturation();;
+
         EXPECT_CALL(*mock_io_context, make_unique_tcp_socket()).Times(Exactly(1)).WillOnce(Invoke([]()
         {
             auto tcp_sock = std::make_unique<bzn::asio::Mocktcp_socket_base>();
@@ -468,10 +478,7 @@ TEST_F(integration_test, test_uninitialized)
     EXPECT_EQ(bzapi::async_has_db("test_uuid"), nullptr);
     EXPECT_EQ(bzapi::get_error(), -1);
 
-    EXPECT_EQ(bzapi::async_create_db("test_uuid"), nullptr);
-    EXPECT_EQ(bzapi::get_error(), -1);
-
-    EXPECT_EQ(bzapi::async_create_db("test_uuid"), nullptr);
+    EXPECT_EQ(bzapi::async_create_db("test_uuid", 0, false), nullptr);
     EXPECT_EQ(bzapi::get_error(), -1);
 
     EXPECT_EQ(bzapi::async_open_db("test_uuid"), nullptr);
@@ -480,7 +487,7 @@ TEST_F(integration_test, test_uninitialized)
     EXPECT_EQ(bzapi::has_db("test_uuid"), false);
     EXPECT_EQ(bzapi::get_error(), -1);
 
-    EXPECT_EQ(bzapi::create_db("test_uuid"), nullptr);
+    EXPECT_EQ(bzapi::create_db("test_uuid", 0, false), nullptr);
     EXPECT_EQ(bzapi::get_error(), -1);
 
     EXPECT_EQ(bzapi::open_db("test_uuid"), nullptr);
@@ -509,7 +516,7 @@ TEST_F(integration_test, test_has_db)
 
     expect_has_db();
 
-    bool result = has_db(uuid.c_str());
+    bool result = has_db(uuid);
     EXPECT_EQ(result, true);
 
     this->teardown();
@@ -531,8 +538,14 @@ TEST_F(integration_test, test_open_db)
     expect_swarm_initialize();
     expect_has_db();
 
-    auto db = open_db(uuid.c_str());
+    auto db = open_db(uuid);
     EXPECT_NE(db, nullptr);
+
+    auto status_str = db->swarm_status();
+    Json::Value status;
+    std::stringstream(status_str) >> status;
+    EXPECT_EQ(status["primary_node"].asString(), this->primary_node);
+    EXPECT_EQ(status["nodes"].size(), this->nodes.size());
 
     this->teardown();
 
@@ -581,7 +594,7 @@ TEST_F(integration_test, test_create_db)
         };
     }
 
-    auto db = create_db(uuid.c_str());
+    auto db = create_db(uuid, 0, false);
     EXPECT_NE(db, nullptr);
 
     this->teardown();
@@ -603,7 +616,7 @@ TEST_F(integration_test, test_create)
     expect_swarm_initialize();
     expect_has_db();
 
-    auto response = async_open_db(uuid.c_str());
+    auto response = async_open_db(uuid);
     response->set_signal_id(100);
     auto db = response->get_db();
     ASSERT_TRUE(db != nullptr);
@@ -627,7 +640,7 @@ TEST_F(integration_test, test_create)
         };
     }
 
-    auto create_response = db->create("test_key", "test_value");
+    auto create_response = db->create("test_key", "test_value", 0);
     create_response->set_signal_id(100);
 
     for (size_t i = 0; i < 4; i++)
@@ -672,7 +685,7 @@ TEST_F(integration_test, test_read)
     expect_swarm_initialize();
     expect_has_db();
 
-    auto response = async_open_db(uuid.c_str());
+    auto response = async_open_db(uuid);
     response->set_signal_id(100);
     auto db = response->get_db();
     ASSERT_TRUE(db != nullptr);
@@ -822,7 +835,7 @@ TEST_F(integration_test, live_test)
     auto db = resp->get_db();
     ASSERT_NE(db, nullptr);
 
-    auto create_resp = db->create("test_key", "test_value");
+    auto create_resp = db->create("test_key", "test_value", 0);
     create_resp->set_signal_id(my_id);
     recvfrom(sock, buf, 1024, 0, NULL, 0);
 
@@ -910,7 +923,7 @@ TEST_F(integration_test, blocking_live_test)
     auto db = resp->get_db();
     ASSERT_NE(db, nullptr);
 
-    auto create_resp = db->create("test_key", "test_value");
+    auto create_resp = db->create("test_key", "test_value", 0);
     Json::Value create_json;
     std::stringstream(create_resp->get_result()) >> create_json;
     EXPECT_EQ(create_json["result"].asInt(), 1);
@@ -957,6 +970,7 @@ TEST_F(integration_test, blocking_live_test)
 
 TEST_F(integration_test, sync_live_test)
 {
+    bzapi::set_timeout(1);
     auto rand = generate_random_number(0, 100000);
     std::string db_name = "testdb_" + std::to_string(rand);
 
@@ -968,7 +982,7 @@ TEST_F(integration_test, sync_live_test)
     auto db = bzapi::create_db(db_name.data());
     ASSERT_NE(db, nullptr);
 
-    auto create_resp = db->create("test_key", "test_value");
+    auto create_resp = db->create("test_key", "test_value", 0);
     Json::Value create_json;
     std::stringstream(create_resp) >> create_json;
     EXPECT_EQ(create_json["result"].asInt(), 1);

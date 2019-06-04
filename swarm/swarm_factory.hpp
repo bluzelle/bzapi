@@ -33,7 +33,7 @@ class swarm_factory : public std::enable_shared_from_this<swarm_factory>
 
         void get_swarm(const uuid_t& uuid, std::function<void(std::shared_ptr<swarm_base>)>);
         void has_db(const uuid_t& uuid, std::function<void(db_error result)>);
-        void create_db(const uuid_t& uuid, std::function<void(std::shared_ptr<swarm_base>)>);
+        void create_db(const uuid_t& uuid, uint64_t max_size, bool random_evict, std::function<void(db_error, std::shared_ptr<swarm_base>)>);
 
         void temporary_set_default_endpoint(const endpoint_t& endpoint, const swarm_id_t& swarm_id);
 
