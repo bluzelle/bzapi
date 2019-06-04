@@ -32,36 +32,36 @@ class TestLibrary(unittest.TestCase):
         del self.bluzelle # force .terminate to be called in c++
 
     def test_create_db(self):
-        self.bluzelle.create_db(self.uuid)
+        self.bluzelle.create_db(self.uuid, 0, False)
         self.assertEqual(self.bluzelle.has_db(self.uuid), True, "database was created successfully")
 
     def test_open_db(self):
         self.assertRaises(Exception, self.bluzelle.open_db,self.uuid)
-        self.bluzelle.create_db(self.uuid)
+        self.bluzelle.create_db(self.uuid, 0, False)
         self.assertNotEqual(self.bluzelle.open_db(self.uuid), None, "database was opened successfully")
 
     def test_has_db(self):
         res0 = self.bluzelle.has_db(self.uuid)
         self.assertEqual(res0, False, "database does not have to exist")
-        res1 = self.bluzelle.create_db(self.uuid)
+        res1 = self.bluzelle.create_db(self.uuid, 0, False)
         self.assertNotEqual(res1, None, "database was created and returned successfully")
         res2 = self.bluzelle.has_db(self.uuid)
         self.assertEqual(res2, True, "database was read successfully")
 
     def test_db_create_read(self):
-        db = self.bluzelle.create_db(self.uuid)
+        db = self.bluzelle.create_db(self.uuid, 0, False)
         self.assertRaises(Exception, db.read, "non_existing")
-        res1 = db.create("a", "b")
+        res1 = db.create("a", "b", 0)
         self.assertEqual(res1, True, "created a db value successfully")
         res2 = db.read("a")
         self.assertEqual(res2, "b", "wrote and read a db value successfully")
 
 
     def test_db_has_remove(self):
-        db = self.bluzelle.create_db(self.uuid)
+        db = self.bluzelle.create_db(self.uuid, 0, False)
         res1 = db.has("a")
         self.assertEqual(res1, False, "first the key does not exist")
-        res2 = db.create("a", "b")
+        res2 = db.create("a", "b", 0)
         self.assertEqual(res2, True, "created a db value successfully")
         res3 = db.has("a")
         self.assertEqual(res3, True, "after we create they key, it should exist")
@@ -71,17 +71,17 @@ class TestLibrary(unittest.TestCase):
 
 
     def test_db_create_quick_read(self):
-        db = self.bluzelle.create_db(self.uuid)
+        db = self.bluzelle.create_db(self.uuid, 0, False)
         self.assertRaises(Exception, db.quick_read,"non_existing")
-        res1 = db.create("a", "b")
+        res1 = db.create("a", "b", 0)
         self.assertEqual(res1, True, "created a db value successfully")
         res2 = db.quick_read("a")
         self.assertEqual(res2, "b", "wrote and read a db value successfully")
 
 
     def test_db_create_update(self):
-        db = self.bluzelle.create_db(self.uuid)
-        res1 = db.create("a", "b")
+        db = self.bluzelle.create_db(self.uuid, 0, False)
+        res1 = db.create("a", "b", 0)
         self.assertEqual(res1, True, "created a db value successfully")
         res2 = db.update("a", "c")
         res3 = db.read("a")
@@ -89,14 +89,14 @@ class TestLibrary(unittest.TestCase):
 
 
     def test_db_keys(self):
-        db = self.bluzelle.create_db(self.uuid)
+        db = self.bluzelle.create_db(self.uuid, 0, False)
         res0 = db.keys()
         self.assertEqual(res0, None, "No keys yet...")
-        res1 = db.create("a", "1")
+        res1 = db.create("a", "1", 0)
         self.assertEqual(res1, True, "Record created")
         res2 = db.keys()
         self.assertEqual(res2, ['a'], "One key should be present")
-        res3 = db.create("b", "2")
+        res3 = db.create("b", "2", 0)
         self.assertEqual(res3, True, "Record created")
         res4 = db.keys()
         self.assertEqual(res4, ['a', 'b'], "two keys should be present")
@@ -106,11 +106,11 @@ class TestLibrary(unittest.TestCase):
 
 
     def test_size(self):
-        db = self.bluzelle.create_db(self.uuid)
+        db = self.bluzelle.create_db(self.uuid, 0, False)
         res1 = db.size()
         self.assertEqual(res1['keys'], 0, "No keys should be present")
         # todo: check 'res1['remaining_bytes'] once c++ support is provided
-        res2 = db.create("a", "1")
+        res2 = db.create("a", "1", 0)
         self.assertEqual(res2, True, "Record created")
         res3 = db.size()
         self.assertEqual(res3['keys'], 1, "One key should be present")
@@ -118,8 +118,8 @@ class TestLibrary(unittest.TestCase):
 
 
     def test_ttl(self):
-        db = self.bluzelle.create_db(self.uuid)
-        res0 = db.create("a", "1")
+        db = self.bluzelle.create_db(self.uuid, 0, False)
+        res0 = db.create("a", "1", 0)
         self.assertEqual(res0, True, "Record created")
         self.assertRaises(Exception, db.ttl, "a")
         pass
@@ -127,8 +127,8 @@ class TestLibrary(unittest.TestCase):
 
 
     def test_expire(self):
-        db = self.bluzelle.create_db(self.uuid)
-        res0 = db.create("a", "1")
+        db = self.bluzelle.create_db(self.uuid, 0, False)
+        res0 = db.create("a", "1", 0)
         self.assertEqual(res0, True, "Record created")
         res1 = db.expire("a", 1)
         #res2 = db.ttl("a")
@@ -137,8 +137,8 @@ class TestLibrary(unittest.TestCase):
 
 
     def test_persist(self):
-        db = self.bluzelle.create_db(self.uuid)
-        res0 = db.create("a", "1")
+        db = self.bluzelle.create_db(self.uuid, 0, False)
+        res0 = db.create("a", "1", 0)
         self.assertEqual(res0, True, "Record created")
         self.assertRaises(Exception, db.persist, "a")
         pass
@@ -146,7 +146,7 @@ class TestLibrary(unittest.TestCase):
 
 
     def test_swarm_status(self):
-        db = self.bluzelle.create_db(self.uuid)
+        db = self.bluzelle.create_db(self.uuid, 0, False)
         status = db.swarm_status()
         self.assertNotEqual(status, None, "status is not null")
 
