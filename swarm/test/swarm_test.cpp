@@ -393,7 +393,7 @@ TEST_F(swarm_test, test_create_uuid)
             EXPECT_EQ(meta.handler(env_str), true);
         }));
 
-    this->the_swarm->create_uuid("test_uuid", [](db_error res)
+    this->the_swarm->create_uuid("test_uuid", 0, false, [](db_error res)
     {
         EXPECT_EQ(res, db_error::success);
     });

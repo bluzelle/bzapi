@@ -57,13 +57,14 @@ TEST_F(database_test, test_create)
         EXPECT_TRUE(msg.has_create());
         EXPECT_EQ(msg.create().key(), "key");
         EXPECT_EQ(msg.create().value(), "value");
+        EXPECT_EQ(msg.create().expire(), 0u);
         EXPECT_EQ(policy, send_policy::normal);
 
         database_response response;
         handler(response, boost::system::error_code{});
     }));
 
-    auto result = db.create("key", "value");
+    auto result = db.create("key", "value", 0);
     Json::Value resp_json;
     Json::Reader reader;
     EXPECT_TRUE(reader.parse(result, resp_json));
@@ -295,3 +296,71 @@ TEST_F(database_test, test_ttl)
     EXPECT_EQ(resp_json["ttl"].asInt(), 123);
 }
 
+TEST_F(database_test, test_writers)
+{
+    EXPECT_CALL(*dbi, send_message_to_swarm(_, _, _)).WillOnce(Invoke([](database_msg& msg, auto policy, auto handler)
+    {
+        EXPECT_TRUE(msg.has_writers());
+        EXPECT_EQ(policy, send_policy::normal);
+
+        database_response response;
+        database_writers_response writers_response;
+        writers_response.add_writers("writer_1");
+        writers_response.add_writers("writer_2");
+        response.set_allocated_writers(new database_writers_response(writers_response));
+        handler(response, boost::system::error_code{});
+    }));
+
+    auto result = db.writers();
+    Json::Value resp_json;
+    Json::Reader reader;
+    EXPECT_TRUE(reader.parse(result, resp_json));
+    EXPECT_EQ(resp_json["result"].asBool(), true);
+    EXPECT_EQ(resp_json["writers"].size(), 2u);
+    EXPECT_EQ(resp_json["writers"][0], "writer_1");
+    EXPECT_EQ(resp_json["writers"][1], "writer_2");
+}
+
+TEST_F(database_test, test_add_writer)
+{
+    EXPECT_CALL(*dbi, send_message_to_swarm(_, _, _)).WillOnce(Invoke([](database_msg& msg, auto policy, auto handler)
+    {
+        EXPECT_TRUE(msg.has_add_writers());
+        EXPECT_EQ(msg.add_writers().writers_size(), 1);
+        EXPECT_EQ(msg.add_writers().writers(0), "test_writer");
+        EXPECT_EQ(policy, send_policy::normal);
+
+        database_response response;
+        handler(response, boost::system::error_code{});
+    }));
+
+    auto result = db.add_writer("test_writer");
+    Json::Value resp_json;
+    Json::Reader reader;
+    EXPECT_TRUE(reader.parse(result, resp_json));
+    EXPECT_EQ(resp_json["result"].asBool(), true);
+}
+
+TEST_F(database_test, test_remove_writer)
+{
+    EXPECT_CALL(*dbi, send_message_to_swarm(_, _, _)).WillOnce(Invoke([](database_msg& msg, auto policy, auto handler)
+    {
+        EXPECT_TRUE(msg.has_remove_writers());
+        EXPECT_EQ(msg.remove_writers().writers_size(), 1);
+        EXPECT_EQ(msg.remove_writers().writers(0), "test_writer");
+        EXPECT_EQ(policy, send_policy::normal);
+
+        database_response response;
+        database_error err;
+        err.set_message("Writer not found");
+        response.set_allocated_error(new database_error(err));
+        handler(response, boost::system::error_code{});
+    }));
+
+    auto result = db.remove_writer("test_writer");
+    Json::Value resp_json;
+    Json::Reader reader;
+    EXPECT_TRUE(reader.parse(result, resp_json));
+    EXPECT_EQ(resp_json["result"].asBool(), false);
+    EXPECT_EQ(resp_json["error"].asString(), std::string("Writer not found"));
+}

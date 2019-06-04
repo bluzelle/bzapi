@@ -85,11 +85,12 @@ swarm_factory::get_swarm(const uuid_t& /*uuid*/, std::function<void(std::shared_
 }
 
 void
-swarm_factory::create_db(const uuid_t& uuid, std::function<void(db_error, std::shared_ptr<swarm_base>)> callback)
+swarm_factory::create_db(const uuid_t& uuid, uint64_t max_size, bool random_evict
+    , std::function<void(db_error, std::shared_ptr<swarm_base>)> callback)
 {
 #if 1
     auto sw = get_default_swarm();
-    sw->create_uuid(uuid, [callback, sw, weak_this = weak_from_this(), uuid](auto res)
+    sw->create_uuid(uuid, max_size, random_evict, [callback, sw, weak_this = weak_from_this(), uuid](auto res)
     {
         if (res == db_error::success)
         {

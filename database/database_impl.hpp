@@ -25,7 +25,7 @@ namespace bzapi
     public:
         database_impl(std::shared_ptr<async_database> db);
 
-        std::string create(const std::string& key, const std::string& value) override;
+        std::string create(const std::string& key, const std::string& value, uint64_t expiry) override;
         std::string read(const std::string& key) override;
         std::string update(const std::string& key, const std::string& value) override;
         std::string remove(const std::string& key) override;
@@ -37,6 +37,10 @@ namespace bzapi
         std::string expire(const std::string& key, uint64_t expiry) override;
         std::string persist(const std::string& key) override;
         std::string ttl(const std::string& key) override;
+
+        std::string writers() override;
+        std::string add_writer(const std::string& writer) override;
+        std::string remove_writer(const std::string& writer) override;
 
         std::string swarm_status();
 

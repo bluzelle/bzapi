@@ -128,7 +128,7 @@ swarm::has_uuid(const uuid_t& uuid, std::function<void(db_error)> callback)
 
 // TODO: refactor
 void
-swarm::create_uuid(const uuid_t& uuid, std::function<void(db_error)> callback)
+swarm::create_uuid(const uuid_t& uuid, uint64_t max_size, bool random_evict, std::function<void(db_error)> callback)
 {
     auto endpoint = this->parse_endpoint(initial_endpoint);
     auto uuid_node = node_factory->create_node(io_context, ws_factory, endpoint.first, endpoint.second);
@@ -141,7 +141,7 @@ swarm::create_uuid(const uuid_t& uuid, std::function<void(db_error)> callback)
 
     // TODO: should this call a static method inside db_impl? Not ideal having the swarm
     // process a database message
-    uuid_node->register_message_handler([weak_this = weak_from_this(), uuid, callback, uuid_node](const std::string& data)->bool
+    uuid_node->register_message_handler([weak_this = weak_from_this(), uuid, callback, uuid_node](const std::string& data)
     {
         auto strong_this = weak_this.lock();
         if (strong_this)
@@ -168,8 +168,8 @@ swarm::create_uuid(const uuid_t& uuid, std::function<void(db_error)> callback)
     });
 
     database_create_db db_msg;
-    db_msg.set_eviction_policy(database_create_db::NONE);
-    db_msg.set_max_size(0);
+    db_msg.set_eviction_policy(random_evict ? database_create_db::RANDOM : database_create_db::NONE);
+    db_msg.set_max_size(max_size);
 
     database_header header;
     header.set_db_uuid(uuid);
@@ -206,7 +206,6 @@ swarm::create_uuid(const uuid_t& uuid, std::function<void(db_error)> callback)
     });
 }
 
-// this should be void and send the result later when we have status
 void
 swarm::initialize(completion_handler_t handler)
 {

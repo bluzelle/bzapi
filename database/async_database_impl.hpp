@@ -32,7 +32,7 @@ namespace bzapi
 
         void open(completion_handler_t handler);
 
-        std::shared_ptr<response> create(const std::string& key, const std::string& value) override;
+        std::shared_ptr<response> create(const std::string& key, const std::string& value, uint64_t expiry) override;
         std::shared_ptr<response> read(const std::string& key) override;
         std::shared_ptr<response> update(const std::string& key, const std::string& value) override;
         std::shared_ptr<response> remove(const std::string& key) override;
@@ -44,6 +44,10 @@ namespace bzapi
         std::shared_ptr<response> expire(const std::string& key, uint64_t expiry) override;
         std::shared_ptr<response> persist(const std::string& key) override;
         std::shared_ptr<response> ttl(const std::string& key) override;
+
+        std::shared_ptr<response> writers() override;
+        std::shared_ptr<response> add_writer(const std::string& writer) override;
+        std::shared_ptr<response> remove_writer(const std::string& writer) override;
 
         std::string swarm_status() override;
 

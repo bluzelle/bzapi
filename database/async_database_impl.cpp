@@ -84,21 +84,7 @@ async_database_impl::translate_swarm_response(const database_response& db_respon
 std::string
 async_database_impl::swarm_status()
 {
-    if (this->state != init_state::initialized)
-    {
-        return "Not initialized";
-    }
-
     return this->db_impl->swarm_status();
-}
-
-Json::Value
-uninit_error()
-{
-    Json::Value result;
-    result["result"] = 0;
-    result["error"] = "Database not initialized";
-    return result;
 }
 
 void
@@ -118,7 +104,7 @@ async_database_impl::send_message_with_basic_response(database_msg& msg, std::sh
 }
 
 std::shared_ptr<response>
-async_database_impl::create(const std::string& key, const std::string& value)
+async_database_impl::create(const std::string& key, const std::string& value, uint64_t expiry)
 {
     try
     {
@@ -126,6 +112,7 @@ async_database_impl::create(const std::string& key, const std::string& value)
         auto request = new database_create;
         request->set_key(key);
         request->set_value(value);
+        request->set_expire(expiry);
 
         database_msg msg;
         msg.set_allocated_create(request);
@@ -434,3 +421,79 @@ async_database_impl::ttl(const std::string& key)
     return nullptr;
 }
 
+std::shared_ptr<response>
+async_database_impl::writers()
+{
+    try
+    {
+        auto resp = make_response();
+        auto request = new database_request;
+
+        database_msg msg;
+        msg.set_allocated_writers(request);
+
+        this->db_impl->send_message_to_swarm(msg, send_policy::normal
+            , [resp](const database_response &response, const boost::system::error_code &ec)
+            {
+                translate_swarm_response(response, ec, resp, [resp](const database_response &response)
+                {
+                    Json::Value result;
+                    const database_writers_response &writers_resp = response.writers();
+                    Json::Value writers;
+                    for (int i = 0; i < writers_resp.writers_size(); i++)
+                    {
+                        writers.append(writers_resp.writers(i));
+                    }
+
+                    result["result"] = 1;
+                    result["writers"] = writers;
+
+                    resp->set_result(result.toStyledString());
+                    resp->set_ready();
+                });
+            });
+
+        return resp;
+
+    }
+    CATCHALL();
+    return nullptr;
+}
+
+std::shared_ptr<response>
+async_database_impl::add_writer(const std::string& writer)
+{
+    try
+    {
+        auto resp = make_response();
+        auto request = new database_writers;
+        request->add_writers(writer);
+
+        database_msg msg;
+        msg.set_allocated_add_writers(request);
+        send_message_with_basic_response(msg, resp);
+
+        return resp;
+    }
+    CATCHALL();
+    return nullptr;
+}
+
+std::shared_ptr<response>
+async_database_impl::remove_writer(const std::string& writer)
+{
+    try
+    {
+        auto resp = make_response();
+        auto request = new database_writers;
+        request->add_writers(writer);
+
+        database_msg msg;
+        msg.set_allocated_remove_writers(request);
+        send_message_with_basic_response(msg, resp);
+
+        return resp;
+    }
+    CATCHALL();
+    return nullptr;
+}

@@ -30,7 +30,11 @@
 
 namespace
 {
+    std::shared_ptr<bzn::asio::io_context_base> io_context;
     std::shared_ptr<std::thread> io_thread;
+    std::shared_ptr<bzapi::swarm_factory> the_swarm_factory;
+    std::shared_ptr<bzapi::crypto_base> the_crypto;
+    std::shared_ptr<bzn::beast::websocket_base> ws_factory;
     std::string error_str = "Not Initialized";
     int error_val = -1;
     uint64_t DEFAULT_TIMEOUT = 30;
@@ -140,7 +144,7 @@ namespace bzapi
     }
 
     std::shared_ptr<response>
-    async_create_db(const std::string& uuid)
+    async_create_db(const std::string& uuid, uint64_t max_size, bool random_evict)
     {
         try
         {
@@ -148,11 +152,11 @@ namespace bzapi
             {
                 std::string uuidstr{uuid};
                 auto resp = make_response();
-                the_swarm_factory->has_db(uuidstr, [resp, uuidstr](auto res)
+                the_swarm_factory->has_db(uuidstr, [resp, uuidstr, max_size, random_evict](auto res)
                 {
                     if (res == db_error::no_database)
                     {
-                        the_swarm_factory->create_db(uuidstr, [uuidstr, resp](auto res, auto sw)
+                        the_swarm_factory->create_db(uuidstr, max_size, random_evict, [uuidstr, resp](auto res, auto sw)
                         {
                             if (sw)
                             {
@@ -322,13 +326,13 @@ namespace bzapi
     }
 
     std::shared_ptr<database>
-    create_db(const std::string& uuid)
+    create_db(const std::string& uuid, uint64_t max_size, bool random_evict)
     {
         try
         {
             if (initialized)
             {
-                auto resp = async_create_db(uuid);
+                auto resp = async_create_db(uuid, max_size, random_evict);
                 auto result = resp->get_result();
 
                 Json::Value json;
