@@ -181,6 +181,7 @@ swarm::create_uuid(const uuid_t& uuid, uint64_t max_size, bool random_evict, std
 
     bzn_envelope env;
     env.set_database_msg(msg.SerializeAsString());
+    env.set_swarm_id(swarm_id);
     env.set_sender(my_uuid);
     env.set_timestamp(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch()).count()));
@@ -274,6 +275,7 @@ swarm::send_request(std::shared_ptr<bzn_envelope> request, send_policy policy)
     }
 
     request->set_sender(my_uuid);
+    request->set_swarm_id(swarm_id);
     request->set_timestamp(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch()).count()));
     if (request->signature().empty())
@@ -562,6 +564,9 @@ swarm::send_status_request(uuid_t node_uuid)
     status_request req;
     bzn_envelope env;
     env.set_status_request(req.SerializeAsString());
+    env.set_swarm_id(swarm_id);
+    env.set_sender(my_uuid);
+    this->crypto->sign(env);
     auto msg = env.SerializeAsString();
     info.last_status_request_sent = std::chrono::steady_clock::now();
     info.last_message_sent = std::chrono::steady_clock::now();

@@ -821,7 +821,7 @@ TEST_F(integration_test, live_test)
 //    bool res = bzapi::initialize(pub_key, priv_key, "ws://75.96.163.85:51010");
     EXPECT_TRUE(res);
 
-    auto resp = bzapi::async_create_db(db_name.data());
+    auto resp = bzapi::async_create_db(db_name.data(), 0, false);
     resp->set_signal_id(my_id);
     recvfrom(sock, buf, 1024, 0, NULL, 0);
 
@@ -912,7 +912,7 @@ TEST_F(integration_test, blocking_live_test)
 //    bool res = bzapi::initialize(pub_key, priv_key, "ws://75.96.163.85:51010");
     EXPECT_TRUE(res);
 
-    auto resp = bzapi::async_create_db(db_name.data());
+    auto resp = bzapi::async_create_db(db_name.data(), 0, false);
     Json::Value res_json;
     std::stringstream(resp->get_result()) >> res_json;
     auto result = res_json["result"].asInt();
@@ -970,16 +970,18 @@ TEST_F(integration_test, blocking_live_test)
 
 TEST_F(integration_test, sync_live_test)
 {
-    bzapi::set_timeout(1);
+    bzapi::set_timeout(10000);
     auto rand = generate_random_number(0, 100000);
     std::string db_name = "testdb_" + std::to_string(rand);
 
-    bool res = bzapi::initialize(pub_key, priv_key, "ws://localhost:50000", "");
+    bzapi::set_logger(&mylogger);
+    bool res = bzapi::initialize(pub_key, priv_key, "ws://54.193.36.192:51010", "testnet-dev");
+//    bool res = bzapi::initialize(pub_key, priv_key, "ws://localhost:50000", "my_swarm");
 //    bool res = bzapi::initialize(pub_key, priv_key, "ws://127.0.0.1:50000");
 //    bool res = bzapi::initialize(pub_key, priv_key, "ws://75.96.163.85:51010");
     EXPECT_TRUE(res);
 
-    auto db = bzapi::create_db(db_name.data());
+    auto db = bzapi::create_db(db_name.data(), 0, false);
     ASSERT_NE(db, nullptr);
 
     auto create_resp = db->create("test_key", "test_value", 0);

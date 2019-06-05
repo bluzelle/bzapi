@@ -1,7 +1,7 @@
 add_library(node node_base.hpp node.cpp node.hpp ../include/boost_asio_beast.hpp node_factory_base.hpp node_factory.hpp node_factory.cpp)
 target_include_directories(node PRIVATE . ${JSONCPP_INCLUDE_DIRS})
 target_link_libraries(node ${Protobuf_LIBRARIES} ${JSONCPP_LIBRARIES}  ${OPENSSL_LIBRARIES} ${Boost_LIBRARIES} pthread )
-if (NOT OMIT_LIBRARY)
-    add_subdirectory(test)
-endif(NOT OMIT_LIBRARY)
-
+#if (NOT OMIT_LIBRARY)
+#    add_subdirectory(test)
+#endif(NOT OMIT_LIBRARY)
+#

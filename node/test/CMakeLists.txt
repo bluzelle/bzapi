@@ -1,4 +1,4 @@
 set(test_srcs node_test.cpp ../../mocks/mock_boost_asio_beast.hpp)
-set(test_libs node crypto proto ${Protobuf_LIBRARIES} ${OPENSSL_LIBRARIES})
+set(test_libs node crypto proto ${Protobuf_LIBRARIES} ${OPENSSL_LIBRARIES} boost_log)
 
 add_gmock_test(node)
