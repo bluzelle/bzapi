@@ -25,6 +25,8 @@ class TestLibrary(unittest.TestCase):
                         "-----END EC PRIVATE KEY-----"
 
         self.uuid = str(uuid.uuid4())
+        # To test on the testnet
+        #self.bluzelle = bluzelle.Bluzelle(self.priv_key, "testnet-dev", "54.193.36.192", 51010)
         self.bluzelle = bluzelle.Bluzelle(self.priv_key)
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(None) # throw when clients do asyncio.get_event_loop()

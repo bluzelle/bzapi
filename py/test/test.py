@@ -13,7 +13,7 @@ from lib import bluzelle
 import uuid
 from lib.udp.udp_support import *
 from build.library import bzapi
- 
+
 class TestLibrary(unittest.TestCase):
 
     def setUp(self):
@@ -25,6 +25,8 @@ class TestLibrary(unittest.TestCase):
                         "-----END EC PRIVATE KEY-----"
 
         self.uuid = str(uuid.uuid4())
+        # To test on the testnet
+        #self.bluzelle = bluzelle.Bluzelle(self.priv_key, "testnet-dev", "54.193.36.192", 51010)
         self.bluzelle = bluzelle.Bluzelle(self.priv_key)
 
 
