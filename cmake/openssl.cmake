@@ -51,4 +51,4 @@ ExternalProject_Get_Property(openssl source_dir)
 ExternalProject_Get_Property(openssl binary_dir)
 
 set(OPENSSL_INCLUDE_DIR ${source_dir}/include ${binary_dir}/include)
-set(OPENSSL_LIBRARIES ${binary_dir}/libcrypto.a ${binary_dir}/libssl.a dl pthread)
+set(OPENSSL_LIBRARIES ${binary_dir}/libssl.a ${binary_dir}/libcrypto.a dl pthread)

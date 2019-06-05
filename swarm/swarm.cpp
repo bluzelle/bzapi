@@ -97,6 +97,7 @@ swarm::has_uuid(const uuid_t& uuid, std::function<void(db_error)> callback)
     database_header header;
     header.set_db_uuid(uuid);
     header.set_nonce(1);
+    header.set_point_of_contact();
     request.set_allocated_header(new database_header(header));
     request.set_allocated_has_db(new database_has_db());
     env.set_database_msg(request.SerializeAsString());
@@ -183,6 +184,7 @@ swarm::create_uuid(const uuid_t& uuid, uint64_t max_size, bool random_evict, std
     env.set_database_msg(msg.SerializeAsString());
     env.set_swarm_id(swarm_id);
     env.set_sender(my_uuid);
+    env.set_swarm_id(swarm_id);
     env.set_timestamp(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch()).count()));
     this->crypto->sign(env);
@@ -397,6 +399,8 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
         Json::Value module_status;
         std::stringstream(status.module_status_json()) >> module_status;
 
+        std::cout << module_status.toStyledString();
+
         // find the pbft module status (verify this exists first?)
         Json::Value swarm_status = module_status["module"][0];
 
@@ -563,6 +567,8 @@ swarm::send_status_request(uuid_t node_uuid)
 
     status_request req;
     bzn_envelope env;
+    env.set_swarm_id(swarm_id);
+    env.set_sender(my_uuid);
     env.set_status_request(req.SerializeAsString());
     env.set_swarm_id(swarm_id);
     env.set_sender(my_uuid);

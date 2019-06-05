@@ -804,7 +804,7 @@ TEST_F(integration_test, blocking_response_test)
     thr.join();
 }
 
-#if 0 // these tests need to be run manually with an active swarm
+#if 1 // these tests need to be run manually with an active swarm
 
 TEST_F(integration_test, live_test)
 {
@@ -974,15 +974,24 @@ TEST_F(integration_test, sync_live_test)
     auto rand = generate_random_number(0, 100000);
     std::string db_name = "testdb_" + std::to_string(rand);
 
+//    bool res = bzapi::initialize(pub_key, priv_key, "ws://localhost:50000", "");
     bzapi::set_logger(&mylogger);
-    bool res = bzapi::initialize(pub_key, priv_key, "ws://54.193.36.192:51010", "testnet-dev");
-//    bool res = bzapi::initialize(pub_key, priv_key, "ws://localhost:50000", "my_swarm");
-//    bool res = bzapi::initialize(pub_key, priv_key, "ws://127.0.0.1:50000");
+
+//    bool res = bzapi::initialize(pub_key, priv_key, "ws://54.215.183.100:51010", "testnet-dev");
+//    bool res = bzapi::initialize(pub_key, priv_key, "ws://13.57.48.65:51010", "testnet-dev");
+    bool res = bzapi::initialize(pub_key, priv_key, "ws://13.56.191.86:51010", "testnet-dev");
+//    bool res = bzapi::initialize(pub_key, priv_key, "ws://54.193.36.192:51010", "testnet-dev");
+
+
+
+    //    bool res = bzapi::initialize(pub_key, priv_key, "ws://127.0.0.1:50000");
 //    bool res = bzapi::initialize(pub_key, priv_key, "ws://75.96.163.85:51010");
     EXPECT_TRUE(res);
 
     auto db = bzapi::create_db(db_name.data(), 0, false);
     ASSERT_NE(db, nullptr);
+    auto status = db->swarm_status();
+    std::cout << status << std::endl;
 
     auto create_resp = db->create("test_key", "test_value", 0);
     Json::Value create_json;
@@ -1023,10 +1032,30 @@ TEST_F(integration_test, sync_live_test)
     std::stringstream(has_resp) >> has_json;
     EXPECT_EQ(has_json["result"].asInt(), 0);
 
-    auto status = db->swarm_status();
-    std::cout << status << std::endl;
+//    auto status = db->swarm_status();
+//    std::cout << status << std::endl;
 
     bzapi::terminate();
+}
+
+#include <utils/esr_peer_info.hpp>
+
+const std::string DEFAULT_SWARM_INFO_ESR_ADDRESS{"D5B3d7C061F817ab05aF9Fab3b61EEe036e4f4fc"};
+const std::string ROPSTEN_URL{"https://ropsten.infura.io"};
+
+TEST_F(integration_test, get_swarms_test)
+{
+    auto swarms = bzn::utils::esr::get_swarm_ids(DEFAULT_SWARM_INFO_ESR_ADDRESS, ROPSTEN_URL);
+    for (auto sw : swarms)
+    {
+        if (sw.empty())
+        {
+            break;
+        }
+
+        std::cout << sw.size() << ": " << sw << std::endl;
+    }
+    EXPECT_TRUE(swarms.size() > 0);
 }
 
 #endif // these tests need to be run manually with an active swarm

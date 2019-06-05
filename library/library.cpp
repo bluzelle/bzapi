@@ -234,10 +234,10 @@ namespace bzapi
             {
                 std::string uuidstr{uuid};
                 auto resp = make_response();
-                the_swarm_factory->has_db(uuidstr, [resp, uuidstr](auto res)
-                {
-                    if (res == db_error::success)
-                    {
+//                the_swarm_factory->has_db(uuidstr, [resp, uuidstr](auto res)
+//                {
+//                    if (res == db_error::success)
+//                    {
                         the_swarm_factory->get_swarm(uuidstr, [&](auto sw)
                         {
                             if (sw)
@@ -274,16 +274,16 @@ namespace bzapi
                                 resp->set_error(static_cast<int>(db_error::no_database));
                             }
                         });
-                    }
-                    else
-                    {
-                        LOG(debug) << "Failed to open database: " << uuidstr;
-                        Json::Value result;
-                        result["error"] = get_error_str(res);
-                        resp->set_result(result.toStyledString());
-                        resp->set_error(static_cast<int>(res));
-                   }
-                });
+//                    }
+//                    else
+//                    {
+//                        LOG(debug) << "Failed to open database: " << uuidstr;
+//                        Json::Value result;
+//                        result["error"] = get_error_str(res);
+//                        resp->set_result(result.toStyledString());
+//                        resp->set_error(static_cast<int>(res));
+//                   }
+//                });
 
                 return resp;
             }
