@@ -24,7 +24,9 @@ namespace bzapi
     {
     public:
         MOCK_METHOD1(initialize, void(completion_handler_t));
-        MOCK_METHOD3(send_message_to_swarm, void(database_msg&, send_policy, db_response_handler_t));
+        MOCK_METHOD3(has_uuid, void(std::shared_ptr<swarm_base>, uuid_t, std::function<void(db_error)>));
+        MOCK_METHOD5(create_uuid, void(std::shared_ptr<swarm_base>, uuid_t, uint64_t, bool, std::function<void(db_error)>));
+        MOCK_METHOD5(send_message_to_swarm, void(std::shared_ptr<swarm_base>, uuid_t, database_msg&, send_policy, db_response_handler_t));
         MOCK_METHOD0(swarm_status, std::string(void));
     };
 }

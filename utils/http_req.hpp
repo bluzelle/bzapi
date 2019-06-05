@@ -1,4 +1,4 @@
-// Copyright (C) 2018 Bluzelle
+ // Copyright (C) 2018 Bluzelle
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License, version 3,
@@ -12,27 +12,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-syntax = "proto3";
+#pragma once
 
-message bzn_envelope
+#include <string>
+
+
+namespace bzn::utils::http
 {
-    string swarm_id = 1;
-    string sender = 2;
-    bytes signature = 3;
-    uint64 timestamp = 4;
-    repeated bzn_envelope piggybacked_requests = 5;
+    // Performs an HTTP GET or POST and returns the body of the HTTP response
+    std::string sync_req(const std::string& url, const std::string& post = "");
 
-    oneof payload
-    {
-        bytes database_msg = 10;
-        bytes pbft_internal_request = 11;
-        bytes database_response = 12;
-        bytes json = 13;
-        bytes audit = 14;
-        bytes pbft = 15;
-        bytes pbft_membership = 16;
-        bytes status_request = 17;
-        bytes status_response = 18;
-        bytes checkpoint_msg = 19;
-    }
-}
+} // namespace bzn::http

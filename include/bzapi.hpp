@@ -22,14 +22,24 @@
 ///
 namespace bzapi
 {
-    /// Initialize the bzapi library - call prior to any other method.
+    /// Initialize the bzapi library for use with the public Bluzelle network - call prior to any other method.
+    /// @param public_key - client elliptic curve key / user id
+    /// @param private_key - client private key used for signing
+    /// @param esr_address - Ethereum swarm registry address, e.g. D5B3d7C061F817ab05aF9Fab3b61EEe036e4f4fc
+    /// @param url - URL of ethereum network, e.g. https://ropsten.infura.io
+    /// @return - true if successful, otherwise false
+    bool initialize(const std::string& public_key, const std::string& private_key
+        , const std::string& esr_address, const std::string& url);
+
+    /// Initialize the bzapi library for use with a local swarm - call prior to any other method.
     /// @param public_key - client elliptic curve key / user id
     /// @param private_key - client private key used for signing
     /// @param endpoint - initial swarm endpoint (deprecated)
+    /// @param node_id - id of initial swarm endpoint (deprecated)
     /// @param swarm_id - id of initial swarm (deprecated)
     /// @return - true if successful, otherwise false
     bool initialize(const std::string& public_key, const std::string& private_key
-        , const std::string& endpoint, const std::string& swarm_id);
+        , const std::string& endpoint, const std::string& node_id, const std::string& swarm_id);
 
     /// Set the number of seconds after which a request wil time out
     /// @param seconds - length of time to wait for a response

@@ -32,15 +32,14 @@ namespace bzapi
         swarm(std::shared_ptr<node_factory_base> node_factory
             , std::shared_ptr<bzn::beast::websocket_base> ws_factory
             , std::shared_ptr<bzn::asio::io_context_base> io_context
-            , std::shared_ptr<crypto_base> crypto, const endpoint_t& initial_endpoint
+            , std::shared_ptr<crypto_base> crypto
             , const swarm_id_t& swarm_id
             , const uuid_t& uuid);
 
         ~swarm();
 
-        void has_uuid(const uuid_t& uuid, std::function<void(db_error)> callback) override;
-
-        void create_uuid(const uuid_t& uuid, uint64_t max_size, bool random_evict, std::function<void(db_error)> callback) override;
+        // TODO: figure out how to make this better
+        void add_nodes(const std::vector<std::pair<node_id_t, bzn::peer_address_t>>& nodes) override;
 
         void initialize(completion_handler_t handler) override;
 
@@ -69,7 +68,6 @@ namespace bzapi
         std::shared_ptr<bzn::beast::websocket_base> ws_factory;
         std::shared_ptr<bzn::asio::io_context_base> io_context;
         std::shared_ptr<crypto_base> crypto;
-        endpoint_t initial_endpoint;
         swarm_id_t swarm_id;
         uuid_t my_uuid;
         std::shared_ptr<std::unordered_map<uuid_t, node_info>> nodes;
@@ -83,8 +81,6 @@ namespace bzapi
         std::string private_key;
         std::shared_ptr<bzn::asio::steady_timer_base> timeout_timer;
 
-        std::pair<std::string, uint16_t> parse_endpoint(const std::string& endpoint);
-
         bool handle_status_response(const uuid_t& uuid, const bzn_envelope& response);
 
         void send_status_request(uuid_t node_uuid);
@@ -95,5 +91,6 @@ namespace bzapi
 
         void setup_client_timeout(std::shared_ptr<node_base> node, std::function<void(db_error)> callback);
 
+        node_info add_node(const node_id_t& node_id, const bzn::peer_address_t& addr);
     };
 }

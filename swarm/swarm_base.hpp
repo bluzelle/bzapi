@@ -20,6 +20,7 @@
 #include <node/node_factory_base.hpp>
 #include <proto/status.pb.h>
 #include <bluzelle.hpp>
+#include <utils/peer_address.hpp>
 
 namespace bzapi
 {
@@ -39,11 +40,9 @@ namespace bzapi
     public:
         virtual ~swarm_base() = default;
 
-        virtual void has_uuid(const uuid_t& uuid, std::function<void(db_error)> callback) = 0;
-
-        virtual void create_uuid(const uuid_t& uuid, uint64_t max_size, bool random_evict, std::function<void(db_error)> callback) = 0;
-
         virtual void initialize(completion_handler_t handler) = 0;
+
+        virtual void add_nodes(const std::vector<std::pair<node_id_t, bzn::peer_address_t>>& nodes) = 0;
 
         virtual int send_request(std::shared_ptr<bzn_envelope> request, send_policy policy) = 0;
 

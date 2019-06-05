@@ -88,60 +88,56 @@ node::connect(completion_handler_t callback)
     std::shared_ptr<bzn::asio::tcp_socket_base> socket = this->io_context->make_unique_tcp_socket();
     socket->async_connect(this->endpoint, [weak_this = weak_from_this(), callback, socket](auto ec)
     {
-        try
-        {
-            // TODO: save connection latency...
+        // TODO: save connection latency...
 
-            if (ec)
+        if (ec)
+        {
+            // failed to connect
+            callback(ec);
+            return;
+        }
+
+        auto strong_this = weak_this.lock();
+        if (strong_this)
+        {
+            strong_this->connected = true;
+
+            // set tcp_nodelay option
+            boost::system::error_code option_ec;
+            socket->get_tcp_socket().set_option(boost::asio::ip::tcp::no_delay(true), option_ec);
+            if (option_ec)
             {
-                // failed to connect
-                callback(ec);
-                return;
+                LOG(error) << "failed to set socket option: " << option_ec.message();
             }
 
-            auto strong_this = weak_this.lock();
-            if (strong_this)
-            {
-                strong_this->connected = true;
-
-                // set tcp_nodelay option
-                boost::system::error_code option_ec;
-                socket->get_tcp_socket().set_option(boost::asio::ip::tcp::no_delay(true), option_ec);
-                if (option_ec)
+            strong_this->websocket = strong_this->ws_factory->make_unique_websocket_stream(
+                socket->get_tcp_socket());
+            strong_this->websocket->async_handshake(strong_this->endpoint.address().to_string(), "/"
+                , [weak_this2 = std::weak_ptr<node>(strong_this), callback](auto ec)
                 {
-                    LOG(error) << "failed to set socket option: " << option_ec.message();
-                }
-
-                strong_this->websocket = strong_this->ws_factory->make_unique_websocket_stream(
-                    socket->get_tcp_socket());
-                strong_this->websocket->async_handshake(strong_this->endpoint.address().to_string(), "/"
-                    , [weak_this2 = std::weak_ptr<node>(strong_this), callback](auto ec)
+                    try
                     {
-                        try
+                        auto strong_this2 = weak_this2.lock();
+                        if (strong_this2)
                         {
-                            auto strong_this2 = weak_this2.lock();
+                            if (ec)
+                            {
+                                // connect failed
+                                callback(ec);
+                                return;
+                            }
+
+                            callback(ec);
+                            //                    auto strong_this2 = weak_this2.lock();
                             if (strong_this2)
                             {
-                                if (ec)
-                                {
-                                    // connect failed
-                                    callback(ec);
-                                    return;
-                                }
-
-                                callback(ec);
-                                //                    auto strong_this2 = weak_this2.lock();
-                                if (strong_this2)
-                                {
-                                    strong_this2->receive();
-                                }
+                                strong_this2->receive();
                             }
                         }
-                        catch(...){}
-                    });
-            }
+                    }
+                    catch(...){}
+                });
         }
-        CATCHALL();
     });
 }
 
@@ -151,7 +147,7 @@ node::send(const std::string& msg, completion_handler_t callback, bool is_retry)
     boost::asio::mutable_buffers_1 buffer((void*)msg.c_str(), msg.length());
 
     this->websocket->binary(true);
-    this->websocket->async_write(buffer, [weak_this = weak_from_this(), callback, is_retry, msg](auto ec, auto bytes)
+    this->websocket->async_write(buffer, [weak_this = weak_from_this(), callback, is_retry, msg](auto ec, auto /*bytes*/)
     {
         try
         {
@@ -185,7 +181,6 @@ node::send(const std::string& msg, completion_handler_t callback, bool is_retry)
             }
             else
             {
-                std::cout << bytes << " bytes written" << std::endl;
                 callback(ec);
             }
         }

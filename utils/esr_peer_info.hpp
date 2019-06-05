@@ -12,27 +12,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-syntax = "proto3";
+#pragma once
 
-message bzn_envelope
+#include <include/bluzelle.hpp>
+//#include <bootstrap/bootstrap_peers_base.hpp> //for bzn::peer_address_t
+#include <utils/peer_address.hpp>
+
+using namespace bzapi;
+
+namespace bzn::utils::esr
 {
-    string swarm_id = 1;
-    string sender = 2;
-    bytes signature = 3;
-    uint64 timestamp = 4;
-    repeated bzn_envelope piggybacked_requests = 5;
-
-    oneof payload
-    {
-        bytes database_msg = 10;
-        bytes pbft_internal_request = 11;
-        bytes database_response = 12;
-        bytes json = 13;
-        bytes audit = 14;
-        bytes pbft = 15;
-        bytes pbft_membership = 16;
-        bytes status_request = 17;
-        bytes status_response = 18;
-        bytes checkpoint_msg = 19;
-    }
+    std::vector<std::string> get_swarm_ids(const std::string& esr_address, const std::string& url);
+    std::vector<std::string> get_peer_ids(const uuid_t& swarm_id, const std::string& esr_address, const std::string& url);
+    bzn::peer_address_t get_peer_info(const uuid_t& swarm_id, const std::string& peer_id, const std::string& esr_address, const std::string& url);
 }

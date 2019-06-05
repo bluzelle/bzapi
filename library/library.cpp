@@ -27,6 +27,7 @@
 #include <json/value.h>
 #include <json/reader.h>
 #include <library/log.hpp>
+#include <boost/lexical_cast.hpp>
 
 namespace
 {
@@ -48,6 +49,7 @@ namespace bzapi
     std::shared_ptr<bzapi::swarm_factory> the_swarm_factory;
     std::shared_ptr<bzapi::crypto_base> the_crypto;
     std::shared_ptr<bzn::beast::websocket_base> ws_factory;
+    std::shared_ptr<bzapi::db_impl_base> db_dispatcher;
     bool initialized = false;
 
     std::shared_ptr<mutable_response>
@@ -56,40 +58,101 @@ namespace bzapi
         return std::make_shared<udp_response>();
     }
 
-    bool
-    initialize(const std::string& public_key, const std::string& private_key
-        , const std::string& endpoint, const std::string& swarm_id)
+    std::shared_ptr<bzapi::db_impl_base>
+    get_db_dispatcher()
     {
+        return db_dispatcher;
+    }
+
+    std::pair<std::string, uint16_t>
+    parse_endpoint(const std::string& endpoint)
+    {
+        // format should be ws://n.n.n.n:p
+        // TODO: support for hostnames
+        std::string addr;
+        uint64_t port;
+
+        auto offset = endpoint.find(':', 5);
+        if (offset > endpoint.size() || endpoint.substr(0, 5) != "ws://")
+        {
+            LOG(error) << "bad swarm node endpoint: " << endpoint;
+            throw(std::runtime_error("bad node endpoint: " + endpoint));
+        }
+
         try
         {
-            init_logging();
-            if (!initialized)
+            addr = endpoint.substr(5, offset - 5);
+            port = boost::lexical_cast<uint16_t>(endpoint.substr(offset + 1).c_str());
+        }
+        catch (boost::bad_lexical_cast &)
+        {
+            LOG(error) << "bad swarm node endpoint: " << endpoint;
+            throw(std::runtime_error("bad node endpoint: " + endpoint));
+        }
+
+        return std::make_pair(addr, port);
+    }
+
+    void
+    common_init(const std::string& public_key, const std::string& private_key)
+    {
+        init_logging();
+        io_context = std::make_shared<bzn::asio::io_context>();
+        io_thread = std::make_shared<std::thread>([]()
+        {
+            auto& io = io_context->get_io_context();
+            boost::asio::executor_work_guard<decltype(io.get_executor())> work{io.get_executor()};
+            auto res = io_context->run();
+            LOG(debug) << "Events run: " << res << std::endl;
+        });
+
+        db_dispatcher = std::make_shared<db_impl>(io_context);
+        the_crypto = std::make_shared<crypto>(private_key);
+        ws_factory = std::make_shared<bzn::beast::websocket>();
+        the_swarm_factory = std::make_shared<swarm_factory>(io_context, ws_factory, the_crypto, public_key);
+
+        error_val = 0;
+        error_str = "";
+    }
+
+    bool
+    initialize(const std::string& public_key, const std::string& private_key
+        , const std::string& endpoint, const std::string& node_id, const std::string& swarm_id)
+    {
+        if (!initialized)
+        {
+            try
             {
-                try
-                {
-                    io_context = std::make_shared<bzn::asio::io_context>();
-                    io_thread = std::make_shared<std::thread>([]()
-                    {
-                        auto& io = io_context->get_io_context();
-                        boost::asio::executor_work_guard<decltype(io.get_executor())> work{io.get_executor()};
-                        auto res = io_context->run();
-                        LOG(debug) << "Events run: " << res << std::endl;
-                    });
-
-                    the_crypto = std::make_shared<crypto>(private_key);
-                    ws_factory = std::make_shared<bzn::beast::websocket>();
-                    the_swarm_factory = std::make_shared<swarm_factory>(io_context, ws_factory, the_crypto, public_key);
-                    the_swarm_factory->temporary_set_default_endpoint(endpoint, swarm_id);
-                }
-                CATCHALL(return false);
-
-                error_val = 0;
-                error_str = "";
-                initialized = true;
+                common_init(public_key, private_key);
+                auto ep = parse_endpoint(endpoint);
+                std::vector<std::pair<node_id_t, bzn::peer_address_t>> addrs;
+                addrs.push_back(std::make_pair(node_id, bzn::peer_address_t{ep.first, ep.second, 0, "", ""}));
+                the_swarm_factory->initialize(swarm_id, addrs);
             }
+            CATCHALL(return false);
+
+            initialized = true;
             return true;
         }
-        CATCHALL();
+        return false;
+    }
+
+    bool
+    initialize(const std::string& public_key, const std::string& private_key
+        , const std::string& esr_address, const std::string& url)
+    {
+        if (!initialized)
+        {
+            try
+            {
+                common_init(public_key, private_key);
+                the_swarm_factory->initialize(esr_address, url);
+            }
+            CATCHALL(return false);
+
+            initialized = true;
+            return true;
+        }
         return false;
     }
 
@@ -122,10 +185,10 @@ namespace bzapi
             {
                 std::string uuidstr{uuid};
                 auto resp = make_response();
-                the_swarm_factory->has_db(uuid, [resp, uuidstr](auto res)
+                the_swarm_factory->has_db(uuid, [resp, uuidstr](auto /*err*/, auto res)
                 {
                     Json::Value result;
-                    result["result"] = res == db_error::success ? 1 : 0;
+                    result["result"] = res ? 1 : 0;
                     result["uuid"] = uuidstr;
                     resp->set_result(result.toStyledString());
                     resp->set_ready();
@@ -152,59 +215,35 @@ namespace bzapi
             {
                 std::string uuidstr{uuid};
                 auto resp = make_response();
-                the_swarm_factory->has_db(uuidstr, [resp, uuidstr, max_size, random_evict](auto res)
+                the_swarm_factory->create_db(uuidstr, max_size, random_evict, [uuidstr, resp](auto res, auto sw)
                 {
-                    if (res == db_error::no_database)
+                    if (sw)
                     {
-                        the_swarm_factory->create_db(uuidstr, max_size, random_evict, [uuidstr, resp](auto res, auto sw)
+                        auto db = std::make_shared<async_database_impl>(db_dispatcher, sw, uuidstr);
+                        db->open([sw, resp, db, uuidstr](auto ec)
                         {
-                            if (sw)
+                            if (ec)
                             {
-                                auto dbi = std::make_shared<db_impl>(io_context, sw, uuidstr);
-                                auto db = std::make_shared<async_database_impl>(dbi);
-                                db->open([sw, resp, db, uuidstr](auto ec)
-                                {
-                                    if (ec)
-                                    {
-                                        LOG(error) << "Error initializing database: " << ec.message();
-                                        Json::Value result;
-                                        result["error"] = ec.message();
-                                        resp->set_result(result.toStyledString());
-                                        resp->set_error(static_cast<int>(db_error::connection_error));
-                                    }
-                                    else
-                                    {
-                                        Json::Value result;
-                                        result["result"] = 1;
-                                        result["uuid"] = uuidstr;
-                                        resp->set_result(result.toStyledString());
-                                        resp->set_db(db);
-                                        resp->set_ready();
-                                    }
-                                });
+                                LOG(error) << "Error initializing database: " << ec.message();
+                                Json::Value result;
+                                result["error"] = ec.message();
+                                resp->set_result(result.toStyledString());
+                                resp->set_error(static_cast<int>(db_error::connection_error));
                             }
                             else
                             {
-                                LOG(error) << "Error creating database for: " << uuidstr;
                                 Json::Value result;
-                                result["error"] = get_error_str(res);
+                                result["result"] = 1;
                                 result["uuid"] = uuidstr;
                                 resp->set_result(result.toStyledString());
-                                resp->set_error(static_cast<int>(res));
+                                resp->set_db(db);
+                                resp->set_ready();
                             }
                         });
                     }
-                    else if (res == db_error::success)
-                    {
-                        LOG(debug) << "Unable to create existing database: " << uuidstr;
-                        Json::Value result;
-                        result["error"] = "UUID already exists";
-                        result["uuid"] = uuidstr;
-                        resp->set_result(result.toStyledString());
-                        resp->set_error(static_cast<int>(db_error::database_error));
-                    }
                     else
                     {
+                        LOG(error) << "Error creating database for: " << uuidstr;
                         Json::Value result;
                         result["error"] = get_error_str(res);
                         result["uuid"] = uuidstr;
@@ -234,54 +273,39 @@ namespace bzapi
             {
                 std::string uuidstr{uuid};
                 auto resp = make_response();
-                the_swarm_factory->has_db(uuidstr, [resp, uuidstr](auto res)
+                the_swarm_factory->has_db(uuidstr, [resp, uuidstr](auto /*err*/, auto sw)
                 {
-                    if (res == db_error::success)
+                    if (sw)
                     {
-                        the_swarm_factory->get_swarm(uuidstr, [&](auto sw)
+                        auto db = std::make_shared<async_database_impl>(db_dispatcher, sw, uuidstr);
+                        db->open([resp, db](auto ec)
                         {
-                            if (sw)
+                            if (ec)
                             {
-                                auto dbi = std::make_shared<db_impl>(io_context, sw, uuidstr);
-                                auto db = std::make_shared<async_database_impl>(dbi);
-                                db->open([resp, db](auto ec)
-                                {
-                                    if (ec)
-                                    {
-                                        LOG(error) << "Error initializing database: " << ec.message();
-                                        Json::Value result;
-                                        result["error"] = ec.message();
-                                        resp->set_result(result.toStyledString());
-                                        resp->set_error(static_cast<int>(db_error::connection_error));
-                                    }
-                                    else
-                                    {
-                                        Json::Value result;
-                                        result["result"] = 1;
-                                        resp->set_result(result.toStyledString());
-                                        resp->set_db(db);
-                                        resp->set_ready();
-                                    }
-                                });
+                                LOG(error) << "Error initializing database: " << ec.message();
+                                Json::Value result;
+                                result["error"] = ec.message();
+                                resp->set_result(result.toStyledString());
+                                resp->set_error(static_cast<int>(db_error::connection_error));
                             }
                             else
                             {
-                                LOG(error) << "Error getting swarm for: " << uuidstr;
                                 Json::Value result;
-                                result["error"] = "Error getting swarm";
-                                result["uuid"] = uuidstr;
+                                result["result"] = 1;
                                 resp->set_result(result.toStyledString());
-                                resp->set_error(static_cast<int>(db_error::no_database));
+                                resp->set_db(db);
+                                resp->set_ready();
                             }
                         });
                     }
                     else
                     {
                         LOG(debug) << "Failed to open database: " << uuidstr;
-                        Json::Value result;
-                        result["error"] = get_error_str(res);
-                        resp->set_result(result.toStyledString());
-                        resp->set_error(static_cast<int>(res));
+                        // TODO: catch error here
+//                        Json::Value result;
+//                        result["error"] = get_error_str(res);
+//                        resp->set_result(result.toStyledString());
+//                        resp->set_error(static_cast<int>(res));
                    }
                 });
 
@@ -402,12 +426,16 @@ namespace bzapi
         {
         case db_error::success:
             return "Success";
+        case db_error::uninitialized:
+            return "bzapi uninitialized";
         case db_error::connection_error:
             return "Connection error";
         case db_error::database_error:
             return "Database error";
         case db_error::timeout_error:
             return "Timeout error";
+        case db_error::already_exists:
+            return "Database already exists";
         case db_error::no_database:
             return "No database";
         }

@@ -61,6 +61,8 @@ namespace bzapi
     using endpoint_t = std::string;
     using completion_handler_t = std::function<void(const boost::system::error_code &error)>;
     using expiry_t = uint64_t;
+    using node_id_t = std::string;
+
 
     const uint16_t MAX_MESSAGE_SIZE = 1024;
     const uint16_t MAX_SHORT_MESSAGE_SIZE = 32;
@@ -68,9 +70,11 @@ namespace bzapi
     enum class db_error
     {
         success = 0,
+        uninitialized,
         connection_error,
         database_error,
         timeout_error,
+        already_exists,
         no_database
     };
 

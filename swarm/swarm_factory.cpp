@@ -16,12 +16,23 @@
 #include <swarm/swarm_factory.hpp>
 #include <swarm/swarm.hpp>
 #include <node/node_factory.hpp>
+#include <utils/esr_peer_info.hpp>
+#include <random>
 
 // Note: the intention is for a swarm to serve multiple db_impl clients (swarm sharing)
 // however the current code will allocate a new swarm for each db instance, even if
 // it's the same uuid.
 // This will be fixed in an upcoming sprint.
 
+namespace bzapi
+{
+    extern std::shared_ptr<db_impl_base> get_db_dispatcher();
+}
+
+namespace
+{
+    uint64_t MAX_RETRY{5};
+}
 
 using namespace bzapi;
 
@@ -39,212 +50,256 @@ swarm_factory::~swarm_factory()
 }
 
 void
-swarm_factory::get_swarm(const uuid_t& /*uuid*/, std::function<void(std::shared_ptr<swarm_base>)> callback)
+swarm_factory::initialize(const std::string& esr_address, const std::string& url)
 {
-#if 1
-
-    auto sw = get_default_swarm();
-    callback(sw);
-    return;
-
-#else // TODO: fix swarm sharing
-    auto it = this->uuids.find(uuid);
-    if (it != this->uuids.end())
-    {
-        auto swarm = it->second.lock();
-        if (swarm)
-        {
-            callback(swarm);
-            return;
-        }
-    }
-
-    // find the swarm if we don't have it
-    this->has_db(uuid, [&](auto result)
-    {
-        if (result != db_error::success)
-        {
-            callback(nullptr);
-        }
-        else
-        {
-            auto it = this->uuids.find(uuid);
-            assert(it != this->uuids.end());
-            auto swarm = it->second.lock();
-            callback(swarm);
-        }
-    });
-
-    // TODO: fix this
-//    std::shared_ptr<swarm> the_swarm = std::make_shared<swarm>(this->node_factory, this->io_context, this->crypto
-//        , this->tmp_default_endpoint);
-//    this->swarms[uuid] = the_swarm;
-//
-//    return the_swarm;
-#endif
+    this->esr_address = esr_address;
+    this->esr_url = url;
+    this->update_swarm_registry();
+    this->initialized = true;
 }
 
 void
-swarm_factory::create_db(const uuid_t& uuid, uint64_t max_size, bool random_evict
-    , std::function<void(db_error, std::shared_ptr<swarm_base>)> callback)
+swarm_factory::initialize(const swarm_id_t& default_swarm, const std::vector<std::pair<node_id_t, bzn::peer_address_t>>& nodes)
 {
-#if 1
-    auto sw = get_default_swarm();
-    sw->create_uuid(uuid, max_size, random_evict, [callback, sw, weak_this = weak_from_this(), uuid](auto res)
+    auto sw_reg = std::make_shared<swarm_registry>();
+    for (auto node : nodes)
     {
-        if (res == db_error::success)
-        {
-            callback(res, sw);
-        }
-        else
-        {
-            // TODO: needs error code/message
-            callback(res, nullptr);
-        }
-    });
+        sw_reg->add_node(default_swarm, node.first, node.second);
+    }
 
+    this->swarm_reg = sw_reg;
+    this->initialized = true;
+}
 
-#else // TODO: fix swarm sharing
-    // for now we will just use the first (only) swarm in our list
-    // TODO: find best swarm for the new db
-
-    auto sw_info = this->swarms.begin();
-    if (sw_info == this->swarms.end())
+void
+swarm_factory::has_db(const uuid_t& uuid, std::function<void(db_error, std::shared_ptr<swarm_base>)> callback)
+{
+    if (!this->initialized)
     {
-        LOG(error) << "No swarm endpoints configured";
-        callback(nullptr);
+        // how do we propagate the error?
+        callback(db_error::uninitialized, nullptr);
         return;
     }
 
-    auto sw = sw_info->second.lock();
-    if (!sw)
+    auto it = this->swarm_dbs.find(uuid);
+    if (it != this->swarm_dbs.end())
     {
-        sw = std::make_shared<swarm>(this->node_factory, this->ws_factory, this->io_context, this->crypto
-            , sw_info->first, my_uuid);
-        this->swarms[sw_info->first] = sw;
-    }
-
-    sw->create_uuid(uuid, [callback, sw, weak_this = weak_from_this(), uuid](auto res)
-    {
-        if (res)
-        {
-            auto strong_this = weak_this.lock();
-            if (strong_this)
-            {
-                //strong_this->uuids[uuid] = sw;
-                callback(sw);
-                return;
-            }
-        }
-        else
-        {
-            // TODO: needs error code/message
-            callback(nullptr);
-        }
-    });
-#endif
-}
-
-void
-swarm_factory::temporary_set_default_endpoint(const endpoint_t& endpoint, const swarm_id_t& swarm_id)
-{
-    this->endpoints.insert(std::make_pair(endpoint, swarm_id));
-}
-
-std::shared_ptr<swarm_base>
-swarm_factory::get_default_swarm()
-{
-#if 1
-
-    auto ep = this->endpoints.begin();
-    if (ep == this->endpoints.end())
-    {
-        LOG(error) << "No swarm endpoints configured";
-        return nullptr;
-    }
-
-    auto sw = std::make_shared<swarm>(this->node_factory, this->ws_factory, this->io_context, this->crypto
-        , ep->first, ep->second, my_uuid);
-    return sw;
-
-
-#else // TODO: fix swarm sharing
-    auto sw_info = this->swarms.begin();
-    if (sw_info == this->swarms.end())
-    {
-        LOG(error) << "No swarm endpoints configured";
-        return nullptr;
-    }
-
-    auto sw = std::make_shared<swarm>(this->node_factory, this->ws_factory, this->io_context, this->crypto
-        , sw_info->first, my_uuid);
-    return sw;
-
-    auto sw = sw_info->second.lock();
-    if (!sw)
-    {
-        sw = std::make_shared<swarm>(this->node_factory, this->ws_factory, this->io_context, this->crypto
-            , sw_info->first, my_uuid);
-        this->swarms[sw_info->first] = sw;
-    }
-
-    return sw;
-#endif
-}
-
-void
-swarm_factory::has_db(const uuid_t& uuid, std::function<void(db_error result)> callback)
-{
-#if 1
-
-    auto sw = this->get_default_swarm();
-    sw->has_uuid(uuid, [weak_this = weak_from_this(), uuid, callback, sw](auto res)
-    {
-        callback(res);
-    });
-
-
-#else // TODO: fix swarm sharing
-    if (this->uuids.find(uuid) != this->uuids.end())
-    {
-        callback(db_error::success);
+        auto sw = this->get_or_create_swarm(it->second);
+        callback(sw ? db_error::success : db_error::database_error, sw);
         return;
     }
 
-    // TODO: set a timer to retry if no response
-
-    auto count = std::make_shared<size_t>(this->swarms.size());
-    for (const auto& elem : this->swarms)
+    auto swarms = this->swarm_reg->get_swarms();
+    auto count = std::make_shared<size_t>(swarms.size());
+    for (const auto& elem : swarms)
     {
-        auto sw = elem.second.lock();
-        if (!sw)
-        {
-            sw = std::make_shared<swarm>(this->node_factory, this->ws_factory, this->io_context, this->crypto
-                , elem.first, my_uuid);
-//            this->swarms[elem.first] = sw;
-        }
-
-        sw->has_uuid(uuid, [weak_this = weak_from_this(), uuid, count, callback, sw](auto res)
+        auto sw = this->get_or_create_swarm(elem);
+        get_db_dispatcher()->has_uuid(sw, uuid
+            , [weak_this = weak_from_this(), uuid, sw_id = elem, count, callback, sw](auto err)
         {
             (*count)--;
-            if (res)
+            if (err == db_error::success)
             {
                 auto strong_this = weak_this.lock();
                 if (strong_this)
                 {
-                    //strong_this->uuids[uuid] = weak_sw;
-                    strong_this->uuids[uuid] = sw;
-                    callback(db_error::success);
+                    strong_this->swarm_dbs[uuid] = sw_id;
                 }
+                callback(db_error::success, sw);
             }
             else
             {
                 if (!(*count))
                 {
-                    callback(db_error::no_database);
+                    callback(db_error::no_database, nullptr);
                 }
             }
         });
     }
-#endif
+}
+
+void
+swarm_factory::create_db(const uuid_t& db_uuid, uint64_t max_size, bool random_evict
+    , std::function<void(db_error, std::shared_ptr<swarm_base>)> callback)
+{
+    if (!this->initialized)
+    {
+        // how do we propagate the error?
+        callback(db_error::uninitialized, nullptr);
+        return;
+    }
+
+    // first we need to make sure this uuid doesn't already exist in a swarm
+    this->has_db(db_uuid, [callback, weak_this = weak_from_this(), db_uuid, max_size, random_evict](auto /*err*/, auto sw)
+    {
+        if (sw)
+        {
+            callback(db_error::already_exists, nullptr);
+            return;
+        }
+
+        auto strong_this = weak_this.lock();
+        if (strong_this)
+        {
+            strong_this->do_create_db(db_uuid, max_size, random_evict, MAX_RETRY, callback);
+        }
+    });
+}
+
+void
+swarm_factory::do_create_db(const uuid_t& db_uuid, uint64_t max_size, bool random_evict, uint64_t retry
+    , std::function<void(db_error, std::shared_ptr<swarm_base>)> callback)
+{
+    this->select_swarm_for_size(max_size, [weak_this = weak_from_this(), db_uuid, max_size
+        , random_evict, retry, callback](auto sw_id)
+    {
+        auto strong_this = weak_this.lock();
+        if (strong_this)
+        {
+            auto sw = strong_this->get_or_create_swarm(sw_id);
+            get_db_dispatcher()->create_uuid(sw, db_uuid, max_size, random_evict
+                , [callback, sw, sw_id, weak_this, db_uuid, max_size, random_evict, retry](auto err)
+                {
+                    if (err == db_error::success)
+                    {
+                        auto strong_this = weak_this.lock();
+                        if (strong_this)
+                        {
+                            try
+                            {
+                                strong_this->swarm_dbs[db_uuid] = sw_id;
+                            }
+                            CATCHALL();
+                        }
+                        callback(err, sw);
+                    }
+                    else
+                    {
+                        if (retry > 0)
+                        {
+                            auto strong_this = weak_this.lock();
+                            if (strong_this)
+                            {
+                                strong_this->do_create_db(db_uuid, max_size, random_evict, retry - 1, callback);
+                            }
+                        }
+                        else
+                        {
+                            callback(err, nullptr);
+                        }
+                    }
+                });
+        }
+    });
+}
+
+void
+swarm_factory::update_swarm_registry()
+{
+    if (!this->esr_address.empty() && !this->esr_url.empty())
+    {
+        auto sw_reg = std::make_shared<swarm_registry>();
+        auto swarm_list = bzn::utils::esr::get_swarm_ids(esr_address, esr_url);
+        for (auto sw_id : swarm_list)
+        {
+            auto node_list = bzn::utils::esr::get_peer_ids(sw_id, esr_address, esr_url);
+            for (auto node : node_list)
+            {
+                auto ep = bzn::utils::esr::get_peer_info(sw_id, node, esr_address, esr_url);
+                sw_reg->add_node(sw_id, node, ep);
+                auto strong_sw = this->swarm_reg->get_swarm(sw_id).lock();
+                if (strong_sw)
+                {
+                    sw_reg->set_swarm(sw_id, strong_sw);
+                }
+            }
+        }
+
+        // lock here?
+        this->swarm_reg = sw_reg;
+    }
+}
+
+std::shared_ptr<swarm_base>
+swarm_factory::get_or_create_swarm(const swarm_id_t& swarm_id)
+{
+    auto sw = this->swarm_reg->get_swarm(swarm_id);
+    if (!sw.lock())
+    {
+        auto nodes = this->swarm_reg->get_nodes(swarm_id);
+        assert(!nodes.empty());
+        auto swm = std::make_shared<swarm>(this->node_factory, this->ws_factory, this->io_context, this->crypto
+            , swarm_id, this->my_uuid);
+        swm->add_nodes(nodes);
+        this->swarm_reg->set_swarm(swarm_id, swm);
+        return swm;
+    }
+
+    return std::shared_ptr<swarm_base>{sw};
+}
+
+// ====== swarm_registry ==============
+
+void
+swarm_factory::swarm_registry::add_node(const swarm_id_t& swarm_id, const node_id_t& node_id, const bzn::peer_address_t& endpoint)
+{
+    this->swarms[swarm_id].nodes.insert(std::make_pair(node_id, endpoint));
+}
+
+std::vector<swarm_id_t>
+swarm_factory::swarm_registry::get_swarms()
+{
+    std::vector<swarm_id_t> res;
+    for (auto sw : this->swarms)
+    {
+        res.push_back(sw.first);
+    }
+
+    return res;
+}
+
+std::vector<std::pair<node_id_t, bzn::peer_address_t>>
+swarm_factory::swarm_registry::get_nodes(swarm_id_t swarm_id)
+{
+    std::vector<std::pair<node_id_t, bzn::peer_address_t>> res;
+    auto it = this->swarms.find(swarm_id);
+    if (it != this->swarms.end())
+    {
+        for (auto node : it->second.nodes)
+        {
+            res.push_back(std::make_pair(node.first, node.second));
+        }
+    }
+
+    return res;
+}
+
+std::weak_ptr<swarm_base>
+swarm_factory::swarm_registry::get_swarm(const swarm_id_t& swarm_id)
+{
+    auto it = this->swarms.find(swarm_id);
+    assert(it != this->swarms.end());
+    return it->second.swarm;
+}
+
+void
+swarm_factory::swarm_registry::set_swarm(const swarm_id_t& swarm_id, std::shared_ptr<swarm_base> swarm)
+{
+    auto it = this->swarms.find(swarm_id);
+    assert(it != this->swarms.end());
+    it->second.swarm = swarm;
+}
+
+void
+swarm_factory::select_swarm_for_size(uint64_t /*size*/, std::function<void(const std::string& swarm_id)> callback)
+{
+    // for now, we will pick a swarm at random from our list. Later we may check each swarm's status and look
+    // for the one with the most uncommitted space, which would be an async operation (hence the callback)
+    auto sw_list = this->swarm_reg->get_swarms();
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<uint32_t> dist(0, sw_list.size() - 1);
+    auto sw_num = dist(gen);
+
+    callback(sw_list[sw_num]);
 }

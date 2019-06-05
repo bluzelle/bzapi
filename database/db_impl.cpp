@@ -24,10 +24,8 @@ namespace
     const std::chrono::milliseconds BROADCAST_RETRY_TIME{std::chrono::milliseconds(3000)};
 }
 
-db_impl::db_impl(std::shared_ptr<bzn::asio::io_context_base> io_context
-    , std::shared_ptr<swarm_base> swarm
-    , uuid_t uuid)
-    : io_context(io_context), swarm(swarm), uuid(uuid)
+db_impl::db_impl(std::shared_ptr<bzn::asio::io_context_base> io_context)
+    : io_context(io_context)
 {
 }
 
@@ -36,32 +34,32 @@ db_impl::~db_impl()
 }
 
 void
-db_impl::initialize(completion_handler_t handler)
+db_impl::initialize(completion_handler_t /*handler*/)
 {
-    this->swarm->register_response_handler(bzn_envelope::kDatabaseResponse
-        , [weak_this = weak_from_this()](const uuid_t& /*uuid*/, const bzn_envelope& env)->bool
-    {
-        auto strong_this = weak_this.lock();
-        if (strong_this)
-        {
-            return strong_this->handle_swarm_response(env);
-        }
-        else
-        {
-            return true;
-        }
-    });
-
-    this->swarm->initialize(handler);
+//    this->swarm->register_response_handler(bzn_envelope::kDatabaseResponse
+//        , [weak_this = weak_from_this()](const uuid_t& /*uuid*/, const bzn_envelope& env)->bool
+//    {
+//        auto strong_this = weak_this.lock();
+//        if (strong_this)
+//        {
+//            return strong_this->handle_swarm_response(env);
+//        }
+//        else
+//        {
+//            return true;
+//        }
+//    });
+//
+//    this->swarm->initialize(handler);
 }
 
 void
-db_impl::send_message_to_swarm(database_msg& msg, send_policy policy, db_response_handler_t handler)
+db_impl::send_message_to_swarm(std::shared_ptr<swarm_base> swarm, uuid_t uuid, database_msg& msg, send_policy policy, db_response_handler_t handler)
 {
     auto nonce = this->next_nonce++;
 
     auto header = new database_header;
-    header->set_db_uuid(this->uuid);
+    header->set_db_uuid(uuid);
     header->set_nonce(nonce);
     msg.set_allocated_header(header);
 
@@ -71,6 +69,7 @@ db_impl::send_message_to_swarm(database_msg& msg, send_policy policy, db_respons
 
     // store message info
     msg_info info;
+    info.swarm = swarm;
     info.request = env;
     this->setup_client_timeout(nonce, info);
     this->setup_request_policy(info, policy, nonce);
@@ -79,13 +78,8 @@ db_impl::send_message_to_swarm(database_msg& msg, send_policy policy, db_respons
     this->messages[nonce] = info;
 
     LOG(debug) << "Sending database request for message " << nonce;
-    this->swarm->send_request(env, policy);
-}
-
-std::string
-db_impl::swarm_status()
-{
-    return this->swarm->get_status();
+    this->register_swarm_handler(swarm);
+    swarm->send_request(env, policy);
 }
 
 uint64_t
@@ -103,7 +97,7 @@ db_impl::setup_request_policy(msg_info& info, send_policy policy, nonce_t nonce)
     // should probably split into send_policy and failure_policy
     if (policy != send_policy::fastest)
     {
-        info.responses_required = this->swarm->honest_majority_size();
+        info.responses_required = info.swarm->honest_majority_size();
         info.retry_timer = this->io_context->make_unique_steady_timer();
         info.retry_timer->expires_from_now(REQUEST_RETRY_TIME);
         info.retry_timer->async_wait([weak_this = weak_from_this(), nonce](const auto& ec)
@@ -158,7 +152,7 @@ db_impl::handle_request_timeout(const boost::system::error_code& ec, nonce_t non
     });
 
     // broadcast the retry
-    this->swarm->send_request(info.request, send_policy::broadcast);
+    info.swarm->send_request(info.request, send_policy::broadcast);
 }
 
 bool
@@ -207,16 +201,16 @@ bool
 db_impl::qualify_response(bzapi::db_impl::msg_info &info, const uuid_t& sender) const
 {
     auto num_responses = info.responses.size();
-    LOG(debug) << boost::format("%1% of %2% responses received") % num_responses % info.responses_required;
-
     if (num_responses < info.responses_required)
     {
+        LOG(debug) << boost::format("%1% of %2% responses received") % num_responses % info.responses_required;
         return false;
     }
 
     if (info.responses_required == 1)
     {
         assert(num_responses == 1);
+        LOG(debug) << boost::format("%1% of %2% responses received") % num_responses % info.responses_required;
         return true;
     }
 
@@ -229,6 +223,7 @@ db_impl::qualify_response(bzapi::db_impl::msg_info &info, const uuid_t& sender) 
             {
                 if (++matches >= info.responses_required)
                 {
+                    LOG(debug) << boost::format("%1% of %2% matching responses received") % matches % info.responses_required;
                     return true;
                 }
             }
@@ -276,4 +271,83 @@ db_impl::setup_client_timeout(nonce_t nonce, msg_info& info)
             }
         }
     });
+}
+
+void
+db_impl::has_uuid(std::shared_ptr<swarm_base> swarm, uuid_t uuid, std::function<void(db_error)> callback)
+{
+    bzn_envelope env;
+    database_msg request;
+    database_header header;
+    request.set_allocated_header(new database_header(header));
+    request.set_allocated_has_db(new database_has_db());
+
+    this->register_swarm_handler(swarm);
+    this->send_message_to_swarm(swarm, uuid, request, send_policy::normal, [uuid, callback](auto response, auto err)
+    {
+        if (err)
+        {
+            callback(db_error::database_error);
+        }
+        else
+        {
+            if (response.has_db().uuid() != uuid)
+            {
+                LOG(error) << "Invalid uuid response to has_db: " << response.has_db().uuid();
+                callback(db_error::database_error);
+            }
+
+            callback(response.has_db().has() ? db_error::success : db_error::no_database);
+        }
+    });
+}
+
+void
+db_impl::create_uuid(std::shared_ptr<swarm_base> swarm, uuid_t uuid, uint64_t max_size, bool random_evict, std::function<void(db_error)> callback)
+{
+    bzn_envelope env;
+    database_msg request;
+    database_header header;
+    request.set_allocated_header(new database_header(header));
+    database_create_db create;
+    create.set_max_size(max_size);
+    create.set_eviction_policy(random_evict ? database_create_db_eviction_policy_type_RANDOM
+        : database_create_db_eviction_policy_type_NONE);
+    request.set_allocated_create_db(new database_create_db(create));
+
+    this->register_swarm_handler(swarm);
+    this->send_message_to_swarm(swarm, uuid, request, send_policy::normal, [uuid, callback](auto response, auto err)
+    {
+        if (err)
+        {
+            callback(db_error::database_error);
+        }
+        else
+        {
+            if (response.has_error())
+            {
+                callback(db_error::database_error);
+            }
+
+            callback(db_error::success);
+        }
+    });
+}
+
+void
+db_impl::register_swarm_handler(std::shared_ptr<swarm_base> swarm)
+{
+    swarm->register_response_handler(bzn_envelope::kDatabaseResponse
+        , [weak_this = weak_from_this()](const uuid_t& /*uuid*/, const bzn_envelope& env)
+        {
+            auto strong_this = weak_this.lock();
+            if (strong_this)
+            {
+                return strong_this->handle_swarm_response(env);
+            }
+            else
+            {
+                return true;
+            }
+        });
 }
