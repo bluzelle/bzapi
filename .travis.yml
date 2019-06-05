@@ -33,7 +33,7 @@ before_install:
     if [ "$TRAVIS_OS_NAME" = "linux" ]; then
       sudo add-apt-repository -y ppa:mhier/libboost-latest
       sudo apt-get update
-      sudo apt --assume-yes install libboost1.68-dev
+      sudo apt --assume-yes install libboost1.70-dev
       pip install --user cpp-coveralls
       if [ ! -e $HOME/.local/bin/cmake ]; then
         echo "CMake not found in the cache, get and extract it..."

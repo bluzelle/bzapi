@@ -211,7 +211,7 @@ node::receive()
                 }
 
                 std::stringstream ss;
-                ss << boost::beast::buffers(buffer->data());
+                ss << boost::beast::make_printable(buffer->data());
                 std::string str = ss.str();
 
                 if (strong_this->handler(str))
