@@ -8,22 +8,18 @@ import logging
 from build.library import bzapi
 from lib.udp.udp_support import *
 from lib.db import DB
-
+import sys
 import logging
-class PyLogger(bzapi.logger):
+class DefaultLogger(bzapi.logger):
 
     def __init__(self):
         bzapi.logger.__init__(self)
-
-        # Configure Python logging module root logger
-        # logging.basicConfig(format='%(asctime)s  %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p',
-        #                     level=logging.INFO)
+        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
     def log(self, severity, message):
-        #logging.log(level, message)
-        print(severity, message)
+        getattr(logging, severity)(message)
 
-logger = PyLogger()
+logger = DefaultLogger()
 
 
 class Bluzelle:

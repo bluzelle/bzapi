@@ -11,22 +11,18 @@ from lib.udp.test_udp import *
 from lib.async_support.db import DB
 
 import logging
-class PyLogger(bzapi.logger):
+class DefaultLogger(bzapi.logger):
 
     def __init__(self):
         bzapi.logger.__init__(self)
-
-        # Configure Python logging module root logger
-        # logging.basicConfig(format='%(asctime)s  %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p',
-        #                     level=logging.INFO)
+        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
     def log(self, severity, message):
-        #logging.log(level, message)
-        print(severity, message)
-        import sys
-        sys.stdout.flush()
+        getattr(logging, severity)(message)
 
-logger = PyLogger()
+logger = DefaultLogger()
+
+logger = DefaultLogger()
 class Bluzelle:
 
     def __init__(self, priv_key, address="127.0.0.1", port=50000, logger=logger):
