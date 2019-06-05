@@ -7,6 +7,8 @@ from ecdsa import SigningKey
 import logging
 from build.library import bzapi
 from lib.udp.udp_support import *
+from lib.log.default import DefaultLogger
+
 from lib.db import DB
 import sys
 import logging
@@ -24,7 +26,7 @@ logger = DefaultLogger()
 
 class Bluzelle:
 
-    def __init__(self, priv_key, address="127.0.0.1", port=50000, logger = logger):
+    def __init__(self, priv_key, address="127.0.0.1", port=50000, logger = DefaultLogger()):
         bzapi.set_logger(logger)
         self.localhost_ip = "127.0.0.1"
         self.ws_address = address
