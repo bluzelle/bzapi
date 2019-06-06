@@ -16,6 +16,7 @@
 #include <swarm/swarm_factory.hpp>
 #include <swarm/swarm.hpp>
 #include <node/node_factory.hpp>
+#include <utils/esr_peer_info.hpp>
 
 // Note: the intention is for a swarm to serve multiple db_impl clients (swarm sharing)
 // however the current code will allocate a new swarm for each db instance, even if
@@ -39,12 +40,28 @@ swarm_factory::~swarm_factory()
 }
 
 void
+swarm_factory::initialize(const std::string& esr_address, const std::string& url)
+{
+    this->esr_address = esr_address;
+    this->esr_url = url;
+    this->update_swarm_registry();
+    this->initialized = true;
+}
+
+void
 swarm_factory::get_swarm(const uuid_t& /*uuid*/, std::function<void(std::shared_ptr<swarm_base>)> callback)
 {
 #if 1
+    if (initialized)
+    {
 
-    auto sw = get_default_swarm();
-    callback(sw);
+    }
+    else
+    {
+        auto sw = get_default_swarm();
+        callback(sw);
+    }
+
     return;
 
 #else // TODO: fix swarm sharing
@@ -248,3 +265,57 @@ swarm_factory::has_db(const uuid_t& uuid, std::function<void(db_error result)> c
     }
 #endif
 }
+
+void
+swarm_factory::update_swarm_registry()
+{
+    auto sw_reg = std::make_shared<swarm_registry>();
+    auto swarm_list = bzn::utils::esr::get_swarm_ids(esr_address, esr_url);
+    for (auto sw : swarm_list)
+    {
+        auto node_list = bzn::utils::esr::get_peer_ids(sw, esr_address, esr_url);
+        for (auto node : node_list)
+        {
+            auto ep = bzn::utils::esr::get_peer_info(sw, node, esr_address, esr_url);
+            sw_reg->add_node(sw, node, ep);
+        }
+    }
+
+    // lock here?
+    this->swarm_reg = sw_reg;
+}
+
+void
+swarm_factory::swarm_registry::add_node(const swarm_id_t& swarm_id, const node_id_t& node_id, const bzn::peer_address_t& endpoint)
+{
+    this->swarms[swarm_id].insert(std::make_pair(node_id, endpoint));
+}
+
+std::vector<swarm_id_t>
+swarm_factory::swarm_registry::get_swarms()
+{
+    std::vector<swarm_id_t> res;
+    for (auto sw : this->swarms)
+    {
+        res.push_back(sw.first);
+    }
+
+    return res;
+}
+
+std::vector<std::pair<swarm_factory::swarm_registry::node_id_t, bzn::peer_address_t>>
+swarm_factory::swarm_registry::get_nodes(swarm_id_t swarm_id)
+{
+    std::vector<std::pair<node_id_t, bzn::peer_address_t>> res;
+    auto it = this->swarms.find(swarm_id);
+    if (it != this->swarms.end())
+    {
+        for (auto node : it->second)
+        {
+            res.push_back(std::make_pair(node.first, node.second));
+        }
+    }
+
+    return res;
+}
+

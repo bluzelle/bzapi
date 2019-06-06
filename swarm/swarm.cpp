@@ -97,7 +97,7 @@ swarm::has_uuid(const uuid_t& uuid, std::function<void(db_error)> callback)
     database_header header;
     header.set_db_uuid(uuid);
     header.set_nonce(1);
-    header.set_point_of_contact();
+    //header.set_point_of_contact();
     request.set_allocated_header(new database_header(header));
     request.set_allocated_has_db(new database_has_db());
     env.set_database_msg(request.SerializeAsString());
