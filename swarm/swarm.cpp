@@ -399,8 +399,6 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
         Json::Value module_status;
         std::stringstream(status.module_status_json()) >> module_status;
 
-        std::cout << module_status.toStyledString();
-
         // find the pbft module status (verify this exists first?)
         Json::Value swarm_status = module_status["module"][0];
 

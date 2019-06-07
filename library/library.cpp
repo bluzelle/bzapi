@@ -48,6 +48,7 @@ namespace bzapi
     std::shared_ptr<bzapi::swarm_factory> the_swarm_factory;
     std::shared_ptr<bzapi::crypto_base> the_crypto;
     std::shared_ptr<bzn::beast::websocket_base> ws_factory;
+    std::shared_ptr<bzapi::db_impl_base> db_dispatcher;
     bool initialized = false;
 
     std::shared_ptr<mutable_response>
@@ -76,6 +77,7 @@ namespace bzapi
                         LOG(debug) << "Events run: " << res << std::endl;
                     });
 
+                    db_dispatcher = std::make_shared<db_impl>(io_context);
                     the_crypto = std::make_shared<crypto>(private_key);
                     ws_factory = std::make_shared<bzn::beast::websocket>();
                     the_swarm_factory = std::make_shared<swarm_factory>(io_context, ws_factory, the_crypto, public_key);
@@ -160,8 +162,7 @@ namespace bzapi
                         {
                             if (sw)
                             {
-                                auto dbi = std::make_shared<db_impl>(io_context, sw, uuidstr);
-                                auto db = std::make_shared<async_database_impl>(dbi);
+                                auto db = std::make_shared<async_database_impl>(db_dispatcher, sw, uuidstr);
                                 db->open([sw, resp, db, uuidstr](auto ec)
                                 {
                                     if (ec)
@@ -242,8 +243,7 @@ namespace bzapi
                         {
                             if (sw)
                             {
-                                auto dbi = std::make_shared<db_impl>(io_context, sw, uuidstr);
-                                auto db = std::make_shared<async_database_impl>(dbi);
+                                auto db = std::make_shared<async_database_impl>(db_dispatcher, sw, uuidstr);
                                 db->open([resp, db](auto ec)
                                 {
                                     if (ec)

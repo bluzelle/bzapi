@@ -151,7 +151,7 @@ node::send(const std::string& msg, completion_handler_t callback, bool is_retry)
     boost::asio::mutable_buffers_1 buffer((void*)msg.c_str(), msg.length());
 
     this->websocket->binary(true);
-    this->websocket->async_write(buffer, [weak_this = weak_from_this(), callback, is_retry, msg](auto ec, auto bytes)
+    this->websocket->async_write(buffer, [weak_this = weak_from_this(), callback, is_retry, msg](auto ec, auto /*bytes*/)
     {
         try
         {
@@ -185,7 +185,6 @@ node::send(const std::string& msg, completion_handler_t callback, bool is_retry)
             }
             else
             {
-                std::cout << bytes << " bytes written" << std::endl;
                 callback(ec);
             }
         }

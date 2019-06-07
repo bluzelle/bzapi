@@ -28,7 +28,8 @@ namespace bzapi
     {
     public:
 
-        async_database_impl(std::shared_ptr<db_impl_base> db_impl);
+        async_database_impl(std::shared_ptr<db_impl_base> db_impl, std::shared_ptr<swarm_base> swarm, uuid_t uuid);
+        ~async_database_impl();
 
         void open(completion_handler_t handler);
 
@@ -56,6 +57,8 @@ namespace bzapi
         enum class init_state {none, initializing, initialized} state{init_state::none};
 
         std::shared_ptr<db_impl_base> db_impl;
+        std::shared_ptr<swarm_base> swarm;
+        uuid_t uuid;
 
         static void translate_swarm_response(const database_response& db_response, const boost::system::error_code& ec
             , std::shared_ptr<mutable_response> resp

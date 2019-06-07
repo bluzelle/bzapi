@@ -25,6 +25,7 @@
 #include <library/udp_response.hpp>
 #include <random>
 #include <include/logger.hpp>
+#include <database/db_impl.hpp>
 
 using namespace testing;
 using namespace bzapi;
@@ -35,6 +36,7 @@ namespace bzapi
     extern std::shared_ptr<swarm_factory> the_swarm_factory;
     extern std::shared_ptr<crypto_base> the_crypto;
     extern std::shared_ptr<bzn::beast::websocket_base> ws_factory;
+    extern std::shared_ptr<bzapi::db_impl_base> db_dispatcher;
     extern bool initialized;
 }
 
@@ -186,6 +188,7 @@ public:
         EXPECT_CALL(*mock_io_context, get_io_context()).Times(AtLeast(1)).WillRepeatedly(ReturnRef(real_io_context));
 
         io_context = mock_io_context;
+        db_dispatcher = std::make_shared<db_impl>(io_context);
         the_crypto = std::make_shared<null_crypto>();
         mock_ws_factory = std::make_shared<bzn::beast::Mockwebsocket_base>();
         ws_factory = mock_ws_factory;
@@ -197,6 +200,7 @@ public:
     void teardown()
     {
         the_swarm_factory = nullptr;
+        db_dispatcher = nullptr;
         io_context = nullptr;
         ws_factory = nullptr;
         this->nodes.clear();

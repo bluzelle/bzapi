@@ -26,12 +26,12 @@ namespace bzapi
     class db_impl : public db_impl_base, public std::enable_shared_from_this<db_impl>
     {
     public:
-        db_impl(std::shared_ptr<bzn::asio::io_context_base> io_context, std::shared_ptr<swarm_base> swarm, uuid_t uuid);
+        db_impl(std::shared_ptr<bzn::asio::io_context_base> io_context);
         ~db_impl();
 
         void initialize(completion_handler_t handler) override;
 
-        void send_message_to_swarm(database_msg& msg, send_policy policy, db_response_handler_t handler) override;
+        void send_message_to_swarm(std::shared_ptr<swarm_base> swarm, uuid_t uuid, database_msg& msg, send_policy policy, db_response_handler_t handler) override;
 
         std::string swarm_status() override;
 
@@ -40,6 +40,7 @@ namespace bzapi
 
         struct msg_info
         {
+            std::shared_ptr<swarm_base> swarm;
             std::shared_ptr<bzn_envelope> request;
             send_policy policy;
             uint64_t responses_required;
@@ -50,7 +51,6 @@ namespace bzapi
         };
 
         std::shared_ptr<bzn::asio::io_context_base> io_context;
-        std::shared_ptr<swarm_base> swarm;
         uuid_t uuid;
         nonce_t next_nonce = 1;
         std::map<nonce_t, msg_info> messages;

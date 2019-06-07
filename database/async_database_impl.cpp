@@ -23,8 +23,13 @@ namespace bzapi
     std::shared_ptr<mutable_response> make_response();
 }
 
-async_database_impl::async_database_impl(std::shared_ptr<db_impl_base> db_impl)
-: db_impl(db_impl)
+async_database_impl::async_database_impl(std::shared_ptr<db_impl_base> db_impl, std::shared_ptr<swarm_base> swarm, uuid_t uuid)
+: db_impl(db_impl), swarm(swarm), uuid(uuid)
+{
+    std::cout << "here" << std::endl;
+}
+
+async_database_impl::~async_database_impl()
 {
 }
 
@@ -37,7 +42,7 @@ async_database_impl::open(completion_handler_t handler)
     }
 
     this->state = init_state::initializing;
-    this->db_impl->initialize([weak_this = weak_from_this(), handler](const auto& ec)
+    this->swarm->initialize([weak_this = weak_from_this(), handler](const auto& ec)
     {
         if (!ec)
         {
@@ -90,7 +95,7 @@ async_database_impl::swarm_status()
 void
 async_database_impl::send_message_with_basic_response(database_msg& msg, std::shared_ptr<mutable_response> resp)
 {
-    this->db_impl->send_message_to_swarm(msg, send_policy::normal
+    this->db_impl->send_message_to_swarm(this->swarm, this->uuid, msg, send_policy::normal
         , [resp](const database_response &response, const boost::system::error_code &error)
     {
         translate_swarm_response(response, error, resp, [resp](const database_response &/*response*/)
@@ -137,7 +142,7 @@ async_database_impl::read(const std::string& key)
         database_msg msg;
         msg.set_allocated_read(request);
 
-        this->db_impl->send_message_to_swarm(msg, send_policy::normal
+        this->db_impl->send_message_to_swarm(this->swarm, this->uuid, msg, send_policy::normal
             , [resp](const database_response &response, const boost::system::error_code &error)
             {
                 translate_swarm_response(response, error, resp, [resp](const database_response &response)
@@ -211,7 +216,7 @@ async_database_impl::quick_read(const std::string& key)
         database_msg msg;
         msg.set_allocated_quick_read(request);
 
-        this->db_impl->send_message_to_swarm(msg, send_policy::fastest
+        this->db_impl->send_message_to_swarm(this->swarm, this->uuid, msg, send_policy::fastest
             , [resp](const database_response &response, const boost::system::error_code &ec)
             {
                 Json::Value result;
@@ -259,7 +264,7 @@ async_database_impl::has(const std::string& key)
         database_msg msg;
         msg.set_allocated_has(request);
 
-        this->db_impl->send_message_to_swarm(msg, send_policy::normal
+        this->db_impl->send_message_to_swarm(this->swarm, this->uuid, msg, send_policy::normal
             , [resp](const database_response &response, const boost::system::error_code &error)
             {
                 translate_swarm_response(response, error, resp, [resp](const database_response &response)
@@ -288,7 +293,7 @@ async_database_impl::keys()
         database_msg msg;
         msg.set_allocated_keys(request);
 
-        this->db_impl->send_message_to_swarm(msg, send_policy::normal
+        this->db_impl->send_message_to_swarm(this->swarm, this->uuid, msg, send_policy::normal
             , [resp](const database_response &response, const boost::system::error_code &ec)
             {
                 translate_swarm_response(response, ec, resp, [resp](const database_response &response)
@@ -324,7 +329,7 @@ async_database_impl::size()
         database_msg msg;
         msg.set_allocated_size(request);
 
-        this->db_impl->send_message_to_swarm(msg, send_policy::normal
+        this->db_impl->send_message_to_swarm(this->swarm, this->uuid, msg, send_policy::normal
             , [resp](const database_response &response, const boost::system::error_code &ec)
             {
                 translate_swarm_response(response, ec, resp, [resp](const database_response &response)
@@ -400,7 +405,7 @@ async_database_impl::ttl(const std::string& key)
         database_msg msg;
         msg.set_allocated_ttl(request);
 
-        this->db_impl->send_message_to_swarm(msg, send_policy::normal
+        this->db_impl->send_message_to_swarm(this->swarm, this->uuid, msg, send_policy::normal
             , [resp](const database_response &response, const boost::system::error_code &ec)
             {
                 translate_swarm_response(response, ec, resp, [resp](const database_response &response)
@@ -432,7 +437,7 @@ async_database_impl::writers()
         database_msg msg;
         msg.set_allocated_writers(request);
 
-        this->db_impl->send_message_to_swarm(msg, send_policy::normal
+        this->db_impl->send_message_to_swarm(this->swarm, this->uuid, msg, send_policy::normal
             , [resp](const database_response &response, const boost::system::error_code &ec)
             {
                 translate_swarm_response(response, ec, resp, [resp](const database_response &response)

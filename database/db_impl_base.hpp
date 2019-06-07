@@ -28,7 +28,7 @@ namespace bzapi
     public:
         virtual ~db_impl_base() = default;
         virtual void initialize(completion_handler_t handler) = 0;
-        virtual void send_message_to_swarm(database_msg& msg, send_policy policy, db_response_handler_t handler) = 0;
+        virtual void send_message_to_swarm(std::shared_ptr<swarm_base> swarm, uuid_t uuid, database_msg& msg, send_policy policy, db_response_handler_t handler) = 0;
         virtual std::string swarm_status() = 0;
     };
 

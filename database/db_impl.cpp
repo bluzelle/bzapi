@@ -24,10 +24,8 @@ namespace
     const std::chrono::milliseconds BROADCAST_RETRY_TIME{std::chrono::milliseconds(3000)};
 }
 
-db_impl::db_impl(std::shared_ptr<bzn::asio::io_context_base> io_context
-    , std::shared_ptr<swarm_base> swarm
-    , uuid_t uuid)
-    : io_context(io_context), swarm(swarm), uuid(uuid)
+db_impl::db_impl(std::shared_ptr<bzn::asio::io_context_base> io_context)
+    : io_context(io_context)
 {
 }
 
@@ -36,32 +34,32 @@ db_impl::~db_impl()
 }
 
 void
-db_impl::initialize(completion_handler_t handler)
+db_impl::initialize(completion_handler_t /*handler*/)
 {
-    this->swarm->register_response_handler(bzn_envelope::kDatabaseResponse
-        , [weak_this = weak_from_this()](const uuid_t& /*uuid*/, const bzn_envelope& env)->bool
-    {
-        auto strong_this = weak_this.lock();
-        if (strong_this)
-        {
-            return strong_this->handle_swarm_response(env);
-        }
-        else
-        {
-            return true;
-        }
-    });
-
-    this->swarm->initialize(handler);
+//    this->swarm->register_response_handler(bzn_envelope::kDatabaseResponse
+//        , [weak_this = weak_from_this()](const uuid_t& /*uuid*/, const bzn_envelope& env)->bool
+//    {
+//        auto strong_this = weak_this.lock();
+//        if (strong_this)
+//        {
+//            return strong_this->handle_swarm_response(env);
+//        }
+//        else
+//        {
+//            return true;
+//        }
+//    });
+//
+//    this->swarm->initialize(handler);
 }
 
 void
-db_impl::send_message_to_swarm(database_msg& msg, send_policy policy, db_response_handler_t handler)
+db_impl::send_message_to_swarm(std::shared_ptr<swarm_base> swarm, uuid_t uuid, database_msg& msg, send_policy policy, db_response_handler_t handler)
 {
     auto nonce = this->next_nonce++;
 
     auto header = new database_header;
-    header->set_db_uuid(this->uuid);
+    header->set_db_uuid(uuid);
     header->set_nonce(nonce);
     msg.set_allocated_header(header);
 
@@ -71,6 +69,7 @@ db_impl::send_message_to_swarm(database_msg& msg, send_policy policy, db_respons
 
     // store message info
     msg_info info;
+    info.swarm = swarm;
     info.request = env;
     this->setup_client_timeout(nonce, info);
     this->setup_request_policy(info, policy, nonce);
@@ -79,13 +78,28 @@ db_impl::send_message_to_swarm(database_msg& msg, send_policy policy, db_respons
     this->messages[nonce] = info;
 
     LOG(debug) << "Sending database request for message " << nonce;
-    this->swarm->send_request(env, policy);
+    swarm->register_response_handler(bzn_envelope::kDatabaseResponse
+        , [weak_this = weak_from_this()](const uuid_t& /*uuid*/, const bzn_envelope& env)
+        {
+            auto strong_this = weak_this.lock();
+            if (strong_this)
+            {
+                return strong_this->handle_swarm_response(env);
+            }
+            else
+            {
+                return true;
+            }
+        });
+
+    swarm->send_request(env, policy);
 }
 
 std::string
 db_impl::swarm_status()
 {
-    return this->swarm->get_status();
+//    return this->swarm->get_status();
+    return {};
 }
 
 uint64_t
@@ -103,7 +117,7 @@ db_impl::setup_request_policy(msg_info& info, send_policy policy, nonce_t nonce)
     // should probably split into send_policy and failure_policy
     if (policy != send_policy::fastest)
     {
-        info.responses_required = this->swarm->honest_majority_size();
+        info.responses_required = info.swarm->honest_majority_size();
         info.retry_timer = this->io_context->make_unique_steady_timer();
         info.retry_timer->expires_from_now(REQUEST_RETRY_TIME);
         info.retry_timer->async_wait([weak_this = weak_from_this(), nonce](const auto& ec)
@@ -158,7 +172,7 @@ db_impl::handle_request_timeout(const boost::system::error_code& ec, nonce_t non
     });
 
     // broadcast the retry
-    this->swarm->send_request(info.request, send_policy::broadcast);
+    info.swarm->send_request(info.request, send_policy::broadcast);
 }
 
 bool
