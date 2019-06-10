@@ -78,20 +78,7 @@ db_impl::send_message_to_swarm(std::shared_ptr<swarm_base> swarm, uuid_t uuid, d
     this->messages[nonce] = info;
 
     LOG(debug) << "Sending database request for message " << nonce;
-    swarm->register_response_handler(bzn_envelope::kDatabaseResponse
-        , [weak_this = weak_from_this()](const uuid_t& /*uuid*/, const bzn_envelope& env)
-        {
-            auto strong_this = weak_this.lock();
-            if (strong_this)
-            {
-                return strong_this->handle_swarm_response(env);
-            }
-            else
-            {
-                return true;
-            }
-        });
-
+    this->register_swarm_handler(swarm);
     swarm->send_request(env, policy);
 }
 
@@ -290,4 +277,51 @@ db_impl::setup_client_timeout(nonce_t nonce, msg_info& info)
             }
         }
     });
+}
+
+void
+db_impl::has_uuid(std::shared_ptr<swarm_base> swarm, uuid_t uuid, std::function<void(db_error)> callback)
+{
+    bzn_envelope env;
+    database_msg request;
+    database_header header;
+    request.set_allocated_header(new database_header(header));
+    request.set_allocated_has_db(new database_has_db());
+
+    this->register_swarm_handler(swarm);
+    this->send_message_to_swarm(swarm, uuid, request, send_policy::normal, [uuid, callback](auto response, auto err)
+    {
+        if (err)
+        {
+            callback(db_error::database_error);
+        }
+        else
+        {
+            if (response.has_db().uuid() != uuid)
+            {
+                LOG(error) << "Invalid uuid response to has_db: " << response.has_db().uuid();
+                callback(db_error::database_error);
+            }
+
+            callback(response.has_db().has() ? db_error::success : db_error::no_database);
+        }
+    });
+}
+
+void
+db_impl::register_swarm_handler(std::shared_ptr<swarm_base> swarm)
+{
+    swarm->register_response_handler(bzn_envelope::kDatabaseResponse
+        , [weak_this = weak_from_this()](const uuid_t& /*uuid*/, const bzn_envelope& env)
+        {
+            auto strong_this = weak_this.lock();
+            if (strong_this)
+            {
+                return strong_this->handle_swarm_response(env);
+            }
+            else
+            {
+                return true;
+            }
+        });
 }

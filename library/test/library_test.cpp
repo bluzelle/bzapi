@@ -292,7 +292,7 @@ public:
 
                 bzn_envelope env2;
                 env2.set_database_response(response.SerializeAsString());
-                env2.set_sender("uuid1");
+                env2.set_sender("uuid_node");
                 env2.set_signature("xxx");
                 auto message = env2.SerializeAsString();
                 boost::asio::buffer_copy(ws.read_buffer->prepare(message.size()), boost::asio::buffer(message));

@@ -28,7 +28,10 @@ namespace
     const std::chrono::seconds STATUS_REQUEST_TIME{std::chrono::seconds(60)};
 }
 
-extern std::shared_ptr<db_impl_base> get_db_dispatcher();
+namespace bzapi
+{
+    extern std::shared_ptr<db_impl_base> get_db_dispatcher();
+}
 
 swarm::swarm(std::shared_ptr<node_factory_base> node_factory
     , std::shared_ptr<bzn::beast::websocket_base> ws_factory
@@ -61,71 +64,23 @@ swarm::has_uuid(const uuid_t& uuid, std::function<void(db_error)> callback)
 
     // TODO: should this call a static method inside db_impl? Not ideal having the swarm
     // process a database message
-    uuid_node->register_message_handler([uuid, callback, uuid_node, weak_this = weak_from_this()](const std::string& data)
+    uuid_node->register_message_handler([weak_this = weak_from_this()](const std::string& data)
     {
         auto strong_this = weak_this.lock();
         if (strong_this)
         {
-            strong_this->timeout_timer->cancel();
-
-            bzn_envelope env;
-            database_response response;
-            database_has_db_response has_db;
-            if (!env.ParseFromString(data) || !response.ParseFromString(env.database_response()))
-            {
-                LOG(error) << "Dropping invalid response to has_db: " << std::string(data, MAX_MESSAGE_SIZE);
-                callback(db_error::database_error);
-            }
-            else if (!strong_this->crypto->verify(env))
-            {
-                LOG(error) << "Dropping message with invalid signature: "
-                        << env.DebugString().substr(0, MAX_MESSAGE_SIZE);
-            }
-            else if (response.has_db().uuid() != uuid)
-            {
-                LOG(error) << "Invalid uuid response to has_db: " << std::string(data, MAX_MESSAGE_SIZE);
-                callback(db_error::database_error);
-            }
-
-            callback(response.has_db().has() ? db_error::success: db_error::no_database);
+            return strong_this->handle_node_message("uuid_node", data);
         }
-
-        uuid_node->register_message_handler([](const auto){return true;});
-        return true;
+        else
+        {
+            return true;
+        }
     });
 
-    bzn_envelope env;
-    database_msg request;
-    database_header header;
-    header.set_db_uuid(uuid);
-    header.set_nonce(1);
-    //header.set_point_of_contact();
-    request.set_allocated_header(new database_header(header));
-    request.set_allocated_has_db(new database_has_db());
-    env.set_database_msg(request.SerializeAsString());
-    env.set_swarm_id(swarm_id);
-    env.set_sender(my_uuid);
-    env.set_timestamp(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::system_clock::now().time_since_epoch()).count()));
-
-    this->crypto->sign(env);
-    auto message = env.SerializeAsString();
-    this->setup_client_timeout(uuid_node, callback);
-    uuid_node->send_message(message, [callback, uuid, weak_this = weak_from_this()](const auto& ec)
+    auto dispatcher = get_db_dispatcher();
+    dispatcher->has_uuid(shared_from_this(), uuid, [callback](auto res)
     {
-        if (ec)
-        {
-            auto strong_this = weak_this.lock();
-            if (strong_this)
-            {
-                strong_this->timeout_timer->cancel();
-            }
-
-            LOG(error) << "Error sending has_db(" << uuid << ") request: " << ec.message();
-            callback(db_error::connection_error);
-        }
-
-        return true;
+        callback(res);
     });
 }
 
