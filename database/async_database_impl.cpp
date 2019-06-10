@@ -26,7 +26,6 @@ namespace bzapi
 async_database_impl::async_database_impl(std::shared_ptr<db_impl_base> db_impl, std::shared_ptr<swarm_base> swarm, uuid_t uuid)
 : db_impl(db_impl), swarm(swarm), uuid(uuid)
 {
-    std::cout << "here" << std::endl;
 }
 
 async_database_impl::~async_database_impl()

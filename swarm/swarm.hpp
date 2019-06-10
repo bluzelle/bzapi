@@ -18,6 +18,7 @@
 #include <swarm/swarm_base.hpp>
 #include <crypto/crypto_base.hpp>
 #include <node/node_base.hpp>
+#include <utils/peer_address.hpp>
 
 namespace bzapi
 {
@@ -32,7 +33,7 @@ namespace bzapi
         swarm(std::shared_ptr<node_factory_base> node_factory
             , std::shared_ptr<bzn::beast::websocket_base> ws_factory
             , std::shared_ptr<bzn::asio::io_context_base> io_context
-            , std::shared_ptr<crypto_base> crypto, const endpoint_t& initial_endpoint
+            , std::shared_ptr<crypto_base> crypto, const bzn::peer_address_t& initial_endpoint
             , const swarm_id_t& swarm_id
             , const uuid_t& uuid);
 
@@ -69,7 +70,7 @@ namespace bzapi
         std::shared_ptr<bzn::beast::websocket_base> ws_factory;
         std::shared_ptr<bzn::asio::io_context_base> io_context;
         std::shared_ptr<crypto_base> crypto;
-        endpoint_t initial_endpoint;
+        bzn::peer_address_t initial_endpoint;
         swarm_id_t swarm_id;
         uuid_t my_uuid;
         std::shared_ptr<std::unordered_map<uuid_t, node_info>> nodes;
@@ -82,8 +83,6 @@ namespace bzapi
         completion_handler_t init_handler = nullptr;
         std::string private_key;
         std::shared_ptr<bzn::asio::steady_timer_base> timeout_timer;
-
-        std::pair<std::string, uint16_t> parse_endpoint(const std::string& endpoint);
 
         bool handle_status_response(const uuid_t& uuid, const bzn_envelope& response);
 

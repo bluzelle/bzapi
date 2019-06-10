@@ -14,11 +14,11 @@
 //
 
 #include <swarm.hpp>
-#include <boost/lexical_cast.hpp>
 #include <json/json.h>
 #include <bluzelle.hpp>
 #include <boost/format.hpp>
 #include <proto/database.pb.h>
+#include <database/db_impl_base.hpp>
 
 using namespace bzapi;
 
@@ -28,11 +28,13 @@ namespace
     const std::chrono::seconds STATUS_REQUEST_TIME{std::chrono::seconds(60)};
 }
 
+extern std::shared_ptr<db_impl_base> get_db_dispatcher();
+
 swarm::swarm(std::shared_ptr<node_factory_base> node_factory
     , std::shared_ptr<bzn::beast::websocket_base> ws_factory
     , std::shared_ptr<bzn::asio::io_context_base> io_context
     , std::shared_ptr<crypto_base> crypto
-    , const endpoint_t& initial_endpoint
+    , const bzn::peer_address_t& initial_endpoint
     , const swarm_id_t& swarm_id
     , const uuid_t& uuid)
 : node_factory(std::move(node_factory)), ws_factory(std::move(ws_factory)), io_context(std::move(io_context))
@@ -48,12 +50,12 @@ swarm::~swarm()
 void
 swarm::has_uuid(const uuid_t& uuid, std::function<void(db_error)> callback)
 {
-    auto endpoint = this->parse_endpoint(initial_endpoint);
-    auto uuid_node = node_factory->create_node(io_context, ws_factory, endpoint.first, endpoint.second);
+    auto uuid_node = node_factory->create_node(io_context, ws_factory
+        , this->initial_endpoint.host, this->initial_endpoint.port);
     node_info info;
     info.node = uuid_node;
-    info.host = endpoint.first;
-    info.port = endpoint.second;
+    info.host = this->initial_endpoint.host;
+    info.port = this->initial_endpoint.port;
     this->nodes = std::make_shared<std::unordered_map<uuid_t, node_info>>();
     (*this->nodes)[uuid_t{"uuid_node"}] = info;
 
@@ -131,12 +133,11 @@ swarm::has_uuid(const uuid_t& uuid, std::function<void(db_error)> callback)
 void
 swarm::create_uuid(const uuid_t& uuid, uint64_t max_size, bool random_evict, std::function<void(db_error)> callback)
 {
-    auto endpoint = this->parse_endpoint(initial_endpoint);
-    auto uuid_node = node_factory->create_node(io_context, ws_factory, endpoint.first, endpoint.second);
+    auto uuid_node = node_factory->create_node(io_context, ws_factory, this->initial_endpoint.host, this->initial_endpoint.port);
     node_info info;
     info.node = uuid_node;
-    info.host = endpoint.first;
-    info.port = endpoint.second;
+    info.host = this->initial_endpoint.host;
+    info.port = this->initial_endpoint.port;
     this->nodes = std::make_shared<std::unordered_map<uuid_t, node_info>>();
     (*this->nodes)[uuid_t{"uuid_node"}] = info;
 
@@ -235,8 +236,7 @@ swarm::initialize(completion_handler_t handler)
             return true;
         });
 
-    auto endpoint = this->parse_endpoint(initial_endpoint);
-    auto initial_node = node_factory->create_node(this->io_context, this->ws_factory, endpoint.first, endpoint.second);
+    auto initial_node = node_factory->create_node(this->io_context, this->ws_factory, this->initial_endpoint.host, this->initial_endpoint.port);
     initial_node->register_message_handler([weak_this = weak_from_this()](const std::string& data)->bool
     {
         auto strong_this = weak_this.lock();
@@ -250,7 +250,7 @@ swarm::initialize(completion_handler_t handler)
         }
     });
 
-    node_info info{initial_node, endpoint.first, endpoint.second};
+    node_info info{initial_node, this->initial_endpoint.host, this->initial_endpoint.port};
     info.status_timer = this->io_context->make_unique_steady_timer();
     (*this->nodes)[INITIAL_NODE] = info;
     this->primary_node = INITIAL_NODE;
@@ -519,35 +519,6 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
     }
 
     return res;
-}
-
-std::pair<std::string, uint16_t>
-swarm::parse_endpoint(const std::string& endpoint)
-{
-    // format should be ws://n.n.n.n:p
-    // TODO: support for hostnames
-    std::string addr;
-    uint64_t port;
-
-    auto offset = endpoint.find(':', 5);
-    if (offset > endpoint.size() || endpoint.substr(0, 5) != "ws://")
-    {
-        LOG(error) << "bad swarm node endpoint: " << endpoint;
-        throw(std::runtime_error("bad node endpoint: " + endpoint));
-    }
-
-    try
-    {
-        addr = endpoint.substr(5, offset - 5);
-        port = boost::lexical_cast<uint16_t>(endpoint.substr(offset + 1).c_str());
-    }
-    catch (boost::bad_lexical_cast &)
-    {
-        LOG(error) << "bad swarm node endpoint: " << endpoint;
-        throw(std::runtime_error("bad node endpoint: " + endpoint));
-    }
-
-    return std::make_pair(addr, port);
 }
 
 void
