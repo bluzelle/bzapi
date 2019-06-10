@@ -175,9 +175,10 @@ swarm_factory::get_or_create_swarm(const swarm_id_t& swarm_id)
     {
         auto nodes = this->swarm_reg->get_nodes(swarm_id);
         assert(!nodes.empty());
-        sw = std::make_shared<swarm>(this->node_factory, this->ws_factory, this->io_context, this->crypto
+        auto swm = std::make_shared<swarm>(this->node_factory, this->ws_factory, this->io_context, this->crypto
             , nodes.front().second, swarm_id, this->my_uuid);
         this->swarm_reg->set_swarm(swarm_id, sw);
+        return swm;
     }
 
     return std::shared_ptr<swarm_base>{sw};

@@ -194,7 +194,7 @@ public:
         ws_factory = mock_ws_factory;
         the_swarm_factory = std::make_shared<swarm_factory>(io_context, ws_factory, the_crypto, this->uuid);
         std::vector<std::pair<node_id_t, bzn::peer_address_t>> addrs;
-        addrs.push_back(std::make_pair(node_id_t{""}, bzn::peer_address_t{"127.0.0.01", 50000, 0, "", ""}));
+        addrs.push_back(std::make_pair(node_id_t{""}, bzn::peer_address_t{"127.0.0.1", 50000, 0, "", ""}));
         the_swarm_factory->initialize("", addrs);
         bzapi::initialized = true;
     }
