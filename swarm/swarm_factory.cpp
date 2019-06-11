@@ -23,6 +23,10 @@
 // it's the same uuid.
 // This will be fixed in an upcoming sprint.
 
+namespace bzapi
+{
+    extern std::shared_ptr<db_impl_base> get_db_dispatcher();
+}
 
 using namespace bzapi;
 
@@ -102,7 +106,8 @@ swarm_factory::has_db(const uuid_t& uuid, std::function<void(db_error, std::shar
     for (const auto& elem : swarms)
     {
         auto sw = this->get_or_create_swarm(elem);
-        sw->has_uuid(uuid, [weak_this = weak_from_this(), uuid, sw_id = elem, count, callback, sw](auto err)
+        get_db_dispatcher()->has_uuid(sw, uuid
+            , [weak_this = weak_from_this(), uuid, sw_id = elem, count, callback, sw](auto err)
         {
             (*count)--;
             if (err == db_error::success)
@@ -154,26 +159,25 @@ swarm_factory::create_db(const uuid_t& db_uuid, uint64_t max_size, bool random_e
             auto sw_id = swarms.front();
             auto sw = strong_this->get_or_create_swarm(sw_id);
 
-            sw->create_uuid(db_uuid, max_size, random_evict
+            get_db_dispatcher()->create_uuid(sw, db_uuid, max_size, random_evict
                 , [callback, sw, sw_id, weak_this, db_uuid](auto err)
+            {
+                if (err == db_error::success)
                 {
-                    if (err == db_error::success)
+                    auto strong_this = weak_this.lock();
+                    if (strong_this)
                     {
-                        auto strong_this = weak_this.lock();
-                        if (strong_this)
-                        {
-                            strong_this->swarm_dbs[db_uuid] = sw_id;
-                        }
-                        callback(err, sw);
+                        strong_this->swarm_dbs[db_uuid] = sw_id;
                     }
-                    else
-                    {
-                        callback(err, nullptr);
-                    }
-                });
+                    callback(err, sw);
+                }
+                else
+                {
+                    callback(err, nullptr);
+                }
+            });
         }
     });
-
 }
 
 void
@@ -205,7 +209,7 @@ swarm_factory::get_or_create_swarm(const swarm_id_t& swarm_id)
         auto nodes = this->swarm_reg->get_nodes(swarm_id);
         assert(!nodes.empty());
         auto swm = std::make_shared<swarm>(this->node_factory, this->ws_factory, this->io_context, this->crypto
-            , nodes.front().second, swarm_id, this->my_uuid);
+            , nodes, swarm_id, this->my_uuid);
         this->swarm_reg->set_swarm(swarm_id, sw);
         return swm;
     }

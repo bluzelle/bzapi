@@ -19,6 +19,7 @@
 #include <boost/format.hpp>
 #include <proto/database.pb.h>
 #include <database/db_impl_base.hpp>
+#include <utils/peer_address.hpp>
 
 using namespace bzapi;
 
@@ -28,21 +29,30 @@ namespace
     const std::chrono::seconds STATUS_REQUEST_TIME{std::chrono::seconds(60)};
 }
 
-namespace bzapi
-{
-    extern std::shared_ptr<db_impl_base> get_db_dispatcher();
-}
-
 swarm::swarm(std::shared_ptr<node_factory_base> node_factory
     , std::shared_ptr<bzn::beast::websocket_base> ws_factory
     , std::shared_ptr<bzn::asio::io_context_base> io_context
     , std::shared_ptr<crypto_base> crypto
-    , const bzn::peer_address_t& initial_endpoint
+    , const std::vector<std::pair<node_id_t, bzn::peer_address_t>>& initial_nodes
     , const swarm_id_t& swarm_id
     , const uuid_t& uuid)
 : node_factory(std::move(node_factory)), ws_factory(std::move(ws_factory)), io_context(std::move(io_context))
-    , crypto(std::move(crypto)), initial_endpoint(initial_endpoint), swarm_id(swarm_id), my_uuid(uuid)
+    , crypto(std::move(crypto)), swarm_id(swarm_id), my_uuid(uuid)
 {
+    if (initial_nodes.empty())
+    {
+        throw(std::runtime_error("Attempt to create swarm with no nodes"));
+    }
+
+    this->nodes = std::make_shared<std::unordered_map<uuid_t, node_info>>();
+    for (auto node : initial_nodes)
+    {
+        this->add_node(node.first, node.second);
+    }
+
+    // until we have status...
+    this->primary_node = initial_nodes.front().first;
+    this->fastest_node = this->primary_node;
 }
 
 swarm::~swarm()
@@ -50,6 +60,7 @@ swarm::~swarm()
     node_factory = nullptr;
 }
 
+#if 0
 void
 swarm::has_uuid(const uuid_t& uuid, std::function<void(db_error)> callback)
 {
@@ -113,83 +124,8 @@ swarm::create_uuid(const uuid_t& uuid, uint64_t max_size, bool random_evict, std
     {
         callback(res);
     });
-
-//    auto uuid_node = node_factory->create_node(io_context, ws_factory, this->initial_endpoint.host, this->initial_endpoint.port);
-//    node_info info;
-//    info.node = uuid_node;
-//    info.host = this->initial_endpoint.host;
-//    info.port = this->initial_endpoint.port;
-//    this->nodes = std::make_shared<std::unordered_map<uuid_t, node_info>>();
-//    (*this->nodes)[uuid_t{"uuid_node"}] = info;
-//
-//    // TODO: should this call a static method inside db_impl? Not ideal having the swarm
-//    // process a database message
-//    uuid_node->register_message_handler([weak_this = weak_from_this(), uuid, callback, uuid_node](const std::string& data)
-//    {
-//        auto strong_this = weak_this.lock();
-//        if (strong_this)
-//        {
-//            strong_this->timeout_timer->cancel();
-//
-//            bzn_envelope env;
-//            database_response response;
-//            if (!env.ParseFromString(data) || !response.ParseFromString(env.database_response()))
-//            {
-//                LOG(error) << "Dropping invalid response to has_db: " << std::string(data, MAX_MESSAGE_SIZE);
-//                callback(db_error::database_error);
-//            }
-//            else if (!strong_this->crypto->verify(env))
-//            {
-//                LOG(error) << "Dropping message with invalid signature: " << env.DebugString().substr(0, MAX_MESSAGE_SIZE);
-//            }
-//
-//            callback(response.has_error() ? db_error::database_error : db_error::success);
-//        }
-//
-//        uuid_node->register_message_handler([](const auto){return true;});
-//        return true;
-//    });
-//
-//    database_create_db db_msg;
-//    db_msg.set_eviction_policy(random_evict ? database_create_db::RANDOM : database_create_db::NONE);
-//    db_msg.set_max_size(max_size);
-//
-//    database_header header;
-//    header.set_db_uuid(uuid);
-//    header.set_nonce(1);
-//
-//    database_msg msg;
-//    msg.set_allocated_header(new database_header(header));
-//    msg.set_allocated_create_db(new database_create_db(db_msg));
-//
-//    bzn_envelope env;
-//    env.set_database_msg(msg.SerializeAsString());
-//    env.set_swarm_id(swarm_id);
-//    env.set_sender(my_uuid);
-//    env.set_swarm_id(swarm_id);
-//    env.set_timestamp(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
-//        std::chrono::system_clock::now().time_since_epoch()).count()));
-//    this->crypto->sign(env);
-//
-//    auto message = env.SerializeAsString();
-//    this->setup_client_timeout(uuid_node, callback);
-//    uuid_node->send_message(message, [callback, uuid, weak_this = weak_from_this()](const auto& ec)
-//    {
-//        if (ec)
-//        {
-//            auto strong_this = weak_this.lock();
-//            if (strong_this)
-//            {
-//                strong_this->timeout_timer->cancel();
-//            }
-//
-//            LOG(error) << "Error sending has_db(" << uuid << ") request: " << ec.message();
-//            callback(db_error::connection_error);
-//        }
-//
-//        return true;
-//    });
 }
+#endif
 
 void
 swarm::initialize(completion_handler_t handler)
@@ -199,10 +135,9 @@ swarm::initialize(completion_handler_t handler)
         handler(boost::system::error_code{});
         return;
     }
-    this->init_called = true;
 
+    this->init_called = true;
     this->init_handler = handler;
-    this->nodes = std::make_shared<std::unordered_map<uuid_t, node_info>>();
 
     // we handle status messaages internally. don't hold reference to self...
     this->register_response_handler(bzn_envelope::kStatusResponse
@@ -217,27 +152,11 @@ swarm::initialize(completion_handler_t handler)
             return true;
         });
 
-    auto initial_node = node_factory->create_node(this->io_context, this->ws_factory, this->initial_endpoint.host, this->initial_endpoint.port);
-    initial_node->register_message_handler([weak_this = weak_from_this()](const std::string& data)->bool
+    // request status from all nodes
+    for (auto info : *(this->nodes))
     {
-        auto strong_this = weak_this.lock();
-        if (strong_this)
-        {
-            return strong_this->handle_node_message(INITIAL_NODE, data);
-        }
-        else
-        {
-            return true;
-        }
-    });
-
-    node_info info{initial_node, this->initial_endpoint.host, this->initial_endpoint.port};
-    info.status_timer = this->io_context->make_unique_steady_timer();
-    (*this->nodes)[INITIAL_NODE] = info;
-    this->primary_node = INITIAL_NODE;
-    this->fastest_node = INITIAL_NODE;
-
-    this->send_status_request(INITIAL_NODE);
+        this->send_status_request(info.first);
+    }
 }
 
 int
@@ -394,64 +313,14 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
             auto info = (*this->nodes)[node_uuid];
             if (!info.node)
             {
-                // check for initial_node
-                if (uuid == INITIAL_NODE && node["host"].asString() == (*this->nodes)[INITIAL_NODE].host
-                    && node["port"].asUInt() == (*this->nodes)[INITIAL_NODE].port)
-                {
-                    LOG(debug) << "status: updating initial node";
-                    info = (*this->nodes)[INITIAL_NODE];
-
-                    // re-register with it's real uuid
-                    assert(info.node);
-
-                    info.node->register_message_handler([weak_this = weak_from_this(), node_uuid](const std::string& data)->bool
-                    {
-                        auto strong_this = weak_this.lock();
-                        if (strong_this)
-                        {
-                            return strong_this->handle_node_message(node_uuid, data);
-                        }
-                        else
-                        {
-                            return true;
-                        }
-                    });
-
-                    // update to real uuid
-                    fastest_node_so_far = node_uuid;
-                }
-                else
-                {
-                    // refactor
-                    info.host = node["host"].asString();
-                    info.port = node["port"].asUInt();
-
-                    LOG(debug) << "status: adding node: " << info.host << ":" << info.port;
-
-                    info.node = this->node_factory->create_node(this->io_context, this->ws_factory, info.host,
-                        info.port);
-
-                    info.node->register_message_handler([weak_this = weak_from_this(), node_uuid](const std::string& data)->bool
-                    {
-                        auto strong_this = weak_this.lock();
-                        if (strong_this)
-                        {
-                            return strong_this->handle_node_message(node_uuid, data);
-                        }
-                        else
-                        {
-                            return true;
-                        }
-                    });
-
-                    info.status_timer = this->io_context->make_unique_steady_timer();
-                    new_uuids.push_back(node_uuid);
-                }
+                uint16_t port = node["port"].asUInt();
+                this->add_node(node_uuid
+                    , bzn::peer_address_t{node["host"].asString(), port, 0, "", node_uuid});
+                new_uuids.push_back(node_uuid);
             }
 
             // is this the node we received this response from?
-            if (node_uuid == uuid || (uuid == INITIAL_NODE && info.host == (*this->nodes)[INITIAL_NODE].host
-                                      && info.port == (*this->nodes)[INITIAL_NODE].port))
+            if (node_uuid == uuid)
             {
                 // store its response time
                 info.last_status_duration = this_node_duration;
@@ -487,12 +356,13 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
         this->last_status = status;
 
         // kick off status requests for newly added nodes
-        for (auto n : new_uuids)
+        for (const auto& n : new_uuids)
         {
             this->send_status_request(n);
         }
     }
 
+    // initialization is done once we've received one status response
     if (this->init_handler)
     {
         this->init_handler(boost::system::error_code{});
@@ -600,6 +470,33 @@ swarm::setup_client_timeout(std::shared_ptr<node_base> node, std::function<void(
             LOG(warning) << "Request timeout querying swarm";
             callback(db_error::timeout_error);
             node->register_message_handler([](const auto){return true;});
+        }
+    });
+}
+
+void
+swarm::add_node(const node_id_t& node_id, const bzn::peer_address_t& addr)
+{
+    node_info info;
+    info.node = node_factory->create_node(io_context, ws_factory, addr.host, addr.port);
+    info.host = addr.host;
+    info.port = addr.port;
+    info.status_timer = this->io_context->make_unique_steady_timer();
+    this->nodes = std::make_shared<std::unordered_map<uuid_t, node_info>>();
+    (*this->nodes)[node_id] = info;
+
+    LOG(debug) << "status: adding node: " << info.host << ":" << info.port;
+
+    info.node->register_message_handler([weak_this = weak_from_this()](const std::string& data)
+    {
+        auto strong_this = weak_this.lock();
+        if (strong_this)
+        {
+            return strong_this->handle_node_message("uuid_node", data);
+        }
+        else
+        {
+            return true;
         }
     });
 }
