@@ -37,8 +37,6 @@ namespace bzapi
 
         void send_message_to_swarm(std::shared_ptr<swarm_base> swarm, uuid_t uuid, database_msg& msg, send_policy policy, db_response_handler_t handler) override;
 
-        std::string swarm_status() override;
-
     private:
         using nonce_t = uint64_t;
 

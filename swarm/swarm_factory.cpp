@@ -68,14 +68,6 @@ swarm_factory::initialize(const swarm_id_t& default_swarm, const std::vector<std
 void
 swarm_factory::get_swarm(const uuid_t& db_uuid, std::function<void(std::shared_ptr<swarm_base>)> callback)
 {
-    auto it = this->swarm_dbs.find(db_uuid);
-    if (it != this->swarm_dbs.end())
-    {
-        auto swarm = this->get_or_create_swarm(it->second);
-        callback(swarm);
-    }
-
-    // find the swarm if we don't have it
     this->has_db(db_uuid, [&](auto /*err*/, auto sw)
     {
         // TODO: propagate the error
@@ -183,21 +175,24 @@ swarm_factory::create_db(const uuid_t& db_uuid, uint64_t max_size, bool random_e
 void
 swarm_factory::update_swarm_registry()
 {
-    auto sw_reg = std::make_shared<swarm_registry>();
-    auto swarm_list = bzn::utils::esr::get_swarm_ids(esr_address, esr_url);
-    for (auto sw_id : swarm_list)
+    if (!this->esr_address.empty() && !this->esr_url.empty())
     {
-        auto node_list = bzn::utils::esr::get_peer_ids(sw_id, esr_address, esr_url);
-        for (auto node : node_list)
+        auto sw_reg = std::make_shared<swarm_registry>();
+        auto swarm_list = bzn::utils::esr::get_swarm_ids(esr_address, esr_url);
+        for (auto sw_id : swarm_list)
         {
-            auto ep = bzn::utils::esr::get_peer_info(sw_id, node, esr_address, esr_url);
-            sw_reg->add_node(sw_id, node, ep);
-            sw_reg->set_swarm(sw_id, this->swarm_reg->get_swarm(sw_id));
+            auto node_list = bzn::utils::esr::get_peer_ids(sw_id, esr_address, esr_url);
+            for (auto node : node_list)
+            {
+                auto ep = bzn::utils::esr::get_peer_info(sw_id, node, esr_address, esr_url);
+                sw_reg->add_node(sw_id, node, ep);
+                sw_reg->set_swarm(sw_id, this->swarm_reg->get_swarm(sw_id));
+            }
         }
-    }
 
-    // lock here?
-    this->swarm_reg = sw_reg;
+        // lock here?
+        this->swarm_reg = sw_reg;
+    }
 }
 
 std::shared_ptr<swarm_base>

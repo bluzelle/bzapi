@@ -66,10 +66,6 @@ private:
         void has_db(const uuid_t& uuid, std::function<void(db_error, std::shared_ptr<swarm_base>)>);
         void create_db(const uuid_t& uuid, uint64_t max_size, bool random_evict, std::function<void(db_error, std::shared_ptr<swarm_base>)>);
 
-//        void temporary_set_default_endpoint(const endpoint_t& endpoint, const swarm_id_t& swarm_id);
-
-        void update_swarm_registry();
-
     private:
         std::shared_ptr<bzn::asio::io_context_base> io_context;
         std::shared_ptr<bzn::beast::websocket_base> ws_factory;
@@ -80,14 +76,9 @@ private:
         std::string esr_address;
         std::string esr_url;
         bool initialized = false;
-
-
         std::map<uuid_t, swarm_id_t> swarm_dbs;
 
-        std::map<endpoint_t, std::weak_ptr<swarm_base>> swarms;
-        std::set<std::pair<endpoint_t, swarm_id_t>> endpoints;
-
-        std::shared_ptr<swarm_base> get_default_swarm();
         std::shared_ptr<swarm_base> get_or_create_swarm(const swarm_id_t& swarm_id);
-    };
+        void update_swarm_registry();
+};
 }

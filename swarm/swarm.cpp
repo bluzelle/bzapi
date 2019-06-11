@@ -60,73 +60,6 @@ swarm::~swarm()
     node_factory = nullptr;
 }
 
-#if 0
-void
-swarm::has_uuid(const uuid_t& uuid, std::function<void(db_error)> callback)
-{
-    auto uuid_node = node_factory->create_node(io_context, ws_factory
-        , this->initial_endpoint.host, this->initial_endpoint.port);
-    node_info info;
-    info.node = uuid_node;
-    info.host = this->initial_endpoint.host;
-    info.port = this->initial_endpoint.port;
-    this->nodes = std::make_shared<std::unordered_map<uuid_t, node_info>>();
-    (*this->nodes)[uuid_t{"uuid_node"}] = info;
-
-    uuid_node->register_message_handler([weak_this = weak_from_this()](const std::string& data)
-    {
-        auto strong_this = weak_this.lock();
-        if (strong_this)
-        {
-            return strong_this->handle_node_message("uuid_node", data);
-        }
-        else
-        {
-            return true;
-        }
-    });
-
-    auto dispatcher = get_db_dispatcher();
-    dispatcher->has_uuid(shared_from_this(), uuid, [callback](auto res)
-    {
-        callback(res);
-    });
-}
-
-// TODO: refactor
-void
-swarm::create_uuid(const uuid_t& uuid, uint64_t max_size, bool random_evict, std::function<void(db_error)> callback)
-{
-    auto uuid_node = node_factory->create_node(io_context, ws_factory
-        , this->initial_endpoint.host, this->initial_endpoint.port);
-    node_info info;
-    info.node = uuid_node;
-    info.host = this->initial_endpoint.host;
-    info.port = this->initial_endpoint.port;
-    this->nodes = std::make_shared<std::unordered_map<uuid_t, node_info>>();
-    (*this->nodes)[uuid_t{"create_node"}] = info;
-
-    uuid_node->register_message_handler([weak_this = weak_from_this()](const std::string& data)
-    {
-        auto strong_this = weak_this.lock();
-        if (strong_this)
-        {
-            return strong_this->handle_node_message("create_node", data);
-        }
-        else
-        {
-            return true;
-        }
-    });
-
-    auto dispatcher = get_db_dispatcher();
-    dispatcher->create_uuid(shared_from_this(), uuid, max_size, random_evict, [callback](auto res)
-    {
-        callback(res);
-    });
-}
-#endif
-
 void
 swarm::initialize(completion_handler_t handler)
 {
@@ -139,7 +72,7 @@ swarm::initialize(completion_handler_t handler)
     this->init_called = true;
     this->init_handler = handler;
 
-    // we handle status messaages internally. don't hold reference to self...
+    // we handle status messages internally
     this->register_response_handler(bzn_envelope::kStatusResponse
         , [weak_this = weak_from_this()](const uuid_t& uuid, const bzn_envelope& response)
         {

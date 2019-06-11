@@ -88,7 +88,7 @@ async_database_impl::translate_swarm_response(const database_response& db_respon
 std::string
 async_database_impl::swarm_status()
 {
-    return this->db_impl->swarm_status();
+    return this->swarm->get_status();
 }
 
 void

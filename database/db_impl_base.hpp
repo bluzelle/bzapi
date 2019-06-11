@@ -32,7 +32,6 @@ namespace bzapi
         virtual void create_uuid(std::shared_ptr<swarm_base> swarm, uuid_t uuid, uint64_t max_size, bool random_evict, std::function<void(db_error)> callback) = 0;
 
         virtual void send_message_to_swarm(std::shared_ptr<swarm_base> swarm, uuid_t uuid, database_msg& msg, send_policy policy, db_response_handler_t handler) = 0;
-        virtual std::string swarm_status() = 0;
     };
 
 }

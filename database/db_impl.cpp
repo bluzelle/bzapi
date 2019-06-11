@@ -82,13 +82,6 @@ db_impl::send_message_to_swarm(std::shared_ptr<swarm_base> swarm, uuid_t uuid, d
     swarm->send_request(env, policy);
 }
 
-std::string
-db_impl::swarm_status()
-{
-//    return this->swarm->get_status();
-    return {};
-}
-
 uint64_t
 db_impl::now() const
 {
