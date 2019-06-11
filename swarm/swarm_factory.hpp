@@ -62,8 +62,8 @@ private:
         void initialize(const std::string& esr_address, const std::string& url);
         void initialize(const swarm_id_t& default_swarm, const std::vector<std::pair<node_id_t, bzn::peer_address_t>>& nodes);
 
-        void get_swarm(const uuid_t& uuid, std::function<void(db_error, std::shared_ptr<swarm_base>)>);
-        void has_db(const uuid_t& uuid, std::function<void(std::shared_ptr<swarm_base>)>);
+        void get_swarm(const uuid_t& uuid, std::function<void(std::shared_ptr<swarm_base>)>);
+        void has_db(const uuid_t& uuid, std::function<void(db_error, std::shared_ptr<swarm_base>)>);
         void create_db(const uuid_t& uuid, uint64_t max_size, bool random_evict, std::function<void(db_error, std::shared_ptr<swarm_base>)>);
 
 //        void temporary_set_default_endpoint(const endpoint_t& endpoint, const swarm_id_t& swarm_id);

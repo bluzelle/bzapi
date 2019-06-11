@@ -72,8 +72,9 @@ swarm_factory::get_swarm(const uuid_t& db_uuid, std::function<void(std::shared_p
     }
 
     // find the swarm if we don't have it
-    this->has_db(db_uuid, [&](auto sw)
+    this->has_db(db_uuid, [&](auto /*err*/, auto sw)
     {
+        // TODO: propagate the error
         callback(sw);
     });
 }
@@ -136,7 +137,7 @@ swarm_factory::create_db(const uuid_t& db_uuid, uint64_t max_size, bool random_e
     }
 
     // first we need to make sure this uuid doesn't already exist in a swarm
-    this->has_db(db_uuid, [callback, weak_this = weak_from_this(), db_uuid, max_size, random_evict](auto sw)
+    this->has_db(db_uuid, [callback, weak_this = weak_from_this(), db_uuid, max_size, random_evict](auto /*err*/, auto sw)
     {
         if (sw)
         {

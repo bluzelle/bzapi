@@ -164,7 +164,7 @@ namespace bzapi
             {
                 std::string uuidstr{uuid};
                 auto resp = make_response();
-                the_swarm_factory->has_db(uuid, [resp, uuidstr](auto res)
+                the_swarm_factory->has_db(uuid, [resp, uuidstr](auto /*err*/, auto res)
                 {
                     Json::Value result;
                     result["result"] = res ? 1 : 0;
@@ -194,7 +194,7 @@ namespace bzapi
             {
                 std::string uuidstr{uuid};
                 auto resp = make_response();
-                the_swarm_factory->has_db(uuidstr, [resp, uuidstr, max_size, random_evict](auto res)
+                the_swarm_factory->has_db(uuidstr, [resp, uuidstr, max_size, random_evict](auto /*err*/, auto res)
                 {
                     if (res == nullptr)
                     {
@@ -277,7 +277,7 @@ namespace bzapi
             {
                 std::string uuidstr{uuid};
                 auto resp = make_response();
-                the_swarm_factory->has_db(uuidstr, [resp, uuidstr](auto sw)
+                the_swarm_factory->has_db(uuidstr, [resp, uuidstr](auto /*err*/, auto sw)
                 {
                     if (sw)
                     {
