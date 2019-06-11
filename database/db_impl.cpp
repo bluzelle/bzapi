@@ -309,6 +309,38 @@ db_impl::has_uuid(std::shared_ptr<swarm_base> swarm, uuid_t uuid, std::function<
 }
 
 void
+db_impl::create_uuid(std::shared_ptr<swarm_base> swarm, uuid_t uuid, uint64_t max_size, bool random_evict, std::function<void(db_error)> callback)
+{
+    bzn_envelope env;
+    database_msg request;
+    database_header header;
+    request.set_allocated_header(new database_header(header));
+    database_create_db create;
+    create.set_max_size(max_size);
+    create.set_eviction_policy(random_evict ? database_create_db_eviction_policy_type_RANDOM
+        : database_create_db_eviction_policy_type_NONE);
+    request.set_allocated_create_db(new database_create_db(create));
+
+    this->register_swarm_handler(swarm);
+    this->send_message_to_swarm(swarm, uuid, request, send_policy::normal, [uuid, callback](auto response, auto err)
+    {
+        if (err)
+        {
+            callback(db_error::database_error);
+        }
+        else
+        {
+            if (response.has_error())
+            {
+                callback(db_error::database_error);
+            }
+
+            callback(db_error::success);
+        }
+    });
+}
+
+void
 db_impl::register_swarm_handler(std::shared_ptr<swarm_base> swarm)
 {
     swarm->register_response_handler(bzn_envelope::kDatabaseResponse

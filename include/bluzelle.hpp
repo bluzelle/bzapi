@@ -70,9 +70,11 @@ namespace bzapi
     enum class db_error
     {
         success = 0,
+        uninitialized,
         connection_error,
         database_error,
         timeout_error,
+        already_exists,
         no_database
     };
 

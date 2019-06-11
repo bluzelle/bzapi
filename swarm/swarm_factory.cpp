@@ -79,43 +79,20 @@ swarm_factory::get_swarm(const uuid_t& db_uuid, std::function<void(std::shared_p
 }
 
 void
-swarm_factory::create_db(const uuid_t& db_uuid, uint64_t max_size, bool random_evict
-    , std::function<void(db_error, std::shared_ptr<swarm_base>)> callback)
+swarm_factory::has_db(const uuid_t& uuid, std::function<void(db_error, std::shared_ptr<swarm_base>)> callback)
 {
-    // TODO: init check
-
-    // for now we will just use the first (only) swarm in our list
-    // TODO: find best swarm for the new db
-
-    auto swarms = this->swarm_reg->get_swarms();
-    auto sw_id = swarms.front();
-    auto sw = this->get_or_create_swarm(sw_id);
-
-    sw->create_uuid(db_uuid, max_size, random_evict, [callback, sw, sw_id, weak_this = weak_from_this(), db_uuid](auto err)
+    if (!this->initialized)
     {
-        if (err == db_error::success)
-        {
-            auto strong_this = weak_this.lock();
-            if (strong_this)
-            {
-                strong_this->swarm_dbs[db_uuid] = sw_id;
-            }
-            callback(err, sw);
-        }
-        else
-        {
-            callback(err, nullptr);
-        }
-    });
-}
+        // how do we propagate the error?
+        callback(db_error::uninitialized, nullptr);
+        return;
+    }
 
-void
-swarm_factory::has_db(const uuid_t& uuid, std::function<void(std::shared_ptr<swarm_base>)> callback)
-{
     auto it = this->swarm_dbs.find(uuid);
     if (it != this->swarm_dbs.end())
     {
-        callback(this->get_or_create_swarm(it->second));
+        auto sw = this->get_or_create_swarm(it->second);
+        callback(sw ? db_error::success : db_error::database_error, sw);
         return;
     }
 
@@ -134,17 +111,68 @@ swarm_factory::has_db(const uuid_t& uuid, std::function<void(std::shared_ptr<swa
                 {
                     strong_this->swarm_dbs[uuid] = sw_id;
                 }
-                callback(sw);
+                callback(db_error::success, sw);
             }
             else
             {
                 if (!(*count))
                 {
-                    callback(nullptr);
+                    callback(db_error::no_database, nullptr);
                 }
             }
         });
     }
+}
+
+void
+swarm_factory::create_db(const uuid_t& db_uuid, uint64_t max_size, bool random_evict
+    , std::function<void(db_error, std::shared_ptr<swarm_base>)> callback)
+{
+    if (!this->initialized)
+    {
+        // how do we propagate the error?
+        callback(db_error::uninitialized, nullptr);
+        return;
+    }
+
+    // first we need to make sure this uuid doesn't already exist in a swarm
+    this->has_db(db_uuid, [callback, weak_this = weak_from_this(), db_uuid, max_size, random_evict](auto sw)
+    {
+        if (sw)
+        {
+            callback(db_error::already_exists, nullptr);
+            return;
+        }
+
+        auto strong_this = weak_this.lock();
+        if (strong_this)
+        {
+            // TODO: find best swarm for the new db
+            // for now we will just use the first (only) swarm in our list
+            auto swarms = strong_this->swarm_reg->get_swarms();
+            auto sw_id = swarms.front();
+            auto sw = strong_this->get_or_create_swarm(sw_id);
+
+            sw->create_uuid(db_uuid, max_size, random_evict
+                , [callback, sw, sw_id, weak_this, db_uuid](auto err)
+                {
+                    if (err == db_error::success)
+                    {
+                        auto strong_this = weak_this.lock();
+                        if (strong_this)
+                        {
+                            strong_this->swarm_dbs[db_uuid] = sw_id;
+                        }
+                        callback(err, sw);
+                    }
+                    else
+                    {
+                        callback(err, nullptr);
+                    }
+                });
+        }
+    });
+
 }
 
 void
@@ -184,7 +212,7 @@ swarm_factory::get_or_create_swarm(const swarm_id_t& swarm_id)
     return std::shared_ptr<swarm_base>{sw};
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////
+// ====== swarm_registry ==============
 
 void
 swarm_factory::swarm_registry::add_node(const swarm_id_t& swarm_id, const node_id_t& node_id, const bzn::peer_address_t& endpoint)

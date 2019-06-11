@@ -430,12 +430,16 @@ namespace bzapi
         {
         case db_error::success:
             return "Success";
+        case db_error::uninitialized:
+            return "bzapi uninitialized";
         case db_error::connection_error:
             return "Connection error";
         case db_error::database_error:
             return "Database error";
         case db_error::timeout_error:
             return "Timeout error";
+        case db_error::already_exists:
+            return "Database already exists";
         case db_error::no_database:
             return "No database";
         }
