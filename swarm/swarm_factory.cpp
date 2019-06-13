@@ -17,6 +17,7 @@
 #include <swarm/swarm.hpp>
 #include <node/node_factory.hpp>
 #include <utils/esr_peer_info.hpp>
+#include <random>
 
 // Note: the intention is for a swarm to serve multiple db_impl clients (swarm sharing)
 // however the current code will allocate a new swarm for each db instance, even if
@@ -26,6 +27,11 @@
 namespace bzapi
 {
     extern std::shared_ptr<db_impl_base> get_db_dispatcher();
+}
+
+namespace
+{
+    uint64_t MAX_RETRY{5};
 }
 
 using namespace bzapi;
@@ -145,29 +151,50 @@ swarm_factory::create_db(const uuid_t& db_uuid, uint64_t max_size, bool random_e
         auto strong_this = weak_this.lock();
         if (strong_this)
         {
-            // TODO: find best swarm for the new db
-            // for now we will just use the first (only) swarm in our list
-            auto swarms = strong_this->swarm_reg->get_swarms();
-            auto sw_id = swarms.front();
-            auto sw = strong_this->get_or_create_swarm(sw_id);
+            strong_this->do_create_db(db_uuid, max_size, random_evict, MAX_RETRY, callback);
+        }
+    });
+}
 
+void
+swarm_factory::do_create_db(const uuid_t& db_uuid, uint64_t max_size, bool random_evict, uint64_t retry
+    , std::function<void(db_error, std::shared_ptr<swarm_base>)> callback)
+{
+    this->select_swarm_for_size(max_size, [weak_this = weak_from_this(), db_uuid, max_size
+        , random_evict, retry, callback](auto sw_id)
+    {
+        auto strong_this = weak_this.lock();
+        if (strong_this)
+        {
+            auto sw = strong_this->get_or_create_swarm(sw_id);
             get_db_dispatcher()->create_uuid(sw, db_uuid, max_size, random_evict
-                , [callback, sw, sw_id, weak_this, db_uuid](auto err)
-            {
-                if (err == db_error::success)
+                , [callback, sw, sw_id, weak_this, db_uuid, max_size, random_evict, retry](auto err)
                 {
-                    auto strong_this = weak_this.lock();
-                    if (strong_this)
+                    if (err == db_error::success)
                     {
-                        strong_this->swarm_dbs[db_uuid] = sw_id;
+                        auto strong_this = weak_this.lock();
+                        if (strong_this)
+                        {
+                            strong_this->swarm_dbs[db_uuid] = sw_id;
+                        }
+                        callback(err, sw);
                     }
-                    callback(err, sw);
-                }
-                else
-                {
-                    callback(err, nullptr);
-                }
-            });
+                    else
+                    {
+                        if (retry > 0)
+                        {
+                            auto strong_this = weak_this.lock();
+                            if (strong_this)
+                            {
+                                strong_this->do_create_db(db_uuid, max_size, random_evict, retry - 1, callback);
+                            }
+                        }
+                        else
+                        {
+                            callback(err, nullptr);
+                        }
+                    }
+                });
         }
     });
 }
@@ -262,4 +289,18 @@ swarm_factory::swarm_registry::set_swarm(const swarm_id_t& swarm_id, std::weak_p
     auto it = this->swarms.find(swarm_id);
     assert(it != this->swarms.end());
     it->second.swarm = swarm;
+}
+
+void
+swarm_factory::select_swarm_for_size(uint64_t /*size*/, std::function<void(const std::string& swarm_id)> callback)
+{
+    // for now, we will pick a swarm at random from our list. Later we may check each swarm's status and look
+    // for the one with the most uncommitted space, which would be an async operation (hence the callback)
+    auto sw_list = this->swarm_reg->get_swarms();
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<uint32_t> dist(0, sw_list.size());
+    auto sw_num = dist(gen);
+
+    callback(sw_list[sw_num]);
 }

@@ -45,10 +45,15 @@ swarm::swarm(std::shared_ptr<node_factory_base> node_factory
     }
 
     this->nodes = std::make_shared<std::unordered_map<uuid_t, node_info>>();
-    for (auto node : initial_nodes)
+
+    // this needs to use a shared_from_this() so we can't do it during construction
+    this->io_context->post([this, initial_nodes]()
     {
-        this->add_node(node.first, node.second);
-    }
+        for (auto node : initial_nodes)
+        {
+            this->add_node(node.first, node.second);
+        }
+    });
 
     // until we have status...
     this->primary_node = initial_nodes.front().first;
@@ -415,12 +420,12 @@ swarm::add_node(const node_id_t& node_id, const bzn::peer_address_t& addr)
     info.host = addr.host;
     info.port = addr.port;
     info.status_timer = this->io_context->make_unique_steady_timer();
-    this->nodes = std::make_shared<std::unordered_map<uuid_t, node_info>>();
     (*this->nodes)[node_id] = info;
 
     LOG(debug) << "status: adding node: " << info.host << ":" << info.port;
 
-    info.node->register_message_handler([weak_this = weak_from_this()](const std::string& data)
+    std::weak_ptr<swarm> weak_this{shared_from_this()};
+    info.node->register_message_handler([weak_this](const std::string& data)
     {
         auto strong_this = weak_this.lock();
         if (strong_this)

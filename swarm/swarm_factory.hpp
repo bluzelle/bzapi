@@ -80,5 +80,7 @@ private:
 
         std::shared_ptr<swarm_base> get_or_create_swarm(const swarm_id_t& swarm_id);
         void update_swarm_registry();
+        void select_swarm_for_size(uint64_t size, std::function<void(const std::string& swarm_id)> callback);
+        void do_create_db(const uuid_t& uuid, uint64_t max_size, bool random_evict, uint64_t retry, std::function<void(db_error, std::shared_ptr<swarm_base>)>);
 };
 }

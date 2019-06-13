@@ -186,16 +186,24 @@ public:
         this->uuid = _uuid;
         mock_io_context = std::make_shared<bzn::asio::Mockio_context_base>();
         EXPECT_CALL(*mock_io_context, get_io_context()).Times(AtLeast(1)).WillRepeatedly(ReturnRef(real_io_context));
+        EXPECT_CALL(*mock_io_context, post(_)).Times(AtLeast(1)).WillRepeatedly(
+            Invoke([](auto arg)
+            {
+                real_io_context.post(arg);
+            }));
 
         io_context = mock_io_context;
         db_dispatcher = std::make_shared<db_impl>(io_context);
         the_crypto = std::make_shared<null_crypto>();
         mock_ws_factory = std::make_shared<bzn::beast::Mockwebsocket_base>();
         ws_factory = mock_ws_factory;
-        the_swarm_factory = std::make_shared<swarm_factory>(io_context, ws_factory, the_crypto, this->uuid);
+        the_swarm_factory = std::make_shared<swarm_factory>(mock_io_context, ws_factory, the_crypto, this->uuid);
         std::vector<std::pair<node_id_t, bzn::peer_address_t>> addrs;
-        addrs.push_back(std::make_pair(node_id_t{""}, bzn::peer_address_t{"127.0.0.1", 50000, 0, "", ""}));
-        the_swarm_factory->initialize("", addrs);
+        addrs.push_back(std::make_pair(node_id_t{"node_0"}, bzn::peer_address_t{"127.0.0.1", 50000, 0, "node_0", "node_0"}));
+        addrs.push_back(std::make_pair(node_id_t{"node_1"}, bzn::peer_address_t{"127.0.0.1", 50001, 0, "node_1", "node_1"}));
+        addrs.push_back(std::make_pair(node_id_t{"node_2"}, bzn::peer_address_t{"127.0.0.1", 50002, 0, "node_2", "node_2"}));
+        addrs.push_back(std::make_pair(node_id_t{"node_3"}, bzn::peer_address_t{"127.0.0.1", 50003, 0, "node_3", "node_3"}));
+        the_swarm_factory->initialize("swarm_id", addrs);
         bzapi::initialized = true;
     }
 
@@ -224,8 +232,8 @@ public:
         {
             Json::Value peer;
             peer["host"] = "127.0.0.1";
-            peer["port"] = 50000 + p.second.id;
-            peer["uuid"] = "node_" + std::to_string(p.second.id);
+            peer["port"] = 50000 + p.id;
+            peer["uuid"] = "node_" + std::to_string(p.id);
             peer_index.append(peer);
         }
 
@@ -472,7 +480,7 @@ protected:
 
     bzapi::uuid_t uuid;
     bzapi::uuid_t primary_node;
-    std::map<uint16_t, mock_websocket> nodes;
+    std::vector<mock_websocket> nodes;
     std::set<my_mock_tcp_socket*> sockets;
     std::shared_ptr<bzn::asio::Mockio_context_base> mock_io_context;
     std::shared_ptr<bzn::beast::Mockwebsocket_base> mock_ws_factory;
@@ -535,8 +543,7 @@ TEST_F(integration_test, test_open_db)
 
     for (size_t i = 0; i < 4; i++)
     {
-        mock_websocket s{static_cast<uint16_t>(i)};
-        this->nodes[i] = s;
+        this->nodes.push_back(mock_websocket{static_cast<uint16_t>(i)});
     }
     this->primary_node = "node_0";
 
@@ -564,8 +571,7 @@ TEST_F(integration_test, test_create_db)
 
     for (size_t i = 0; i < 4; i++)
     {
-        mock_websocket s{static_cast<uint16_t>(i)};
-        this->nodes[i] = s;
+        this->nodes.push_back(mock_websocket{static_cast<uint16_t>(i)});
     }
     this->primary_node = "node_0";
 
@@ -613,8 +619,7 @@ TEST_F(integration_test, test_create)
 
     for (size_t i = 0; i < 4; i++)
     {
-        mock_websocket s{static_cast<uint16_t>(i)};
-        this->nodes[i] = s;
+        this->nodes.push_back(mock_websocket{static_cast<uint16_t>(i)});
     }
     this->primary_node = "node_0";
 
@@ -682,8 +687,7 @@ TEST_F(integration_test, test_read)
 
     for (size_t i = 0; i < 4; i++)
     {
-        mock_websocket s{static_cast<uint16_t>(i)};
-        this->nodes[i] = s;
+        this->nodes.push_back(mock_websocket{static_cast<uint16_t>(i)});
     }
     this->primary_node = "node_0";
 
