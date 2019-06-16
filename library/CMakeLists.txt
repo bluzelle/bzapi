@@ -1,5 +1,5 @@
 add_library(bzapi SHARED library.cpp ../include/bzapi.hpp ../include/response.hpp udp_response.hpp mutable_response.hpp ../include/logger.hpp log.cpp log.hpp)
-target_include_directories(bzapi PRIVATE . ${JSONCPP_INCLUDE_DIRS})
+target_include_directories(bzapi PRIVATE ${BLUZELLE_STD_INCLUDES} . ${JSONCPP_INCLUDE_DIRS})
 target_link_libraries(bzapi crypto proto swarm node database ${Protobuf_LIBRARIES} ${JSONCPP_LIBRARIES} ${OPENSSL_LIBRARIES} pthread)
 
 if (NOT OMIT_LIBRARY)

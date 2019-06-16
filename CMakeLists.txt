@@ -31,7 +31,7 @@ add_compile_options("-fdiagnostics-color=auto")
 add_compile_options("-fPIC")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-add_definitions(-DBOOST_ERROR_CODE_HEADER_ONLY -DBOOST_LOG_DYN_LINK)
+add_definitions(-DBOOST_ERROR_CODE_HEADER_ONLY)# -DBOOST_LOG_DYN_LINK)
 
 set(warnings "-Wno-deprecated-declarations -Wall -Wextra -Wpedantic")
 if (APPLE)
@@ -51,9 +51,9 @@ include_directories(SYSTEM ${PROTOBUF_INCLUDE_DIR})
 find_package(CURL REQUIRED)
 find_package(PkgConfig REQUIRED)
 
+include(cmake/boost.cmake)
 
-set(REQUIRED_BOOST "1.68.0")
-find_package(Boost     REQUIRED filesystem system log thread)
+set(BLUZELLE_STD_INCLUDES ${Boost_INCLUDE_DIRS})
 
 include(FindPkgConfig)
 
