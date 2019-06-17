@@ -42,7 +42,7 @@ private:
 
             void add_node(const swarm_id_t& swarm_id, const node_id_t& node_id, const bzn::peer_address_t& endpoint);
             std::weak_ptr<swarm_base> get_swarm(const swarm_id_t& swarm_id);
-            void set_swarm(const swarm_id_t& swarm_id, std::weak_ptr<swarm_base> swarm);
+            void set_swarm(const swarm_id_t& swarm_id, std::shared_ptr<swarm_base> swarm);
             std::vector<swarm_id_t> get_swarms();
             std::vector<std::pair<node_id_t, bzn::peer_address_t>> get_nodes(swarm_id_t swarm_id);
 

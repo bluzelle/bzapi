@@ -34,15 +34,12 @@ namespace bzapi
             , std::shared_ptr<bzn::beast::websocket_base> ws_factory
             , std::shared_ptr<bzn::asio::io_context_base> io_context
             , std::shared_ptr<crypto_base> crypto
-            , const std::vector<std::pair<node_id_t, bzn::peer_address_t>>& initial_nodes
             , const swarm_id_t& swarm_id
             , const uuid_t& uuid);
 
         ~swarm();
 
-        //void has_uuid(const uuid_t& uuid, std::function<void(db_error)> callback) override;
-
-        //void create_uuid(const uuid_t& uuid, uint64_t max_size, bool random_evict, std::function<void(db_error)> callback) override;
+        void add_nodes(const std::vector<std::pair<node_id_t, bzn::peer_address_t>>& nodes);
 
         void initialize(completion_handler_t handler) override;
 
@@ -94,6 +91,6 @@ namespace bzapi
 
         void setup_client_timeout(std::shared_ptr<node_base> node, std::function<void(db_error)> callback);
 
-        void add_node(const node_id_t& node_id, const bzn::peer_address_t& addr);
+        node_info add_node(const node_id_t& node_id, const bzn::peer_address_t& addr);
     };
 }

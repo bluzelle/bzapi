@@ -26,10 +26,11 @@ namespace bzapi
     /// @param public_key - client elliptic curve key / user id
     /// @param private_key - client private key used for signing
     /// @param endpoint - initial swarm endpoint (deprecated)
+    /// @param node_id - id of initial swarm endpoint (deprecated)
     /// @param swarm_id - id of initial swarm (deprecated)
     /// @return - true if successful, otherwise false
     bool initialize(const std::string& public_key, const std::string& private_key
-        , const std::string& endpoint, const std::string& swarm_id);
+        , const std::string& endpoint, const std::string& node_id, const std::string& swarm_id);
 
     /// Set the number of seconds after which a request wil time out
     /// @param seconds - length of time to wait for a response

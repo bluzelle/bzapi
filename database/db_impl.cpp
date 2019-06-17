@@ -20,8 +20,8 @@ using namespace bzapi;
 
 namespace
 {
-    const std::chrono::milliseconds REQUEST_RETRY_TIME{std::chrono::milliseconds(1500)};
-    const std::chrono::milliseconds BROADCAST_RETRY_TIME{std::chrono::milliseconds(3000)};
+    const std::chrono::milliseconds REQUEST_RETRY_TIME{std::chrono::milliseconds(150000)};
+    const std::chrono::milliseconds BROADCAST_RETRY_TIME{std::chrono::milliseconds(300000)};
 }
 
 db_impl::db_impl(std::shared_ptr<bzn::asio::io_context_base> io_context)

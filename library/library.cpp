@@ -96,7 +96,7 @@ namespace bzapi
 
     bool
     initialize(const std::string& public_key, const std::string& private_key
-        , const std::string& endpoint, const std::string& swarm_id)
+        , const std::string& endpoint, const std::string& node_id, const std::string& swarm_id)
     {
         try
         {
@@ -120,7 +120,7 @@ namespace bzapi
                     the_swarm_factory = std::make_shared<swarm_factory>(io_context, ws_factory, the_crypto, public_key);
                     auto ep = parse_endpoint(endpoint);
                     std::vector<std::pair<node_id_t, bzn::peer_address_t>> addrs;
-                    addrs.push_back(std::make_pair(node_id_t{""}, bzn::peer_address_t{ep.first, ep.second, 0, "", ""}));
+                    addrs.push_back(std::make_pair(node_id, bzn::peer_address_t{ep.first, ep.second, 0, "", ""}));
                     the_swarm_factory->initialize(swarm_id, addrs);
                 }
                 CATCHALL(return false);
@@ -194,66 +194,41 @@ namespace bzapi
             {
                 std::string uuidstr{uuid};
                 auto resp = make_response();
-                the_swarm_factory->has_db(uuidstr, [resp, uuidstr, max_size, random_evict](auto /*err*/, auto res)
+                the_swarm_factory->create_db(uuidstr, max_size, random_evict, [uuidstr, resp](auto res, auto sw)
                 {
-                    if (res == nullptr)
+                    if (sw)
                     {
-                        the_swarm_factory->create_db(uuidstr, max_size, random_evict, [uuidstr, resp](auto res, auto sw)
+                        auto db = std::make_shared<async_database_impl>(db_dispatcher, sw, uuidstr);
+                        db->open([sw, resp, db, uuidstr](auto ec)
                         {
-                            if (sw)
+                            if (ec)
                             {
-                                auto db = std::make_shared<async_database_impl>(db_dispatcher, sw, uuidstr);
-                                db->open([sw, resp, db, uuidstr](auto ec)
-                                {
-                                    if (ec)
-                                    {
-                                        LOG(error) << "Error initializing database: " << ec.message();
-                                        Json::Value result;
-                                        result["error"] = ec.message();
-                                        resp->set_result(result.toStyledString());
-                                        resp->set_error(static_cast<int>(db_error::connection_error));
-                                    }
-                                    else
-                                    {
-                                        Json::Value result;
-                                        result["result"] = 1;
-                                        result["uuid"] = uuidstr;
-                                        resp->set_result(result.toStyledString());
-                                        resp->set_db(db);
-                                        resp->set_ready();
-                                    }
-                                });
+                                LOG(error) << "Error initializing database: " << ec.message();
+                                Json::Value result;
+                                result["error"] = ec.message();
+                                resp->set_result(result.toStyledString());
+                                resp->set_error(static_cast<int>(db_error::connection_error));
                             }
                             else
                             {
-                                LOG(error) << "Error creating database for: " << uuidstr;
                                 Json::Value result;
-                                result["error"] = get_error_str(res);
+                                result["result"] = 1;
                                 result["uuid"] = uuidstr;
                                 resp->set_result(result.toStyledString());
-                                resp->set_error(static_cast<int>(res));
+                                resp->set_db(db);
+                                resp->set_ready();
                             }
                         });
                     }
                     else
                     {
-                        LOG(debug) << "Unable to create existing database: " << uuidstr;
+                        LOG(error) << "Error creating database for: " << uuidstr;
                         Json::Value result;
-                        result["error"] = "UUID already exists";
+                        result["error"] = get_error_str(res);
                         result["uuid"] = uuidstr;
                         resp->set_result(result.toStyledString());
-                        resp->set_error(static_cast<int>(db_error::database_error));
+                        resp->set_error(static_cast<int>(res));
                     }
-
-                    // TODO: catch error here
-//                    else
-//                    {
-//                        Json::Value result;
-//                        result["error"] = get_error_str(res);
-//                        result["uuid"] = uuidstr;
-//                        resp->set_result(result.toStyledString());
-//                        resp->set_error(static_cast<int>(res));
-//                    }
                 });
 
                 return resp;

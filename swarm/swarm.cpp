@@ -33,36 +33,35 @@ swarm::swarm(std::shared_ptr<node_factory_base> node_factory
     , std::shared_ptr<bzn::beast::websocket_base> ws_factory
     , std::shared_ptr<bzn::asio::io_context_base> io_context
     , std::shared_ptr<crypto_base> crypto
-    , const std::vector<std::pair<node_id_t, bzn::peer_address_t>>& initial_nodes
     , const swarm_id_t& swarm_id
     , const uuid_t& uuid)
 : node_factory(std::move(node_factory)), ws_factory(std::move(ws_factory)), io_context(std::move(io_context))
     , crypto(std::move(crypto)), swarm_id(swarm_id), my_uuid(uuid)
 {
-    if (initial_nodes.empty())
-    {
-        throw(std::runtime_error("Attempt to create swarm with no nodes"));
-    }
-
-    this->nodes = std::make_shared<std::unordered_map<uuid_t, node_info>>();
-
-    // this needs to use a shared_from_this() so we can't do it during construction
-    this->io_context->post([this, initial_nodes]()
-    {
-        for (auto node : initial_nodes)
-        {
-            this->add_node(node.first, node.second);
-        }
-    });
-
-    // until we have status...
-    this->primary_node = initial_nodes.front().first;
-    this->fastest_node = this->primary_node;
 }
 
 swarm::~swarm()
 {
     node_factory = nullptr;
+}
+
+void
+swarm::add_nodes(const std::vector<std::pair<node_id_t, bzn::peer_address_t>>& nodes)
+{
+    if (nodes.empty())
+    {
+        throw(std::runtime_error("Attempt to create swarm with no nodes"));
+    }
+
+    this->nodes = std::make_shared<std::unordered_map<uuid_t, node_info>>();
+    for (auto node : nodes)
+    {
+        (*this->nodes)[node.first] = this->add_node(node.first, node.second);
+    }
+
+    // until we have status...
+    this->primary_node = nodes.front().first;
+    this->fastest_node = this->primary_node;
 }
 
 void
@@ -252,7 +251,7 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
             if (!info.node)
             {
                 uint16_t port = node["port"].asUInt();
-                this->add_node(node_uuid
+                info = this->add_node(node_uuid
                     , bzn::peer_address_t{node["host"].asString(), port, 0, "", node_uuid});
                 new_uuids.push_back(node_uuid);
             }
@@ -370,7 +369,7 @@ swarm::handle_node_message(const std::string& uuid, const std::string& data)
     if (!env.sender().empty() && this->nodes->find(env.sender()) == this->nodes->end() && uuid != INITIAL_NODE)
     {
         LOG(debug) << "Dropping message from unknown sender: " << env.sender();
-        return true;
+        return false;
     }
 
     // only verify signature if it exists. upper layer will check for existance of signature where required
@@ -412,7 +411,7 @@ swarm::setup_client_timeout(std::shared_ptr<node_base> node, std::function<void(
     });
 }
 
-void
+swarm::node_info
 swarm::add_node(const node_id_t& node_id, const bzn::peer_address_t& addr)
 {
     node_info info;
@@ -420,21 +419,22 @@ swarm::add_node(const node_id_t& node_id, const bzn::peer_address_t& addr)
     info.host = addr.host;
     info.port = addr.port;
     info.status_timer = this->io_context->make_unique_steady_timer();
-    (*this->nodes)[node_id] = info;
 
     LOG(debug) << "status: adding node: " << info.host << ":" << info.port;
 
     std::weak_ptr<swarm> weak_this{shared_from_this()};
-    info.node->register_message_handler([weak_this](const std::string& data)
+    info.node->register_message_handler([weak_this, node_id](const std::string& data)
     {
         auto strong_this = weak_this.lock();
         if (strong_this)
         {
-            return strong_this->handle_node_message("uuid_node", data);
+            return strong_this->handle_node_message(node_id, data);
         }
         else
         {
             return true;
         }
     });
+
+    return info;
 }

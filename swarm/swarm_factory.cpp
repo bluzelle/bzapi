@@ -213,7 +213,11 @@ swarm_factory::update_swarm_registry()
             {
                 auto ep = bzn::utils::esr::get_peer_info(sw_id, node, esr_address, esr_url);
                 sw_reg->add_node(sw_id, node, ep);
-                sw_reg->set_swarm(sw_id, this->swarm_reg->get_swarm(sw_id));
+                auto strong_sw = this->swarm_reg->get_swarm(sw_id).lock();
+                if (strong_sw)
+                {
+                    sw_reg->set_swarm(sw_id, strong_sw);
+                }
             }
         }
 
@@ -231,8 +235,9 @@ swarm_factory::get_or_create_swarm(const swarm_id_t& swarm_id)
         auto nodes = this->swarm_reg->get_nodes(swarm_id);
         assert(!nodes.empty());
         auto swm = std::make_shared<swarm>(this->node_factory, this->ws_factory, this->io_context, this->crypto
-            , nodes, swarm_id, this->my_uuid);
-        this->swarm_reg->set_swarm(swarm_id, sw);
+            , swarm_id, this->my_uuid);
+        swm->add_nodes(nodes);
+        this->swarm_reg->set_swarm(swarm_id, swm);
         return swm;
     }
 
@@ -284,7 +289,7 @@ swarm_factory::swarm_registry::get_swarm(const swarm_id_t& swarm_id)
 }
 
 void
-swarm_factory::swarm_registry::set_swarm(const swarm_id_t& swarm_id, std::weak_ptr<swarm_base> swarm)
+swarm_factory::swarm_registry::set_swarm(const swarm_id_t& swarm_id, std::shared_ptr<swarm_base> swarm)
 {
     auto it = this->swarms.find(swarm_id);
     assert(it != this->swarms.end());
@@ -299,7 +304,7 @@ swarm_factory::select_swarm_for_size(uint64_t /*size*/, std::function<void(const
     auto sw_list = this->swarm_reg->get_swarms();
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<uint32_t> dist(0, sw_list.size());
+    std::uniform_int_distribution<uint32_t> dist(0, sw_list.size() - 1);
     auto sw_num = dist(gen);
 
     callback(sw_list[sw_num]);
