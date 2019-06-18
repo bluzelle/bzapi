@@ -5,7 +5,7 @@ add_library(crypto
         null_crypto.hpp)
 
 target_link_libraries(crypto proto)
-add_dependencies(crypto openssl)
+add_dependencies(crypto openssl boost)
 target_include_directories(crypto PRIVATE ${BLUZELLE_STD_INCLUDES} ${PROTO_INCLUDE_DIR})
 if (NOT OMIT_LIBRARY)
     add_subdirectory(test)
