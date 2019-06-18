@@ -175,7 +175,11 @@ swarm_factory::do_create_db(const uuid_t& db_uuid, uint64_t max_size, bool rando
                         auto strong_this = weak_this.lock();
                         if (strong_this)
                         {
-                            strong_this->swarm_dbs[db_uuid] = sw_id;
+                            try
+                            {
+                                strong_this->swarm_dbs[db_uuid] = sw_id;
+                            }
+                            CATCHALL();
                         }
                         callback(err, sw);
                     }

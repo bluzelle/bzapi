@@ -201,16 +201,16 @@ bool
 db_impl::qualify_response(bzapi::db_impl::msg_info &info, const uuid_t& sender) const
 {
     auto num_responses = info.responses.size();
-    LOG(debug) << boost::format("%1% of %2% responses received") % num_responses % info.responses_required;
-
     if (num_responses < info.responses_required)
     {
+        LOG(debug) << boost::format("%1% of %2% responses received") % num_responses % info.responses_required;
         return false;
     }
 
     if (info.responses_required == 1)
     {
         assert(num_responses == 1);
+        LOG(debug) << boost::format("%1% of %2% responses received") % num_responses % info.responses_required;
         return true;
     }
 
@@ -223,6 +223,7 @@ db_impl::qualify_response(bzapi::db_impl::msg_info &info, const uuid_t& sender) 
             {
                 if (++matches >= info.responses_required)
                 {
+                    LOG(debug) << boost::format("%1% of %2% matching responses received") % matches % info.responses_required;
                     return true;
                 }
             }

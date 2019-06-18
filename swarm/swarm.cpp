@@ -93,7 +93,8 @@ swarm::initialize(completion_handler_t handler)
         });
 
     // request status from all nodes
-    for (auto info : *(this->nodes))
+    auto current_nodes = this->nodes;
+    for (const auto& info : *(current_nodes))
     {
         this->send_status_request(info.first);
     }
@@ -423,7 +424,7 @@ swarm::add_node(const node_id_t& node_id, const bzn::peer_address_t& addr)
     info.port = addr.port;
     info.status_timer = this->io_context->make_unique_steady_timer();
 
-    LOG(debug) << "status: adding node: " << info.host << ":" << info.port;
+    LOG(debug) << "adding node: " << info.host << ":" << info.port;
 
     std::weak_ptr<swarm> weak_this{shared_from_this()};
     info.node->register_message_handler([weak_this, node_id](const std::string& data)
