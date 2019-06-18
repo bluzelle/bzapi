@@ -36,7 +36,7 @@ public:
 protected:
     std::shared_ptr<bzn::asio::Mockio_context_base> mock_io_context  = std::make_shared<bzn::asio::Mockio_context_base>();
     std::shared_ptr<mock_swarm> swarm = std::make_shared<mock_swarm>();
-    std::shared_ptr<db_impl> db = std::make_shared<db_impl>(mock_io_context, swarm, "my_db_uuid");
+    std::shared_ptr<db_impl> db = std::make_shared<db_impl>(mock_io_context);
 
 };
 
@@ -46,15 +46,11 @@ TEST_F(db_impl_test, basic_test)
     swarm_response_handler_t swarm_response_handler;
     completion_handler_t timer_callback;
 
-    EXPECT_CALL(*swarm, initialize(_)).WillOnce(Invoke([](auto handler) { handler(boost::system::error_code{}); }));
     EXPECT_CALL(*swarm, register_response_handler(_, _)).WillOnce(Invoke([&](auto, auto handler)
     {
         swarm_response_handler = handler;
         return true;
     }));
-    std::promise<int> prom;
-    db->initialize([&prom](auto){prom.set_value(1);});
-    prom.get_future().get();
 
     EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).Times(Exactly(1))
         .WillOnce(Invoke([&]
@@ -78,7 +74,7 @@ TEST_F(db_impl_test, basic_test)
 
     database_msg request;
     bool called = false;
-    db->send_message_to_swarm(request, send_policy::fastest, [&](const auto& /*response*/, const auto& /*ec*/)
+    db->send_message_to_swarm(this->swarm, "db_uuid", request, send_policy::fastest, [&](const auto& /*response*/, const auto& /*ec*/)
     {
         called = true;
     });
@@ -91,13 +87,11 @@ TEST_F(db_impl_test, collation_and_timeout_test)
     swarm_response_handler_t swarm_response_handler;
     completion_handler_t timer_callback;
 
-    EXPECT_CALL(*swarm, initialize(_));
     EXPECT_CALL(*swarm, register_response_handler(_, _)).WillOnce(Invoke([&](auto, auto handler)
     {
         swarm_response_handler = handler;
         return true;
     }));
-    db->initialize([](auto){});
 
     EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).Times(AtLeast(2))
     .WillOnce(Invoke([&]
@@ -134,7 +128,7 @@ TEST_F(db_impl_test, collation_and_timeout_test)
 
     database_msg request;
     bool called = false;
-    db->send_message_to_swarm(request, send_policy::normal, [&](const auto& /*response*/, const auto& /*ec*/)
+    db->send_message_to_swarm(this->swarm, "db_uuid", request, send_policy::normal, [&](const auto& /*response*/, const auto& /*ec*/)
     {
         ASSERT_EQ(called, false);
         called = true;
@@ -191,15 +185,10 @@ TEST_F(db_impl_test, client_timeout_test)
 
     bzapi::set_timeout(1);
 
-    EXPECT_CALL(*swarm, initialize(_)).WillOnce(Invoke([](auto handler) { handler(boost::system::error_code{}); }));
     EXPECT_CALL(*swarm, register_response_handler(_, _)).WillOnce(Invoke([&](auto, auto /*handler*/)
     {
         return true;
     }));
-
-    std::promise<int> prom;
-    db->initialize([&prom](auto){prom.set_value(1);});
-    prom.get_future().get();
 
     EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).Times(Exactly(1))
         .WillOnce(Invoke([&]
@@ -226,7 +215,7 @@ TEST_F(db_impl_test, client_timeout_test)
 
     database_msg request;
     bool called = false;
-    db->send_message_to_swarm(request, send_policy::fastest, [&](const auto& response, const auto& /*ec*/)
+    db->send_message_to_swarm(this->swarm, "db_uuid", request, send_policy::fastest, [&](const auto& response, const auto& /*ec*/)
     {
         called = true;
 

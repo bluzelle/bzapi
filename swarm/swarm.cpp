@@ -73,6 +73,9 @@ swarm::initialize(completion_handler_t handler)
         return;
     }
 
+    // TODO: enforce this at top level
+    assert(!this->nodes->empty());
+
     this->init_called = true;
     this->init_handler = handler;
 

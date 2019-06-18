@@ -15,6 +15,7 @@
 
 #include <gtest/gtest.h>
 #include <mocks/mock_db_impl.hpp>
+#include <mocks/mock_swarm.hpp>
 #include <database/database_impl.hpp>
 #include <json/value.h>
 #include <json/reader.h>
@@ -32,18 +33,15 @@ public:
 
 protected:
     std::shared_ptr<mock_db_impl> dbi = std::make_shared<mock_db_impl>();
-    std::shared_ptr<async_database_impl> adb = std::make_shared<async_database_impl>(dbi);
+    std::shared_ptr<mock_swarm> sw = std::make_shared<mock_swarm>();
+    std::shared_ptr<async_database_impl> adb = std::make_shared<async_database_impl>(dbi, sw, "db_uuid");
     database_impl db{adb};
 };
 
 
 TEST_F(database_test, test_open)
 {
-    EXPECT_CALL(*dbi, initialize(_)).WillOnce(Invoke([](auto handler)
-    {
-        handler(boost::system::error_code{});
-    }));
-
+    EXPECT_CALL(*this->sw, initialize(_)).WillOnce(Invoke([](auto handler) { handler(boost::system::error_code{}); }));
     adb->open([](const auto& ec)
     {
         EXPECT_EQ(ec.value(), 0);
@@ -52,7 +50,8 @@ TEST_F(database_test, test_open)
 
 TEST_F(database_test, test_create)
 {
-    EXPECT_CALL(*dbi, send_message_to_swarm(_, _, _)).WillOnce(Invoke([](database_msg& msg, auto policy, auto handler)
+    EXPECT_CALL(*dbi, send_message_to_swarm(_, _, _, _, _)).WillOnce(Invoke([](auto& /*sw*/, auto& /*uuid*/
+        , database_msg& msg, auto policy, auto handler)
     {
         EXPECT_TRUE(msg.has_create());
         EXPECT_EQ(msg.create().key(), "key");
@@ -74,7 +73,8 @@ TEST_F(database_test, test_create)
 
 TEST_F(database_test, test_read)
 {
-    EXPECT_CALL(*dbi, send_message_to_swarm(_, _, _)).WillOnce(Invoke([](database_msg& msg, auto policy, auto handler)
+    EXPECT_CALL(*dbi, send_message_to_swarm(_, _, _, _, _)).WillOnce(Invoke([](auto& /*sw*/, auto& /*uuid*/
+        , database_msg& msg, auto policy, auto handler)
     {
         EXPECT_TRUE(msg.has_read());
         EXPECT_EQ(msg.read().key(), "key");
@@ -98,7 +98,8 @@ TEST_F(database_test, test_read)
 
 TEST_F(database_test, test_update)
 {
-    EXPECT_CALL(*dbi, send_message_to_swarm(_, _, _)).WillOnce(Invoke([](database_msg& msg, auto policy, auto handler)
+    EXPECT_CALL(*dbi, send_message_to_swarm(_, _, _, _, _)).WillOnce(Invoke([](auto& /*sw*/, auto& /*uuid*/
+        , database_msg& msg, auto policy, auto handler)
     {
         EXPECT_TRUE(msg.has_update());
         EXPECT_EQ(msg.update().key(), "key");
@@ -118,7 +119,8 @@ TEST_F(database_test, test_update)
 
 TEST_F(database_test, test_remove)
 {
-    EXPECT_CALL(*dbi, send_message_to_swarm(_, _, _)).WillOnce(Invoke([](database_msg& msg, auto policy, auto handler)
+    EXPECT_CALL(*dbi, send_message_to_swarm(_, _, _, _, _)).WillOnce(Invoke([](auto& /*sw*/, auto& /*uuid*/
+        , database_msg& msg, auto policy, auto handler)
     {
         EXPECT_TRUE(msg.has_delete_());
         EXPECT_EQ(msg.delete_().key(), "key");
@@ -137,7 +139,8 @@ TEST_F(database_test, test_remove)
 
 TEST_F(database_test, test_quick_read)
 {
-    EXPECT_CALL(*dbi, send_message_to_swarm(_, _, _)).WillOnce(Invoke([](database_msg& msg, auto policy, auto handler)
+    EXPECT_CALL(*dbi, send_message_to_swarm(_, _, _, _, _)).WillOnce(Invoke([](auto& /*sw*/, auto& /*uuid*/
+        , database_msg& msg, auto policy, auto handler)
     {
         EXPECT_TRUE(msg.has_quick_read());
         EXPECT_EQ(msg.quick_read().key(), "key");
@@ -161,7 +164,8 @@ TEST_F(database_test, test_quick_read)
 
 TEST_F(database_test, test_has)
 {
-    EXPECT_CALL(*dbi, send_message_to_swarm(_, _, _)).WillOnce(Invoke([](database_msg& msg, auto policy, auto handler)
+    EXPECT_CALL(*dbi, send_message_to_swarm(_, _, _, _, _)).WillOnce(Invoke([](auto& /*sw*/, auto& /*uuid*/
+        , database_msg& msg, auto policy, auto handler)
     {
         EXPECT_TRUE(msg.has_has());
         EXPECT_EQ(msg.has().key(), "key");
@@ -183,7 +187,8 @@ TEST_F(database_test, test_has)
 
 TEST_F(database_test, test_keys)
 {
-    EXPECT_CALL(*dbi, send_message_to_swarm(_, _, _)).WillOnce(Invoke([](database_msg& msg, auto policy, auto handler)
+    EXPECT_CALL(*dbi, send_message_to_swarm(_, _, _, _, _)).WillOnce(Invoke([](auto& /*sw*/, auto& /*uuid*/
+        , database_msg& msg, auto policy, auto handler)
     {
         EXPECT_TRUE(msg.has_keys());
         EXPECT_EQ(policy, send_policy::normal);
@@ -207,7 +212,8 @@ TEST_F(database_test, test_keys)
 
 TEST_F(database_test, test_size)
 {
-    EXPECT_CALL(*dbi, send_message_to_swarm(_, _, _)).WillOnce(Invoke([](database_msg& msg, auto policy, auto handler)
+    EXPECT_CALL(*dbi, send_message_to_swarm(_, _, _, _, _)).WillOnce(Invoke([](auto& /*sw*/, auto& /*uuid*/
+        , database_msg& msg, auto policy, auto handler)
     {
         EXPECT_TRUE(msg.has_size());
         EXPECT_EQ(policy, send_policy::normal);
@@ -235,7 +241,8 @@ TEST_F(database_test, test_size)
 
 TEST_F(database_test, test_expire)
 {
-    EXPECT_CALL(*dbi, send_message_to_swarm(_, _, _)).WillOnce(Invoke([](database_msg& msg, auto policy, auto handler)
+    EXPECT_CALL(*dbi, send_message_to_swarm(_, _, _, _, _)).WillOnce(Invoke([](auto& /*sw*/, auto& /*uuid*/
+        , database_msg& msg, auto policy, auto handler)
     {
         EXPECT_TRUE(msg.has_expire());
         EXPECT_EQ(msg.expire().key(), "key");
@@ -254,7 +261,8 @@ TEST_F(database_test, test_expire)
 
 TEST_F(database_test, test_persist)
 {
-    EXPECT_CALL(*dbi, send_message_to_swarm(_, _, _)).WillOnce(Invoke([](database_msg& msg, auto policy, auto handler)
+    EXPECT_CALL(*dbi, send_message_to_swarm(_, _, _, _, _)).WillOnce(Invoke([](auto& /*sw*/, auto& /*uuid*/
+        , database_msg& msg, auto policy, auto handler)
     {
         EXPECT_TRUE(msg.has_persist());
         EXPECT_EQ(msg.persist().key(), "key");
@@ -273,7 +281,8 @@ TEST_F(database_test, test_persist)
 
 TEST_F(database_test, test_ttl)
 {
-    EXPECT_CALL(*dbi, send_message_to_swarm(_, _, _)).WillOnce(Invoke([](database_msg& msg, auto policy, auto handler)
+    EXPECT_CALL(*dbi, send_message_to_swarm(_, _, _, _, _)).WillOnce(Invoke([](auto& /*sw*/, auto& /*uuid*/
+        , database_msg& msg, auto policy, auto handler)
     {
         EXPECT_TRUE(msg.has_ttl());
         EXPECT_EQ(msg.ttl().key(), "key");
@@ -298,7 +307,8 @@ TEST_F(database_test, test_ttl)
 
 TEST_F(database_test, test_writers)
 {
-    EXPECT_CALL(*dbi, send_message_to_swarm(_, _, _)).WillOnce(Invoke([](database_msg& msg, auto policy, auto handler)
+    EXPECT_CALL(*dbi, send_message_to_swarm(_, _, _, _, _)).WillOnce(Invoke([](auto& /*sw*/, auto& /*uuid*/
+        , database_msg& msg, auto policy, auto handler)
     {
         EXPECT_TRUE(msg.has_writers());
         EXPECT_EQ(policy, send_policy::normal);
@@ -323,7 +333,8 @@ TEST_F(database_test, test_writers)
 
 TEST_F(database_test, test_add_writer)
 {
-    EXPECT_CALL(*dbi, send_message_to_swarm(_, _, _)).WillOnce(Invoke([](database_msg& msg, auto policy, auto handler)
+    EXPECT_CALL(*dbi, send_message_to_swarm(_, _, _, _, _)).WillOnce(Invoke([](auto& /*sw*/, auto& /*uuid*/
+        , database_msg& msg, auto policy, auto handler)
     {
         EXPECT_TRUE(msg.has_add_writers());
         EXPECT_EQ(msg.add_writers().writers_size(), 1);
@@ -343,7 +354,8 @@ TEST_F(database_test, test_add_writer)
 
 TEST_F(database_test, test_remove_writer)
 {
-    EXPECT_CALL(*dbi, send_message_to_swarm(_, _, _)).WillOnce(Invoke([](database_msg& msg, auto policy, auto handler)
+    EXPECT_CALL(*dbi, send_message_to_swarm(_, _, _, _, _)).WillOnce(Invoke([](auto& /*sw*/, auto& /*uuid*/
+        , database_msg& msg, auto policy, auto handler)
     {
         EXPECT_TRUE(msg.has_remove_writers());
         EXPECT_EQ(msg.remove_writers().writers_size(), 1);

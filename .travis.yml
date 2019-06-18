@@ -81,6 +81,6 @@ script:
 after_success:
   - |
     if [ "$TRAVIS_OS_NAME" = "linux" ]; then
-      coveralls -r ${TRAVIS_BUILD_DIR} -e 'build/boost' -e 'build/openssl' -e 'build/googletest' -e 'build/proto' -e 'build/CMakeFiles' -e 'mocks' -e 'crypto/test' -e 'node/test' -e 'swarm/test' -e 'database/test' -e 'library/test' -e 'include' --gcov-options '\-lp'
+      coveralls -r ${TRAVIS_BUILD_DIR} -e 'build/boost' -e 'build/openssl' -e 'build/googletest' -e 'build/proto' -e 'build/CMakeFiles' -e 'mocks' -e 'crypto/test' -e 'node/test' -e 'swarm/test' -e 'database/test' -e 'library/test' -e 'include' -e 'utils' --gcov-options '\-lp'
     fi
   - echo ${TRAVIS_BRANCH}

@@ -312,10 +312,52 @@ public:
 
     void expect_create_db()
     {
-        EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).Times(Exactly(swarm_size + 2)).WillRepeatedly(Invoke([]()
+        EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).Times(Exactly(2)).WillOnce(Invoke([]()
         {
             return std::make_unique<NiceMock<bzn::asio::Mocksteady_timer_base>>();
-        })).RetiresOnSaturation();;
+        })).WillOnce(Invoke([this]()
+        {
+            static int nonce  = 0;
+            static int node_id = -1;
+
+            for (size_t i = 0; i < 4; i++)
+            {
+                this->node_websocks[i].write_func = [this, i](const boost::asio::mutable_buffers_1& buffer)
+                {
+                    // remember which node sent us the request
+                    node_id = i;
+
+                    bzn_envelope env;
+                    EXPECT_TRUE(env.ParseFromString(std::string(static_cast<const char *>(buffer.data()), buffer.size())));
+                    database_msg msg;
+                    EXPECT_TRUE(msg.ParseFromString(env.database_msg()));
+                    EXPECT_EQ(msg.header().db_uuid(), this->uuid);
+                    nonce = msg.header().nonce();
+                    EXPECT_TRUE(msg.has_create_db());
+                };
+
+                this->node_websocks[i].read_func = [i, this](const auto& /*buffer*/)
+                {
+                    for (size_t j = 0; j < 4; j++)
+                    {
+                        database_header header;
+                        header.set_nonce(nonce);
+                        database_response dr;
+                        dr.set_allocated_header(new database_header(header));
+
+                        bzn_envelope env2;
+                        env2.set_database_response(dr.SerializeAsString());
+                        env2.set_sender("node_" + std::to_string(j));
+                        env2.set_signature("xxx");
+                        auto message = env2.SerializeAsString();
+                        this->node_websocks[node_id].simulate_read(message);
+                    }
+                };
+            }
+
+            return std::make_unique<NiceMock<bzn::asio::Mocksteady_timer_base>>();
+        }))
+        .RetiresOnSaturation();;
 
         EXPECT_CALL(*mock_io_context, make_unique_tcp_socket()).Times(Exactly(1)).WillOnce(Invoke([]()
         {
@@ -334,71 +376,112 @@ public:
             return tcp_sock;
         })).RetiresOnSaturation();
 
-        EXPECT_CALL(*mock_ws_factory, make_unique_websocket_stream(_)).Times(Exactly(1)).WillOnce(
-            Invoke([uuid = this->uuid, num_nodes = node_websocks.size(), &ws = this->node_websocks[0]](auto&)
-            {
-                static uint64_t nonce = 0;
+//        EXPECT_CALL(*mock_ws_factory, make_unique_websocket_stream(_)).Times(Exactly(1)).WillOnce(
+//            Invoke([uuid = this->uuid, num_nodes = node_websocks.size(), &ws = this->node_websocks[0]](auto&)
+//            {
+//                static uint64_t nonce = 0;
+//
+//                ws.write_func = [uuid](const boost::asio::mutable_buffers_1& buffer)
+//                {
+//                    bzn_envelope env;
+//                    EXPECT_TRUE(env.ParseFromString(std::string(static_cast<const char *>(buffer.data()), buffer.size())));
+//
+//                    database_msg db_msg;
+//                    EXPECT_TRUE(db_msg.ParseFromString(env.database_msg()));
+//
+//                    EXPECT_TRUE(db_msg.has_create_db());
+//                    EXPECT_TRUE(db_msg.header().db_uuid() == uuid);
+//
+//                    nonce = db_msg.header().nonce();
+//                };
+//
+//                ws.read_func = [num_nodes, &ws](const auto& /*buffer*/)
+//                {
+//                    database_header header;
+//                    header.set_nonce(nonce);
+//                    database_response response;
+//                    response.set_allocated_header(new database_header(header));
+//
+//                    bzn_envelope env2;
+//                    env2.set_database_response(response.SerializeAsString());
+//                    env2.set_signature("xxx");
+//
+//                    for (size_t i = 0; i < num_nodes; i++)
+//                    {
+//                        env2.set_sender(std::string{"node_"} + std::to_string(i));
+//                        auto message = env2.SerializeAsString();
+//                        boost::asio::buffer_copy(ws.read_buffer->prepare(message.size()), boost::asio::buffer(message));
+//                        ws.read_buffer->commit(message.size());
+//                        ws.read_handler(boost::system::error_code{}, message.size());
+//                    }
+//                };
+//
+//                return ws.get();
+//            })).RetiresOnSaturation();
 
-                ws.write_func = [uuid](const boost::asio::mutable_buffers_1& buffer)
-                {
-                    bzn_envelope env;
-                    EXPECT_TRUE(env.ParseFromString(std::string(static_cast<const char *>(buffer.data()), buffer.size())));
-
-                    database_msg db_msg;
-                    EXPECT_TRUE(db_msg.ParseFromString(env.database_msg()));
-
-                    EXPECT_TRUE(db_msg.has_create_db());
-                    EXPECT_TRUE(db_msg.header().db_uuid() == uuid);
-
-                    nonce = db_msg.header().nonce();
-                };
-
-                ws.read_func = [num_nodes, &ws](const auto& /*buffer*/)
-                {
-                    database_header header;
-                    header.set_nonce(nonce);
-                    database_response response;
-                    response.set_allocated_header(new database_header(header));
-
-                    bzn_envelope env2;
-                    env2.set_database_response(response.SerializeAsString());
-                    env2.set_signature("xxx");
-
-                    for (size_t i = 0; i < num_nodes; i++)
-                    {
-                        env2.set_sender(std::string{"node_"} + std::to_string(i));
-                        auto message = env2.SerializeAsString();
-                        boost::asio::buffer_copy(ws.read_buffer->prepare(message.size()), boost::asio::buffer(message));
-                        ws.read_buffer->commit(message.size());
-                        ws.read_handler(boost::system::error_code{}, message.size());
-                    }
-                };
-
-                return ws.get();
-            })).RetiresOnSaturation();
+//        static uint64_t nonce = 0;
+//
+//        this->node_websocks[0].write_func = [uuid = this->uuid](const boost::asio::mutable_buffers_1& buffer)
+//        {
+//            bzn_envelope env;
+//            EXPECT_TRUE(env.ParseFromString(std::string(static_cast<const char *>(buffer.data()), buffer.size())));
+//
+//            database_msg db_msg;
+//            EXPECT_TRUE(db_msg.ParseFromString(env.database_msg()));
+//
+//            EXPECT_TRUE(db_msg.has_create_db());
+//            EXPECT_TRUE(db_msg.header().db_uuid() == uuid);
+//
+//            nonce = db_msg.header().nonce();
+//        };
+//
+//        this->node_websocks[0].read_func = [num_nodes = node_websocks.size(), &ws = this->node_websocks[0]](const auto& /*buffer*/)
+//        {
+//            database_header header;
+//            header.set_nonce(nonce);
+//            database_response response;
+//            response.set_allocated_header(new database_header(header));
+//
+//            bzn_envelope env2;
+//            env2.set_database_response(response.SerializeAsString());
+//            env2.set_signature("xxx");
+//
+//            for (size_t i = 0; i < num_nodes; i++)
+//            {
+//                env2.set_sender(std::string{"node_"} + std::to_string(i));
+//                auto message = env2.SerializeAsString();
+//                boost::asio::buffer_copy(ws.read_buffer->prepare(message.size()), boost::asio::buffer(message));
+//                ws.read_buffer->commit(message.size());
+//                ws.read_handler(boost::system::error_code{}, message.size());
+//            }
+//        };
     }
 
-    void expect_swarm_initialize()
+    void expect_swarm_initialize(bool make_tcp = true)
     {
         uint16_t node_count = 0;
 
 //        EXPECT_CALL(*mock_io_context, make_unique_tcp_socket()).Times(Exactly(this->node_websocks.size())).WillRepeatedly(Invoke([]()
-        EXPECT_CALL(*mock_io_context, make_unique_tcp_socket()).Times(Exactly(1)).WillRepeatedly(Invoke([]()
+
+        if (make_tcp)
         {
-            auto tcp_sock = std::make_unique<bzn::asio::Mocktcp_socket_base>();
+            EXPECT_CALL(*mock_io_context, make_unique_tcp_socket()).Times(Exactly(1)).WillRepeatedly(Invoke([]()
+            {
+                auto tcp_sock = std::make_unique<bzn::asio::Mocktcp_socket_base>();
 
-            EXPECT_CALL(*tcp_sock, async_connect(_, _)).Times(AtLeast(1))
-                .WillRepeatedly(Invoke([](auto, auto callback)
-                {
-                    callback(boost::system::error_code{});
-                }));
+                EXPECT_CALL(*tcp_sock, async_connect(_, _)).Times(AtLeast(1))
+                    .WillRepeatedly(Invoke([](auto, auto callback)
+                    {
+                        callback(boost::system::error_code{});
+                    }));
 
-            static boost::asio::ip::tcp::socket socket{real_io_context};
-            EXPECT_CALL(*tcp_sock, get_tcp_socket()).Times(AtLeast(1))
-                .WillRepeatedly(ReturnRef(socket));
+                static boost::asio::ip::tcp::socket socket{real_io_context};
+                EXPECT_CALL(*tcp_sock, get_tcp_socket()).Times(AtLeast(1))
+                    .WillRepeatedly(ReturnRef(socket));
 
-            return tcp_sock;
-        }));
+                return tcp_sock;
+            }));
+        }
 
 //        EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).Times(AtLeast(1)).WillRepeatedly(Invoke([]()
 //        {
@@ -423,7 +506,7 @@ public:
                     EXPECT_TRUE(sr.ParseFromString(env.status_request()));
                 };
 
-                ws.read_func = [this, node_id, &ws](const auto & /*buffer*/)
+                ws.read_func = [this, node_id, &ws](const auto& /*buffer*/)
                 {
                     status_response sr = this->make_status_response();
                     bzn_envelope env;
@@ -589,35 +672,10 @@ TEST_F(integration_test, test_create_db)
     this->primary_node = "node_0";
 
     // reverse order is intentional to match most recent expectations first
-    expect_swarm_initialize();
+    expect_swarm_initialize(false);
     expect_create_db();
     expect_has_db(false);
 
-    for (size_t i = 0; i < 4; i++)
-    {
-        this->node_websocks[i].write_func = [this, i, uuid](const boost::asio::mutable_buffers_1& buffer)
-        {
-            bzn_envelope env;
-            EXPECT_TRUE(env.ParseFromString(std::string(static_cast<const char *>(buffer.data()), buffer.size())));
-            database_msg msg;
-            EXPECT_TRUE(msg.ParseFromString(env.database_msg()));
-            EXPECT_EQ(msg.header().db_uuid(), uuid);
-            int nonce = msg.header().nonce();
-            EXPECT_TRUE(msg.has_create_db());
-
-            database_header header;
-            header.set_nonce(nonce);
-            database_response dr;
-            dr.set_allocated_header(new database_header(header));
-
-            bzn_envelope env2;
-            env2.set_database_response(dr.SerializeAsString());
-            env2.set_sender("node_" + std::to_string(i));
-            env2.set_signature("xxx");
-            auto message = env2.SerializeAsString();
-            this->node_websocks[i].simulate_read(message);
-        };
-    }
 
     auto db = create_db(uuid, 0, false);
     EXPECT_NE(db, nullptr);

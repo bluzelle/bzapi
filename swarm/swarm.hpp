@@ -18,7 +18,6 @@
 #include <swarm/swarm_base.hpp>
 #include <crypto/crypto_base.hpp>
 #include <node/node_base.hpp>
-#include <utils/peer_address.hpp>
 
 namespace bzapi
 {
@@ -39,7 +38,8 @@ namespace bzapi
 
         ~swarm();
 
-        void add_nodes(const std::vector<std::pair<node_id_t, bzn::peer_address_t>>& nodes);
+        // TODO: figure out how to make this better
+        void add_nodes(const std::vector<std::pair<node_id_t, bzn::peer_address_t>>& nodes) override;
 
         void initialize(completion_handler_t handler) override;
 
