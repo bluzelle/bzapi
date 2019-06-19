@@ -15,12 +15,14 @@
 
 #pragma once
 
-#include <proto/bluzelle.pb.h>
-#include <boost_asio_beast.hpp>
+
+#include <include/bluzelle.hpp>
+#include <include/boost_asio_beast.hpp>
 #include <node/node_factory_base.hpp>
+#include <proto/bluzelle.pb.h>
 #include <proto/status.pb.h>
-#include <bluzelle.hpp>
 #include <utils/peer_address.hpp>
+
 
 namespace bzapi
 {

@@ -15,8 +15,8 @@
 
 #pragma once
 
+#include <include/bluzelle.hpp>
 #include <proto/database.pb.h>
-#include <bluzelle.hpp>
 #include <swarm/swarm_base.hpp>
 
 namespace bzapi

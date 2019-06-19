@@ -13,13 +13,13 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 //
 
-#include <swarm.hpp>
-#include <json/json.h>
-#include <bluzelle.hpp>
-#include <boost/format.hpp>
-#include <proto/database.pb.h>
+#include <include/bluzelle.hpp>
+#include <swarm/swarm.hpp>
 #include <database/db_impl_base.hpp>
+#include <proto/database.pb.h>
 #include <utils/peer_address.hpp>
+#include <json/json.h>
+#include <boost/format.hpp>
 
 using namespace bzapi;
 

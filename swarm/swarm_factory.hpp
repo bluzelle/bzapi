@@ -15,18 +15,19 @@
 
 #pragma once
 
-#include <bluzelle.hpp>
-#include <swarm/swarm_base.hpp>
+#include <include/bluzelle.hpp>
+#include <include/boost_asio_beast.hpp>
 #include <crypto/crypto_base.hpp>
 #include <database/async_database_impl.hpp>
-#include <boost_asio_beast.hpp>
+#include <swarm/swarm_base.hpp>
 #include <utils/peer_address.hpp>
+
 
 namespace bzapi
 {
-class swarm_factory : public std::enable_shared_from_this<swarm_factory>
+    class swarm_factory : public std::enable_shared_from_this<swarm_factory>
     {
-private:
+    private:
 
         class swarm_registry
         {
@@ -49,7 +50,6 @@ private:
         private:
             swarm_map swarms;
         };
-
 
     public:
 
@@ -81,5 +81,5 @@ private:
         void update_swarm_registry();
         void select_swarm_for_size(uint64_t size, std::function<void(const std::string& swarm_id)> callback);
         void do_create_db(const uuid_t& uuid, uint64_t max_size, bool random_evict, uint64_t retry, std::function<void(db_error, std::shared_ptr<swarm_base>)>);
-};
+    };
 }

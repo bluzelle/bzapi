@@ -15,9 +15,11 @@
 
 #pragma once
 
+
+#include <include/bluzelle.hpp>
+#include <include/boost_asio_beast.hpp>
 #include <cstdint>
-#include <boost_asio_beast.hpp>
-#include <bluzelle.hpp>
+
 
 namespace bzapi
 {

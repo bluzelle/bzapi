@@ -13,19 +13,20 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 //
 
-#include <gtest/gtest.h>
+#include <include/bluzelle.hpp>
+#include <crypto/crypto.hpp>
+#include <crypto/null_crypto.hpp>
+#include <database/db_impl.hpp>
+#include <include/bzapi.hpp>
+#include <include/logger.hpp>
+#include <library/udp_response.hpp>
 #include <mocks/mock_boost_asio_beast.hpp>
 #include <swarm/swarm_factory.hpp>
-#include <bluzelle.hpp>
-#include <crypto/null_crypto.hpp>
-#include <crypto/crypto.hpp>
-#include <include/bzapi.hpp>
-#include <json/value.h>
+
+#include <gtest/gtest.h>
 #include <json/reader.h>
-#include <library/udp_response.hpp>
+#include <json/value.h>
 #include <random>
-#include <include/logger.hpp>
-#include <database/db_impl.hpp>
 
 using namespace testing;
 using namespace bzapi;
