@@ -15,6 +15,9 @@
 include(ExternalProject)
 include(ProcessorCount)
 
+set(REQUIRED_BOOST "1.70.0")
+set(BOOST_URL_HASH "882b48708d211a5f48e60b0124cf5863c1534cd544ecd0664bb534a4b5d506e9")
+
 message(STATUS "Boost: ${REQUIRED_BOOST}")
 
 set(BOOST_TARBALL "boost_${REQUIRED_BOOST}")
@@ -40,7 +43,7 @@ ExternalProject_Add(boost
     TIMEOUT 120
     INSTALL_COMMAND ""
     CONFIGURE_COMMAND "${CMAKE_CURRENT_BINARY_DIR}/boost/src/boost/bootstrap.sh" "--with-libraries=${BOOST_LIBS}"
-    BUILD_COMMAND "${CMAKE_CURRENT_BINARY_DIR}/boost/src/boost/b2" link=shared "${BUILD_FLAGS} -fPIC "
+    BUILD_COMMAND "${CMAKE_CURRENT_BINARY_DIR}/boost/src/boost/b2" -d2 cxxflags=-fPIC cflags=-fPIC -a link=static visibility=global "${BUILD_FLAGS} "
     BUILD_IN_SOURCE true
     DOWNLOAD_NO_PROGRESS true
     )
@@ -49,22 +52,18 @@ set_property(DIRECTORY PROPERTY CLEAN_NO_CUSTOM ${CMAKE_CURRENT_BINARY_DIR}/boos
 
 ExternalProject_Get_Property(boost source_dir)
 set(Boost_INCLUDE_DIRS ${source_dir})
-include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 
 set(Boost_LIBRARIES
-    ${source_dir}/stage/lib/libboost_log.so
-    ${source_dir}/stage/lib/libboost_program_options.so
-    ${source_dir}/stage/lib/libboost_system.so
-    ${source_dir}/stage/lib/libboost_thread.so
+    ${source_dir}/stage/lib/libboost_log.a
+    ${source_dir}/stage/lib/libboost_program_options.a
+    ${source_dir}/stage/lib/libboost_system.a
+    ${source_dir}/stage/lib/libboost_thread.a
     pthread
-    ${source_dir}/stage/lib/libboost_serialization.so
-    ${source_dir}/stage/lib/libboost_date_time.so
-    ${source_dir}/stage/lib/libboost_log_setup.so
-    ${source_dir}/stage/lib/libboost_filesystem.so
-    ${source_dir}/stage/lib/libboost_regex.so
-    ${source_dir}/stage/lib/libboost_chrono.so
-    ${source_dir}/stage/lib/libboost_atomic.so
-)
-
-set(Boost_LIBRARIES_dir ${source_dir}/stage/lib/)
-
+    ${source_dir}/stage/lib/libboost_serialization.a
+    ${source_dir}/stage/lib/libboost_date_time.a
+    ${source_dir}/stage/lib/libboost_log_setup.a
+    ${source_dir}/stage/lib/libboost_filesystem.a
+    ${source_dir}/stage/lib/libboost_regex.a
+    ${source_dir}/stage/lib/libboost_chrono.a
+    ${source_dir}/stage/lib/libboost_atomic.a
+    )
