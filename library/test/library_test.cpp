@@ -38,6 +38,9 @@ namespace bzapi
     extern std::shared_ptr<bzn::beast::websocket_base> ws_factory;
     extern std::shared_ptr<bzapi::db_impl_base> db_dispatcher;
     extern bool initialized;
+
+    void init_logging();
+    void end_logging();
 }
 
 namespace
@@ -181,6 +184,7 @@ class integration_test : public Test
 public:
     void initialize(bzapi::uuid_t _uuid)
     {
+        bzapi::init_logging();
         bzapi::set_logger(&mylogger);
 
         this->uuid = _uuid;
@@ -210,6 +214,7 @@ public:
         io_context = nullptr;
         ws_factory = nullptr;
         this->node_websocks.clear();
+        bzapi::end_logging();
         bzapi::initialized = false;
     }
 
