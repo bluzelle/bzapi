@@ -72,16 +72,6 @@ swarm_factory::initialize(const swarm_id_t& default_swarm, const std::vector<std
 }
 
 void
-swarm_factory::get_swarm(const uuid_t& db_uuid, std::function<void(std::shared_ptr<swarm_base>)> callback)
-{
-    this->has_db(db_uuid, [&](auto /*err*/, auto sw)
-    {
-        // TODO: propagate the error
-        callback(sw);
-    });
-}
-
-void
 swarm_factory::has_db(const uuid_t& uuid, std::function<void(db_error, std::shared_ptr<swarm_base>)> callback)
 {
     if (!this->initialized)
