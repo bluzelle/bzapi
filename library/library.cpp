@@ -93,45 +93,66 @@ namespace bzapi
         return std::make_pair(addr, port);
     }
 
+    void
+    common_init(const std::string& public_key, const std::string& private_key)
+    {
+        init_logging();
+        io_context = std::make_shared<bzn::asio::io_context>();
+        io_thread = std::make_shared<std::thread>([]()
+        {
+            auto& io = io_context->get_io_context();
+            boost::asio::executor_work_guard<decltype(io.get_executor())> work{io.get_executor()};
+            auto res = io_context->run();
+            LOG(debug) << "Events run: " << res << std::endl;
+        });
+
+        db_dispatcher = std::make_shared<db_impl>(io_context);
+        the_crypto = std::make_shared<crypto>(private_key);
+        ws_factory = std::make_shared<bzn::beast::websocket>();
+        the_swarm_factory = std::make_shared<swarm_factory>(io_context, ws_factory, the_crypto, public_key);
+
+        error_val = 0;
+        error_str = "";
+    }
 
     bool
     initialize(const std::string& public_key, const std::string& private_key
         , const std::string& endpoint, const std::string& node_id, const std::string& swarm_id)
     {
-        try
+        if (!initialized)
         {
-            init_logging();
-            if (!initialized)
+            try
             {
-                try
-                {
-                    io_context = std::make_shared<bzn::asio::io_context>();
-                    io_thread = std::make_shared<std::thread>([]()
-                    {
-                        auto& io = io_context->get_io_context();
-                        boost::asio::executor_work_guard<decltype(io.get_executor())> work{io.get_executor()};
-                        auto res = io_context->run();
-                        LOG(debug) << "Events run: " << res << std::endl;
-                    });
-
-                    db_dispatcher = std::make_shared<db_impl>(io_context);
-                    the_crypto = std::make_shared<crypto>(private_key);
-                    ws_factory = std::make_shared<bzn::beast::websocket>();
-                    the_swarm_factory = std::make_shared<swarm_factory>(io_context, ws_factory, the_crypto, public_key);
-                    auto ep = parse_endpoint(endpoint);
-                    std::vector<std::pair<node_id_t, bzn::peer_address_t>> addrs;
-                    addrs.push_back(std::make_pair(node_id, bzn::peer_address_t{ep.first, ep.second, 0, "", ""}));
-                    the_swarm_factory->initialize(swarm_id, addrs);
-                }
-                CATCHALL(return false);
-
-                error_val = 0;
-                error_str = "";
-                initialized = true;
+                common_init(public_key, private_key);
+                auto ep = parse_endpoint(endpoint);
+                std::vector<std::pair<node_id_t, bzn::peer_address_t>> addrs;
+                addrs.push_back(std::make_pair(node_id, bzn::peer_address_t{ep.first, ep.second, 0, "", ""}));
+                the_swarm_factory->initialize(swarm_id, addrs);
             }
+            CATCHALL(return false);
+
+            initialized = true;
             return true;
         }
-        CATCHALL();
+        return false;
+    }
+
+    bool
+    initialize(const std::string& public_key, const std::string& private_key
+        , const std::string& esr_address, const std::string& url)
+    {
+        if (!initialized)
+        {
+            try
+            {
+                common_init(public_key, private_key);
+                the_swarm_factory->initialize(esr_address, url);
+            }
+            CATCHALL(return false);
+
+            initialized = true;
+            return true;
+        }
         return false;
     }
 
