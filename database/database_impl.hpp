@@ -42,7 +42,7 @@ namespace bzapi
         std::string add_writer(const std::string& writer) override;
         std::string remove_writer(const std::string& writer) override;
 
-        std::string swarm_status();
+        std::string swarm_status() override;
 
     private:
         std::shared_ptr<async_database> db;

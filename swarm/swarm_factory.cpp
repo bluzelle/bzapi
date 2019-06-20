@@ -247,8 +247,8 @@ void
 swarm_factory::swarm_registry::add_node(const swarm_id_t& swarm_id, const node_id_t& node_id, const bzn::peer_address_t& endpoint)
 {
     auto info = this->swarms[swarm_id];
-    info.nodes.insert(std::make_pair(node_id, endpoint));
-    this->swarms[swarm_id] = info;
+    info.nodes.emplace(std::make_pair(node_id, endpoint));
+    this->swarms[swarm_id] = std::move(info);
 }
 
 std::vector<swarm_id_t>
