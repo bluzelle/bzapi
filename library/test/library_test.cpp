@@ -21,6 +21,7 @@
 #include <include/logger.hpp>
 #include <library/udp_response.hpp>
 #include <mocks/mock_boost_asio_beast.hpp>
+#include <mocks/mock_esr.hpp>
 #include <swarm/swarm_factory.hpp>
 
 #include <gtest/gtest.h>
@@ -38,6 +39,7 @@ namespace bzapi
     extern std::shared_ptr<crypto_base> the_crypto;
     extern std::shared_ptr<bzn::beast::websocket_base> ws_factory;
     extern std::shared_ptr<bzapi::db_impl_base> db_dispatcher;
+    extern std::shared_ptr<bzapi::esr_base> the_esr;
     extern bool initialized;
 
     void init_logging();
@@ -197,7 +199,8 @@ public:
         the_crypto = std::make_shared<null_crypto>();
         mock_ws_factory = std::make_shared<bzn::beast::Mockwebsocket_base>();
         ws_factory = mock_ws_factory;
-        the_swarm_factory = std::make_shared<swarm_factory>(mock_io_context, ws_factory, the_crypto, this->uuid);
+        auto esr = std::make_shared<mock_esr>();
+        the_swarm_factory = std::make_shared<swarm_factory>(mock_io_context, ws_factory, the_crypto, esr, this->uuid);
         std::vector<std::pair<node_id_t, bzn::peer_address_t>> addrs;
         addrs.push_back(std::make_pair(node_id_t{"node_0"}, bzn::peer_address_t{"127.0.0.1", 50000, 0, "node_0", "node_0"}));
         addrs.push_back(std::make_pair(node_id_t{"node_1"}, bzn::peer_address_t{"127.0.0.1", 50001, 0, "node_1", "node_1"}));
@@ -536,6 +539,42 @@ TEST_F(integration_test, test_initialize)
     bzapi::terminate();
     EXPECT_EQ(bzapi::get_error(), -1);
     EXPECT_EQ(bzapi::get_error_str(), std::string{"Not Initialized"});
+}
+
+TEST_F(integration_test, test_initialize_esr)
+{
+    EXPECT_EQ(bzapi::get_error(), -1);
+    EXPECT_EQ(bzapi::get_error_str(), std::string{"Not Initialized"});
+
+    auto esr = std::make_shared<mock_esr>();
+    bzapi::the_esr = esr;
+    EXPECT_CALL(*esr, get_swarm_ids(_, _)).WillOnce(Invoke([](auto, auto)
+    {
+        return std::vector<std::string>{"swarm_1", "swarm_2"};
+    }));
+    EXPECT_CALL(*esr, get_peer_ids(_, _, _)).Times(Exactly(2))
+        .WillRepeatedly(Invoke([](auto, auto, auto)
+    {
+        return std::vector<std::string>{"node_1", "node_2"};
+    }));
+    EXPECT_CALL(*esr, get_peer_info(_, _, _, _)).Times(Exactly(4))
+        .WillRepeatedly(Invoke([](auto, auto, auto, auto)
+        {
+            static uint16_t id = 1;
+            return bzn::peer_address_t{"127.0.0.1", id, 0, "", std::string{"node_"} + std::to_string(id)};
+            id++;
+        }));
+
+    bool result = bzapi::initialize(pub_key, priv_key, "address", "url");
+    EXPECT_TRUE(result);
+    EXPECT_EQ(bzapi::get_error(), 0);
+    EXPECT_EQ(bzapi::get_error_str(), std::string{""});
+
+    bzapi::terminate();
+    EXPECT_EQ(bzapi::get_error(), -1);
+    EXPECT_EQ(bzapi::get_error_str(), std::string{"Not Initialized"});
+
+    bzapi::the_esr = nullptr;
 }
 
 TEST_F(integration_test, test_has_db)

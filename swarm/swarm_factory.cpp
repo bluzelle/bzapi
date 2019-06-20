@@ -15,6 +15,7 @@
 
 #include <swarm/swarm_factory.hpp>
 #include <swarm/swarm.hpp>
+#include <swarm/esr.hpp>
 #include <node/node_factory.hpp>
 #include <utils/esr_peer_info.hpp>
 #include <random>
@@ -39,10 +40,11 @@ using namespace bzapi;
 swarm_factory::swarm_factory(std::shared_ptr<bzn::asio::io_context_base> io_context
     , std::shared_ptr<bzn::beast::websocket_base> ws_factory
     , std::shared_ptr<crypto_base> crypto
+    , std::shared_ptr<esr_base> esr
     , const uuid_t& uuid)
-: io_context(std::move(io_context)), ws_factory(std::move(ws_factory)), crypto(std::move(crypto)), my_uuid(uuid)
+: io_context(std::move(io_context)), ws_factory(std::move(ws_factory)), crypto(std::move(crypto)), esr(esr), my_uuid(uuid)
 {
-    node_factory = std::make_shared<::node_factory>();
+    this->node_factory = std::make_shared<::node_factory>();
 }
 
 swarm_factory::~swarm_factory()
@@ -54,6 +56,7 @@ swarm_factory::initialize(const std::string& esr_address, const std::string& url
 {
     this->esr_address = esr_address;
     this->esr_url = url;
+    this->swarm_reg = std::make_shared<swarm_registry>();
     this->update_swarm_registry();
     this->initialized = true;
 }
@@ -199,13 +202,13 @@ swarm_factory::update_swarm_registry()
     if (!this->esr_address.empty() && !this->esr_url.empty())
     {
         auto sw_reg = std::make_shared<swarm_registry>();
-        auto swarm_list = bzn::utils::esr::get_swarm_ids(esr_address, esr_url);
+        auto swarm_list = this->esr->get_swarm_ids(esr_address, esr_url);
         for (auto sw_id : swarm_list)
         {
-            auto node_list = bzn::utils::esr::get_peer_ids(sw_id, esr_address, esr_url);
+            auto node_list = this->esr->get_peer_ids(sw_id, esr_address, esr_url);
             for (auto node : node_list)
             {
-                auto ep = bzn::utils::esr::get_peer_info(sw_id, node, esr_address, esr_url);
+                auto ep = this->esr->get_peer_info(sw_id, node, esr_address, esr_url);
                 sw_reg->add_node(sw_id, node, ep);
                 auto strong_sw = this->swarm_reg->get_swarm(sw_id).lock();
                 if (strong_sw)
@@ -243,7 +246,9 @@ swarm_factory::get_or_create_swarm(const swarm_id_t& swarm_id)
 void
 swarm_factory::swarm_registry::add_node(const swarm_id_t& swarm_id, const node_id_t& node_id, const bzn::peer_address_t& endpoint)
 {
-    this->swarms[swarm_id].nodes.insert(std::make_pair(node_id, endpoint));
+    auto info = this->swarms[swarm_id];
+    info.nodes.insert(std::make_pair(node_id, endpoint));
+    this->swarms[swarm_id] = info;
 }
 
 std::vector<swarm_id_t>
@@ -278,8 +283,7 @@ std::weak_ptr<swarm_base>
 swarm_factory::swarm_registry::get_swarm(const swarm_id_t& swarm_id)
 {
     auto it = this->swarms.find(swarm_id);
-    assert(it != this->swarms.end());
-    return it->second.swarm;
+    return it != this->swarms.end() ? it->second.swarm : std::weak_ptr<swarm_base>();
 }
 
 void

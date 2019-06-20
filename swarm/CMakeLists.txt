@@ -3,7 +3,10 @@ add_library(
     swarm.hpp
     swarm_base.hpp
     swarm_factory.hpp
-    swarm_factory.cpp)
+    swarm_factory.cpp
+    esr_base.hpp
+    esr.hpp
+    )
 
 add_dependencies(swarm boost)
 target_include_directories(swarm PRIVATE ${BLUZELLE_STD_INCLUDES})
