@@ -34,7 +34,7 @@ else()
 endif()
 
 ExternalProject_Add(openssl
-    PREFIX "${CMAKE_CURRENT_BINARY_DIR}/openssl"
+    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/openssl
     URL https://www.openssl.org/source/openssl-1.1.1.tar.gz
     URL_HASH SHA256=2836875a0f89c03d0fdf483941512613a50cfb421d6fd94b9f41d7279d586a3d
     TIMEOUT 30
@@ -44,8 +44,7 @@ ExternalProject_Add(openssl
     BUILD_COMMAND make ${BUILD_FLAGS}
     )
 
-set_property(DIRECTORY PROPERTY CLEAN_NO_CUSTOM
-    "${CMAKE_CURRENT_BINARY_DIR}/openssl")
+set_property(DIRECTORY PROPERTY CLEAN_NO_CUSTOM ${CMAKE_CURRENT_BINARY_DIR}/openssl)
 
 ExternalProject_Get_Property(openssl source_dir)
 ExternalProject_Get_Property(openssl binary_dir)

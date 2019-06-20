@@ -73,7 +73,7 @@ script:
   - git lfs pull
   - make -j2
   - make static_analysis
-  - ctest -V
+  - ctest
 
 after_success:
   - |

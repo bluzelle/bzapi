@@ -4,6 +4,11 @@ project(bzapi CXX)
 
 option(OMIT_LIBRARY "Omit compiling the shared library" OFF)
 
+# ensure type is set
+if (NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Debug)
+endif()
+
 # use ccache if available...
 find_program(CCACHE_FOUND ccache)
 if(CCACHE_FOUND)
@@ -29,13 +34,13 @@ endif(APPLE)
 set(CMAKE_CXX_FLAGS ${warnings})
 set(CMAKE_C_FLAGS   ${warnings})
 
-#if(NOT BUILD_DEPEND)
-#    add_subdirectory(depend)
-#else()
+if(NOT BUILD_DEPEND)
+    add_subdirectory(depend)
+else()
     include(cmake/boost.cmake)
     include(cmake/googletest.cmake)
     include(cmake/openssl.cmake)
-#endif()
+endif()
 
 include(cmake/add_gmock_test.cmake)
 
@@ -68,9 +73,9 @@ add_subdirectory(proto)
 set(BLUZELLE_STD_INCLUDES ${Boost_INCLUDE_DIRS} ${GTEST_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR} ${PROTO_INCLUDE_DIR})
 
 add_subdirectory(crypto)
-add_subdirectory(swarm)
-add_subdirectory(node)
 add_subdirectory(database)
+add_subdirectory(node)
+add_subdirectory(swarm)
 add_subdirectory(utils)
 
 if (NOT OMIT_LIBRARY)

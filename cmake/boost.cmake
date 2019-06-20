@@ -43,7 +43,8 @@ ExternalProject_Add(boost
     TIMEOUT 120
     INSTALL_COMMAND ""
     CONFIGURE_COMMAND "${CMAKE_CURRENT_BINARY_DIR}/boost/src/boost/bootstrap.sh" "--with-libraries=${BOOST_LIBS}"
-    BUILD_COMMAND "${CMAKE_CURRENT_BINARY_DIR}/boost/src/boost/b2" cxxflags=-fPIC cflags=-fPIC -a link=static visibility=global "${BUILD_FLAGS} "
+    #BUILD_COMMAND "${CMAKE_CURRENT_BINARY_DIR}/boost/src/boost/b2" cxxflags=-fPIC cflags=-fPIC -a link=static visibility=global "${BUILD_FLAGS} "
+    BUILD_COMMAND "${CMAKE_CURRENT_BINARY_DIR}/boost/src/boost/b2" variant=${PKG_BUILD_TYPE} cxxflags=-fPIC cflags=-fPIC link=static visibility=global -j${NPROC} install
     BUILD_IN_SOURCE true
     DOWNLOAD_NO_PROGRESS true
     )

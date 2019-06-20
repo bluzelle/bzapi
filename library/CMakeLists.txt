@@ -11,7 +11,6 @@ add_library(bzapi SHARED
 add_dependencies(bzapi boost)
 target_include_directories(bzapi PRIVATE ${BLUZELLE_STD_INCLUDES})
 target_link_libraries(bzapi database swarm node utils crypto)
-#crypto proto swarm node database ${Protobuf_LIBRARIES} ${JSONCPP_LIBRARIES} ${OPENSSL_LIBRARIES} pthread)
 
 if (NOT OMIT_LIBRARY)
     add_subdirectory(test)
