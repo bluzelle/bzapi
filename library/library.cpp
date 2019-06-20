@@ -23,6 +23,7 @@
 #include <library/udp_response.hpp>
 #include <swarm/swarm.hpp>
 #include <swarm/swarm_factory.hpp>
+#include <swarm/esr.hpp>
 #include <boost/asio.hpp>
 #include <boost/lexical_cast.hpp>
 #include <json/reader.h>
@@ -50,6 +51,7 @@ namespace bzapi
     std::shared_ptr<bzapi::crypto_base> the_crypto;
     std::shared_ptr<bzn::beast::websocket_base> ws_factory;
     std::shared_ptr<bzapi::db_impl_base> db_dispatcher;
+    std::shared_ptr<bzapi::esr_base> the_esr{new bzapi::esr};
     bool initialized = false;
 
     std::shared_ptr<mutable_response>
@@ -64,6 +66,15 @@ namespace bzapi
         return db_dispatcher;
     }
 
+    void
+    do_bad_endpoint(const std::string& endpoint)
+    {
+        LOG(error) << "bad swarm node endpoint: " << endpoint;
+        error_str = "Bad Endpoint";
+        error_val = -1;
+        throw(std::runtime_error("bad node endpoint: " + endpoint));
+    }
+
     std::pair<std::string, uint16_t>
     parse_endpoint(const std::string& endpoint)
     {
@@ -75,8 +86,7 @@ namespace bzapi
         auto offset = endpoint.find(':', 5);
         if (offset > endpoint.size() || endpoint.substr(0, 5) != "ws://")
         {
-            LOG(error) << "bad swarm node endpoint: " << endpoint;
-            throw(std::runtime_error("bad node endpoint: " + endpoint));
+            do_bad_endpoint(endpoint);
         }
 
         try
@@ -86,8 +96,7 @@ namespace bzapi
         }
         catch (boost::bad_lexical_cast &)
         {
-            LOG(error) << "bad swarm node endpoint: " << endpoint;
-            throw(std::runtime_error("bad node endpoint: " + endpoint));
+            do_bad_endpoint(endpoint);
         }
 
         return std::make_pair(addr, port);
@@ -109,7 +118,7 @@ namespace bzapi
         db_dispatcher = std::make_shared<db_impl>(io_context);
         the_crypto = std::make_shared<crypto>(private_key);
         ws_factory = std::make_shared<bzn::beast::websocket>();
-        the_swarm_factory = std::make_shared<swarm_factory>(io_context, ws_factory, the_crypto, public_key);
+        the_swarm_factory = std::make_shared<swarm_factory>(io_context, ws_factory, the_crypto, the_esr, public_key);
 
         error_val = 0;
         error_str = "";
@@ -129,7 +138,17 @@ namespace bzapi
                 addrs.push_back(std::make_pair(node_id, bzn::peer_address_t{ep.first, ep.second, 0, "", ""}));
                 the_swarm_factory->initialize(swarm_id, addrs);
             }
-            CATCHALL(return false);
+            CATCHALL(
+                if (io_context)
+                {
+                    io_context->stop();
+                    if (io_thread)
+                    {
+                        io_thread->join();
+                    }
+                }
+                return false;
+            );
 
             initialized = true;
             return true;
@@ -171,6 +190,7 @@ namespace bzapi
                 error_val = -1;
 
                 end_logging();
+                the_swarm_factory = nullptr;
             }
         }
         CATCHALL();

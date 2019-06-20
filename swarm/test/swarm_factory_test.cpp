@@ -16,6 +16,9 @@
 #include <gtest/gtest.h>
 #include <mocks/mock_boost_asio_beast.hpp>
 #include <mocks/mock_node_factory.hpp>
+#include <mocks/mock_esr.hpp>
+#include <crypto/null_crypto.hpp>
+#include <swarm/swarm_factory.hpp>
 #include <json/json.h>
 
 using namespace testing;
@@ -29,9 +32,44 @@ namespace
 class swarm_factory_test : public Test
 {
 public:
+    swarm_factory_test()
+    {
+        the_esr = std::make_shared<mock_esr>();
+        mock_ws_factory = std::make_shared<bzn::beast::Mockwebsocket_base>();
+        mock_io_context = std::make_shared<bzn::asio::Mockio_context_base>();
+        the_crypto = std::make_shared<null_crypto>();
+    }
 
-
+protected:
+    std::shared_ptr<bzn::asio::Mockio_context_base> mock_io_context;
+    std::shared_ptr<bzn::beast::Mockwebsocket_base> mock_ws_factory;
+    std::shared_ptr<crypto_base> the_crypto;
+    std::shared_ptr<mock_esr> the_esr;
 };
+
+TEST_F(swarm_factory_test, test_init_esr)
+{
+    auto swf = std::make_shared<swarm_factory>(mock_io_context, mock_ws_factory, the_crypto, the_esr, "my_uuid");
+
+    EXPECT_CALL(*the_esr, get_swarm_ids(_, _)).WillOnce(Invoke([](auto, auto)
+    {
+        return std::vector<std::string>{"swarm_1", "swarm_2"};
+    }));
+    EXPECT_CALL(*the_esr, get_peer_ids(_, _, _)).Times(Exactly(2))
+        .WillRepeatedly(Invoke([](auto, auto, auto)
+        {
+            return std::vector<std::string>{"node_1", "node_2"};
+        }));
+    EXPECT_CALL(*the_esr, get_peer_info(_, _, _, _)).Times(Exactly(4))
+        .WillRepeatedly(Invoke([](auto, auto, auto, auto)
+        {
+            static uint16_t id = 1;
+            return bzn::peer_address_t{"127.0.0.1", id, 0, "", std::string{"node_"} + std::to_string(id)};
+            id++;
+        }));
+
+    swf->initialize("address", "url");
+}
 
 #if 0
 

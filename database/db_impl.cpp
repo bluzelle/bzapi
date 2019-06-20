@@ -328,8 +328,10 @@ db_impl::create_uuid(std::shared_ptr<swarm_base> swarm, uuid_t uuid, uint64_t ma
             {
                 callback(db_error::database_error);
             }
-
-            callback(db_error::success);
+            else
+            {
+                callback(db_error::success);
+            }
         }
     });
 }

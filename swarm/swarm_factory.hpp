@@ -20,6 +20,7 @@
 #include <crypto/crypto_base.hpp>
 #include <database/async_database_impl.hpp>
 #include <swarm/swarm_base.hpp>
+#include <swarm/esr_base.hpp>
 #include <utils/peer_address.hpp>
 
 
@@ -56,6 +57,7 @@ namespace bzapi
         swarm_factory(std::shared_ptr<bzn::asio::io_context_base> io_context
             , std::shared_ptr<bzn::beast::websocket_base> ws_factory
             , std::shared_ptr<crypto_base> crypto
+            , std::shared_ptr<esr_base> esr
             , const uuid_t& uuid);
         ~swarm_factory();
 
@@ -69,6 +71,7 @@ namespace bzapi
         std::shared_ptr<bzn::asio::io_context_base> io_context;
         std::shared_ptr<bzn::beast::websocket_base> ws_factory;
         std::shared_ptr<crypto_base> crypto;
+        std::shared_ptr<esr_base> esr;
         const uuid_t my_uuid;
         std::shared_ptr<node_factory_base> node_factory;
         std::shared_ptr<swarm_registry> swarm_reg;
