@@ -12,11 +12,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+#include <include/bluzelle.hpp>
 #include <crypto/crypto.hpp>
 #include <openssl/pem.h>
 #include <openssl/err.h>
 #include <openssl/crypto.h>
-#include <bluzelle.hpp>
+
 
 using namespace bzapi;
 

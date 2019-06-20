@@ -4,23 +4,12 @@ project(bzapi CXX)
 
 option(OMIT_LIBRARY "Omit compiling the shared library" OFF)
 
-#include(cmake/swarm_version.cmake)
-
-#message("Build version ${PROJECT_VERSION}")
-
-# Setup version header
-#configure_file(${PROJECT_SOURCE_DIR}/cmake/swarm_version.hpp.in 
-#${CMAKE_BINARY_DIR}/swarm_version.hpp.tmp)
-#execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_BINARY_DIR}/swarm_version.hpp.tmp ${CMAKE_BINARY_DIR}/swarm_version.hpp)
-#execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${CMAKE_BINARY_DIR}/swarm_version.hpp.tmp)
-include_directories(${CMAKE_BINARY_DIR})
-
 # use ccache if available...
-#find_program(CCACHE_FOUND ccache)
-#if(CCACHE_FOUND)
-#    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
-#    set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
-#endif(CCACHE_FOUND)
+find_program(CCACHE_FOUND ccache)
+if(CCACHE_FOUND)
+    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
+    set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
+endif(CCACHE_FOUND)
 
 # output dir
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/output)
@@ -28,12 +17,11 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/output)
 # compiler options...
 set(CMAKE_CXX_STANDARD 17)
 add_compile_options("-fdiagnostics-color=auto")
-add_compile_options("-fPIC")
+add_definitions(-DBOOST_ERROR_CODE_HEADER_ONLY)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-add_definitions(-DBOOST_ERROR_CODE_HEADER_ONLY)# -DBOOST_LOG_DYN_LINK)
-
-set(warnings "-Wno-deprecated-declarations -Wall -Wextra -Wpedantic")
+# todo: remove -Wno-implicit-fallthrough once CI moves past gcc 7.4.0...
+set(warnings "-Wno-deprecated-declarations -Wall -Wextra -Werror -Wpedantic -Wno-implicit-fallthrough")
 if (APPLE)
     set(warnings "${warnings} -Wno-extended-offsetof")
 endif(APPLE)
@@ -41,35 +29,27 @@ endif(APPLE)
 set(CMAKE_CXX_FLAGS ${warnings})
 set(CMAKE_C_FLAGS   ${warnings})
 
-# find packages
+#if(NOT BUILD_DEPEND)
+#    add_subdirectory(depend)
+#else()
+    include(cmake/boost.cmake)
+    include(cmake/googletest.cmake)
+    include(cmake/openssl.cmake)
+#endif()
+
 include(cmake/add_gmock_test.cmake)
 
+# find packages
+set(Protobuf_USE_STATIC_LIBS ON)
 include(FindProtobuf)
 find_package(Protobuf REQUIRED)
 include_directories(SYSTEM ${PROTOBUF_INCLUDE_DIR})
 
-find_package(CURL REQUIRED)
-find_package(PkgConfig REQUIRED)
-
-include(cmake/boost.cmake)
-
-set(BLUZELLE_STD_INCLUDES ${Boost_INCLUDE_DIRS})
-
 include(FindPkgConfig)
-
 pkg_search_module(JSONCPP REQUIRED jsoncpp)
-
 include_directories(SYSTEM ${JSONCPP_INCLUDE_DIRS})
-link_directories(${JSONCPP_LIBRARY_DIRS})
-
-#include(cmake/jsoncpp.cmake)
-#include(cmake/rocksdb.cmake)
-include(cmake/googletest.cmake)
-include(cmake/openssl.cmake)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-include_directories(SYSTEM ${OPENSSL_INCLUDE_DIR})
-include_directories(${PROJECT_SOURCE_DIR}/include)
 
 enable_testing()
 
@@ -84,14 +64,17 @@ if (ENABLE_GCOV)
 endif()
 
 add_subdirectory(proto)
+
+set(BLUZELLE_STD_INCLUDES ${Boost_INCLUDE_DIRS} ${GTEST_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR} ${PROTO_INCLUDE_DIR})
+
 add_subdirectory(crypto)
 add_subdirectory(swarm)
 add_subdirectory(node)
 add_subdirectory(database)
 add_subdirectory(utils)
+
 if (NOT OMIT_LIBRARY)
     add_subdirectory(library)
 endif(NOT OMIT_LIBRARY)
 
 include(cmake/static_analysis.cmake)
-

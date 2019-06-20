@@ -15,8 +15,9 @@
 
 #pragma once
 
-#include <memory>
 #include "response.hpp"
+#include <memory>
+
 
 namespace bzapi
 {

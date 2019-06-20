@@ -13,7 +13,7 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 //
 
-#include <node.hpp>
+#include <node/node.hpp>
 
 using namespace bzapi;
 

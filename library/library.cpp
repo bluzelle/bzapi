@@ -13,21 +13,21 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 //
 
-#include <include/bzapi.hpp>
-#include <boost/asio.hpp>
-#include <swarm/swarm.hpp>
-#include <boost_asio_beast.hpp>
-#include <swarm/swarm_factory.hpp>
-#include <bluzelle.hpp>
+#include <include/bluzelle.hpp>
+#include <include/boost_asio_beast.hpp>
 #include <crypto/crypto.hpp>
 #include <database/database_impl.hpp>
 #include <database/db_impl.hpp>
-#include <json/value.h>
-#include <library/udp_response.hpp>
-#include <json/value.h>
-#include <json/reader.h>
+#include <include/bzapi.hpp>
 #include <library/log.hpp>
+#include <library/udp_response.hpp>
+#include <swarm/swarm.hpp>
+#include <swarm/swarm_factory.hpp>
+#include <boost/asio.hpp>
 #include <boost/lexical_cast.hpp>
+#include <json/reader.h>
+#include <json/value.h>
+
 
 namespace
 {

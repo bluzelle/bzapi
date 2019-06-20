@@ -13,14 +13,14 @@
 // along with this program. If not, see <http://www.gnu.org/licenses/>.
 //
 
-#include <gtest/gtest.h>
-#include <mocks/mock_boost_asio_beast.hpp>
-#include <mocks/mock_swarm.hpp>
-#include <json/json.h>
+#include <include/bzapi.hpp>
+#include <database/db_impl.hpp>
 #include <boost/chrono.hpp>
 #include <boost/thread/thread.hpp>
-#include <database/db_impl.hpp>
-#include <include/bzapi.hpp>
+#include <json/json.h>
+#include <mocks/mock_boost_asio_beast.hpp>
+#include <mocks/mock_swarm.hpp>
+
 
 using namespace testing;
 using namespace bzapi;

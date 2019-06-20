@@ -15,10 +15,12 @@
 
 #pragma once
 
+#include <include/bluzelle.hpp>
 #include <include/async_database.hpp>
 #include <database/db_impl_base.hpp>
-#include <swarm/swarm_base.hpp>
 #include <library/mutable_response.hpp>
+#include <swarm/swarm_base.hpp>
+
 
 namespace bzapi
 {
