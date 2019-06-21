@@ -15,7 +15,7 @@
 //
 
 #include <gtest/gtest.h>
-#include <mocks/mock_db_impl.hpp>
+#include <mocks/mock_db_dispatch.hpp>
 #include <mocks/mock_swarm.hpp>
 #include <database/database_impl.hpp>
 #include <json/value.h>
@@ -33,7 +33,7 @@ class database_test : public Test
 public:
 
 protected:
-    std::shared_ptr<mock_db_impl> dbi = std::make_shared<mock_db_impl>();
+    std::shared_ptr<mock_db_dispatch> dbi = std::make_shared<mock_db_dispatch>();
     std::shared_ptr<mock_swarm> sw = std::make_shared<mock_swarm>();
     std::shared_ptr<async_database_impl> adb = std::make_shared<async_database_impl>(dbi, sw, "db_uuid");
     database_impl db{adb};

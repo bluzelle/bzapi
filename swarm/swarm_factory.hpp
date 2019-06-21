@@ -24,7 +24,6 @@
 #include <swarm/esr_base.hpp>
 #include <utils/peer_address.hpp>
 
-
 namespace bzapi
 {
     class swarm_factory : public std::enable_shared_from_this<swarm_factory>
@@ -47,7 +46,7 @@ namespace bzapi
             std::weak_ptr<swarm_base> get_swarm(const swarm_id_t& swarm_id);
             void set_swarm(const swarm_id_t& swarm_id, std::shared_ptr<swarm_base> swarm);
             std::vector<swarm_id_t> get_swarms();
-            std::vector<std::pair<node_id_t, bzn::peer_address_t>> get_nodes(swarm_id_t swarm_id);
+            std::vector<std::pair<node_id_t, bzn::peer_address_t>> get_nodes(const swarm_id_t& swarm_id);
 
         private:
             swarm_map swarms;
@@ -60,7 +59,6 @@ namespace bzapi
             , std::shared_ptr<crypto_base> crypto
             , std::shared_ptr<esr_base> esr
             , const uuid_t& uuid);
-        ~swarm_factory();
 
         void initialize(const std::string& esr_address, const std::string& url);
         void initialize(const swarm_id_t& default_swarm, const std::vector<std::pair<node_id_t, bzn::peer_address_t>>& nodes);
@@ -69,21 +67,22 @@ namespace bzapi
         void create_db(const uuid_t& uuid, uint64_t max_size, bool random_evict, std::function<void(db_error, std::shared_ptr<swarm_base>)>);
 
     private:
-        std::shared_ptr<bzn::asio::io_context_base> io_context;
-        std::shared_ptr<bzn::beast::websocket_base> ws_factory;
-        std::shared_ptr<crypto_base> crypto;
-        std::shared_ptr<esr_base> esr;
+        const std::shared_ptr<bzn::asio::io_context_base> io_context;
+        const std::shared_ptr<bzn::beast::websocket_base> ws_factory;
+        const std::shared_ptr<crypto_base> crypto;
+        const std::shared_ptr<esr_base> esr;
         const uuid_t my_uuid;
-        std::shared_ptr<node_factory_base> node_factory;
-        std::shared_ptr<swarm_registry> swarm_reg;
+        const std::shared_ptr<node_factory_base> node_factory;
+
         std::string esr_address;
         std::string esr_url;
         bool initialized = false;
+        std::shared_ptr<swarm_registry> swarm_reg;
         std::map<uuid_t, swarm_id_t> swarm_dbs;
 
         std::shared_ptr<swarm_base> get_or_create_swarm(const swarm_id_t& swarm_id);
         void update_swarm_registry();
-        void select_swarm_for_size(uint64_t size, std::function<void(const std::string& swarm_id)> callback);
+        void select_swarm_for_size(uint64_t size, uint64_t hint, std::function<void(const std::string& swarm_id)> callback);
         void do_create_db(const uuid_t& uuid, uint64_t max_size, bool random_evict, uint64_t retry, std::function<void(db_error, std::shared_ptr<swarm_base>)>);
     };
 }

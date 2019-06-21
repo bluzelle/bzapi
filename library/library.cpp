@@ -18,7 +18,7 @@
 #include <include/boost_asio_beast.hpp>
 #include <crypto/crypto.hpp>
 #include <database/database_impl.hpp>
-#include <database/db_impl.hpp>
+#include <database/db_dispatch.hpp>
 #include <include/bzapi.hpp>
 #include <library/log.hpp>
 #include <library/udp_response.hpp>
@@ -40,7 +40,7 @@ namespace
     std::shared_ptr<bzn::beast::websocket_base> ws_factory;
     std::string error_str = "Not Initialized";
     int error_val = -1;
-    uint64_t DEFAULT_TIMEOUT = 30;
+    const uint64_t DEFAULT_TIMEOUT = 3000;
     uint64_t api_timeout = DEFAULT_TIMEOUT;
 }
 
@@ -51,7 +51,7 @@ namespace bzapi
     std::shared_ptr<bzapi::swarm_factory> the_swarm_factory;
     std::shared_ptr<bzapi::crypto_base> the_crypto;
     std::shared_ptr<bzn::beast::websocket_base> ws_factory;
-    std::shared_ptr<bzapi::db_impl_base> db_dispatcher;
+    std::shared_ptr<bzapi::db_dispatch_base> db_dispatcher;
     std::shared_ptr<bzapi::esr_base> the_esr{new bzapi::esr};
     bool initialized = false;
 
@@ -61,13 +61,13 @@ namespace bzapi
         return std::make_shared<udp_response>();
     }
 
-    std::shared_ptr<bzapi::db_impl_base>
+    std::shared_ptr<bzapi::db_dispatch_base>
     get_db_dispatcher()
     {
         return db_dispatcher;
     }
 
-    void
+    static void
     do_bad_endpoint(const std::string& endpoint)
     {
         LOG(error) << "bad swarm node endpoint: " << endpoint;
@@ -76,11 +76,10 @@ namespace bzapi
         throw(std::runtime_error("bad node endpoint: " + endpoint));
     }
 
-    std::pair<std::string, uint16_t>
+    static std::pair<std::string, uint16_t>
     parse_endpoint(const std::string& endpoint)
     {
-        // format should be ws://n.n.n.n:p
-        // TODO: support for hostnames
+        // format should be ws://n.n.n.n:p or ws://hostname:port
         std::string addr;
         uint64_t port;
 
@@ -103,7 +102,7 @@ namespace bzapi
         return std::make_pair(addr, port);
     }
 
-    void
+    static void
     common_init(const std::string& public_key, const std::string& private_key)
     {
         init_logging();
@@ -116,7 +115,7 @@ namespace bzapi
             LOG(debug) << "Events run: " << res << std::endl;
         });
 
-        db_dispatcher = std::make_shared<db_impl>(io_context);
+        db_dispatcher = std::make_shared<db_dispatch>(io_context);
         the_crypto = std::make_shared<crypto>(private_key);
         ws_factory = std::make_shared<bzn::beast::websocket>();
         the_swarm_factory = std::make_shared<swarm_factory>(io_context, ws_factory, the_crypto, the_esr, public_key);
@@ -294,7 +293,7 @@ namespace bzapi
             {
                 std::string uuidstr{uuid};
                 auto resp = make_response();
-                the_swarm_factory->has_db(uuidstr, [resp, uuidstr](auto /*err*/, auto sw)
+                the_swarm_factory->has_db(uuidstr, [resp, uuidstr](auto err, auto sw)
                 {
                     if (sw)
                     {
@@ -322,11 +321,10 @@ namespace bzapi
                     else
                     {
                         LOG(debug) << "Failed to open database: " << uuidstr;
-                        // TODO: catch error here
-//                        Json::Value result;
-//                        result["error"] = get_error_str(res);
-//                        resp->set_result(result.toStyledString());
-//                        resp->set_error(static_cast<int>(res));
+                        Json::Value result;
+                        result["error"] = get_error_str(err);
+                        resp->set_result(result.toStyledString());
+                        resp->set_error(static_cast<int>(err));
                    }
                 });
 
@@ -457,6 +455,8 @@ namespace bzapi
             return "Timeout error";
         case db_error::already_exists:
             return "Database already exists";
+        case db_error::no_space:
+            return "No space";
         case db_error::no_database:
             return "No database";
         }

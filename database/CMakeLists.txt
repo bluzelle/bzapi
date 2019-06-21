@@ -1,9 +1,9 @@
 add_library(
     database async_database_impl.cpp
     ../include/async_database.hpp
-    db_impl_base.hpp
-    db_impl.hpp
-    db_impl.cpp
+        db_dispatch_base.hpp
+        db_dispatch.hpp
+        db_dispatch.cpp
     database_impl.cpp
     async_database_impl.hpp
     database_impl.hpp

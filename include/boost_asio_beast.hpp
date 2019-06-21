@@ -98,6 +98,8 @@ namespace bzn::asio
 
         virtual bzn::asio::task wrap(bzn::asio::task action) = 0;
 
+        virtual void post(bzn::asio::task action) = 0;
+
         virtual boost::asio::io_context::strand& get_strand() = 0;
     };
 
@@ -111,6 +113,8 @@ namespace bzn::asio
         virtual std::unique_ptr<bzn::asio::tcp_acceptor_base> make_unique_tcp_acceptor(const boost::asio::ip::tcp::endpoint& ep) = 0;
 
         virtual std::unique_ptr<bzn::asio::tcp_socket_base> make_unique_tcp_socket() = 0;
+
+        virtual std::unique_ptr<bzn::asio::tcp_socket_base> make_unique_tcp_socket(bzn::asio::strand_base& ctx) = 0;
 
         virtual std::unique_ptr<bzn::asio::udp_socket_base> make_unique_udp_socket() = 0;
 
@@ -156,6 +160,11 @@ namespace bzn::asio
     public:
         explicit tcp_socket(boost::asio::io_context& io_context)
             : socket(io_context)
+        {
+        }
+
+        explicit tcp_socket(bzn::asio::strand_base& ctx)
+                : socket(ctx.get_strand())
         {
         }
 
@@ -261,6 +270,11 @@ namespace bzn::asio
             return this->s.wrap(std::move(action));
         }
 
+        void post(bzn::asio::task action) override
+        {
+            this->s.post(action);
+        }
+
         boost::asio::io_context::strand& get_strand() override
         {
             return this->s;
@@ -285,6 +299,11 @@ namespace bzn::asio
             return std::make_unique<bzn::asio::tcp_socket>(this->io_context);
         }
 
+        std::unique_ptr<bzn::asio::tcp_socket_base> make_unique_tcp_socket(bzn::asio::strand_base& ctx) override
+        {
+            return std::make_unique<bzn::asio::tcp_socket>(ctx);
+        }
+
         std::unique_ptr<bzn::asio::udp_socket_base> make_unique_udp_socket() override
         {
             return std::make_unique<bzn::asio::udp_socket>(this->io_context);
@@ -302,7 +321,7 @@ namespace bzn::asio
 
         void post(bzn::asio::task func) override
         {
-            boost::asio::post(func);
+            boost::asio::post(this->io_context, func);
         }
 
         boost::asio::io_context::count_type run() override

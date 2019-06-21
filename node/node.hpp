@@ -19,6 +19,7 @@
 #include <include/boost_asio_beast.hpp>
 #include <node/node_base.hpp>
 #include <cstdint>
+#include <deque>
 
 using namespace bzn::asio;
 
@@ -33,23 +34,31 @@ namespace bzapi
         node(std::shared_ptr<bzn::asio::io_context_base> io_context
             , std::shared_ptr<bzn::beast::websocket_base> ws_factory
             , const std::string& host, uint16_t port);
-        ~node();
 
         void register_message_handler(node_message_handler msg_handler) override;
         void send_message(const std::string& msg, completion_handler_t callback) override;
 
     private:
-        std::shared_ptr<bzn::asio::io_context_base> io_context;
-        std::shared_ptr<bzn::beast::websocket_base> ws_factory;
+        const std::shared_ptr<bzn::asio::io_context_base> io_context;
+        const std::shared_ptr<bzn::beast::websocket_base> ws_factory;
+        const boost::asio::ip::tcp::endpoint endpoint;
+        std::shared_ptr<bzn::asio::strand_base> strand;
+
         node_message_handler handler;
-        boost::asio::ip::tcp::endpoint endpoint;
         bool connected = false;
         std::shared_ptr<bzn::beast::websocket_stream_base> websocket;
+        std::mutex send_mutex;
+
+        using queued_message = std::pair<std::string, bzn::asio::write_handler>;
+        std::deque<std::shared_ptr<queued_message>> send_queue;
 
         boost::asio::ip::tcp::endpoint make_tcp_endpoint(const std::string& host, uint16_t port);
-        void connect(completion_handler_t callback);
-        void send(const std::string& msg, completion_handler_t callback, bool is_retry = false);
+        void connect(const completion_handler_t& callback);
+        void send(const std::string& msg, const completion_handler_t& callback, bool is_retry = false);
         void receive();
         void close();
+
+        void queued_send(const std::string& msg, bzn::asio::write_handler callback);
+        void do_send();
     };
 }

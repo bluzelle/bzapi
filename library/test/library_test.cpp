@@ -17,7 +17,7 @@
 #include <include/bluzelle.hpp>
 #include <crypto/crypto.hpp>
 #include <crypto/null_crypto.hpp>
-#include <database/db_impl.hpp>
+#include <database/db_dispatch.hpp>
 #include <include/bzapi.hpp>
 #include <include/logger.hpp>
 #include <library/udp_response.hpp>
@@ -39,7 +39,7 @@ namespace bzapi
     extern std::shared_ptr<swarm_factory> the_swarm_factory;
     extern std::shared_ptr<crypto_base> the_crypto;
     extern std::shared_ptr<bzn::beast::websocket_base> ws_factory;
-    extern std::shared_ptr<bzapi::db_impl_base> db_dispatcher;
+    extern std::shared_ptr<bzapi::db_dispatch_base> db_dispatcher;
     extern std::shared_ptr<bzapi::esr_base> the_esr;
     extern bool initialized;
 
@@ -53,11 +53,9 @@ namespace
     const std::string SWARM_GIT_COMMIT{".."};
     const std::string UPTIME{"1:03:01"};
 
-    const char* priv_key = "-----BEGIN EC PRIVATE KEY-----\n"
-                           "MHQCAQEEIBWDWE/MAwtXaFQp6d2Glm2Uj7ROBlDKFn5RwqQsDEbyoAcGBSuBBAAK\n"
+    const char* priv_key = "MHQCAQEEIBWDWE/MAwtXaFQp6d2Glm2Uj7ROBlDKFn5RwqQsDEbyoAcGBSuBBAAK\n"
                            "oUQDQgAEiykQ5A02u+02FR1nftxT5VuUdqLO6lvNoL5aAIyHvn8NS0wgXxbPfpuq\n"
-                           "UPpytiopiS5D+t2cYzXJn19MQmnl/g==\n"
-                           "-----END EC PRIVATE KEY-----";
+                           "UPpytiopiS5D+t2cYzXJn19MQmnl/g==";
 
     const char* pub_key = "MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEiykQ5A02u+02FR1nftxT5VuUdqLO6lvN\n"
                           "oL5aAIyHvn8NS0wgXxbPfpuqUPpytiopiS5D+t2cYzXJn19MQmnl/g==";
@@ -110,9 +108,9 @@ struct mock_websocket
     mock_websocket(uint16_t id = 0)
     : id(id) {}
 
-    std::unique_ptr<bzn::beast::Mockwebsocket_stream_base> get(bool close = false)
+    std::unique_ptr<bzn::beast::mock_websocket_stream_base> get(bool close = false)
     {
-        auto websocket = std::make_unique<bzn::beast::Mockwebsocket_stream_base>();
+        auto websocket = std::make_unique<bzn::beast::mock_websocket_stream_base>();
 
         EXPECT_CALL(*websocket, async_handshake(_, _, _)).WillOnce(Invoke([](auto, auto, auto lambda)
         {
@@ -192,13 +190,26 @@ public:
         bzapi::set_logger(&mylogger);
 
         this->uuid = _uuid;
-        mock_io_context = std::make_shared<bzn::asio::Mockio_context_base>();
+        mock_io_context = std::make_shared<bzn::asio::mock_io_context_base>();
         EXPECT_CALL(*mock_io_context, get_io_context()).Times(AtLeast(1)).WillRepeatedly(ReturnRef(real_io_context));
 
+        EXPECT_CALL(*mock_io_context, make_unique_strand()).WillRepeatedly(Invoke(
+            []()
+            {
+                auto strand = std::make_unique<bzn::asio::mock_strand_base>();
+                EXPECT_CALL(*strand, wrap(A<bzn::asio::close_handler>())).WillRepeatedly(ReturnArg<0>());
+                EXPECT_CALL(*strand, wrap(A<bzn::asio::write_handler>())).WillRepeatedly(ReturnArg<0>());
+                EXPECT_CALL(*strand, post(_)).WillRepeatedly(Invoke([](auto func)
+                {
+                    func();
+                }));
+                return strand;
+            }));
+
         io_context = mock_io_context;
-        db_dispatcher = std::make_shared<db_impl>(io_context);
+        db_dispatcher = std::make_shared<db_dispatch>(io_context);
         the_crypto = std::make_shared<null_crypto>();
-        mock_ws_factory = std::make_shared<bzn::beast::Mockwebsocket_base>();
+        mock_ws_factory = std::make_shared<bzn::beast::mock_websocket_base>();
         ws_factory = mock_ws_factory;
         auto esr = std::make_shared<mock_esr>();
         the_swarm_factory = std::make_shared<swarm_factory>(mock_io_context, ws_factory, the_crypto, esr, this->uuid);
@@ -256,12 +267,12 @@ public:
         // status timer for each node, plus client timeout, plus request timeout
         EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).Times(Exactly(swarm_size + 2)).WillRepeatedly(Invoke([]()
         {
-            return std::make_unique<NiceMock<bzn::asio::Mocksteady_timer_base>>();
+            return std::make_unique<NiceMock<bzn::asio::mock_steady_timer_base>>();
         })).RetiresOnSaturation();;
 
         EXPECT_CALL(*mock_io_context, make_unique_tcp_socket()).Times(Exactly(1)).WillOnce(Invoke([]()
         {
-            auto tcp_sock = std::make_unique<bzn::asio::Mocktcp_socket_base>();
+            auto tcp_sock = std::make_unique<bzn::asio::mock_tcp_socket_base>();
 
             EXPECT_CALL(*tcp_sock, async_connect(_, _)).Times(AtLeast(1))
                 .WillRepeatedly(Invoke([](auto, auto callback)
@@ -324,7 +335,7 @@ public:
     {
         EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).Times(Exactly(2)).WillOnce(Invoke([]()
         {
-            return std::make_unique<NiceMock<bzn::asio::Mocksteady_timer_base>>();
+            return std::make_unique<NiceMock<bzn::asio::mock_steady_timer_base>>();
         })).WillOnce(Invoke([this, succeed]()
         {
             static int nonce  = 0;
@@ -379,7 +390,7 @@ public:
                 };
             }
 
-            return std::make_unique<NiceMock<bzn::asio::Mocksteady_timer_base>>();
+            return std::make_unique<NiceMock<bzn::asio::mock_steady_timer_base>>();
         }))
         .RetiresOnSaturation();;
     }
@@ -391,7 +402,7 @@ public:
         EXPECT_CALL(*mock_io_context, make_unique_tcp_socket()).Times(Exactly(swarm_size - 1))
             .WillRepeatedly(Invoke([]()
         {
-            auto tcp_sock = std::make_unique<bzn::asio::Mocktcp_socket_base>();
+            auto tcp_sock = std::make_unique<bzn::asio::mock_tcp_socket_base>();
 
             EXPECT_CALL(*tcp_sock, async_connect(_, _)).Times(AtLeast(1))
                 .WillRepeatedly(Invoke([](auto, auto callback)
@@ -489,8 +500,8 @@ protected:
     bzapi::uuid_t primary_node;
     std::vector<mock_websocket> node_websocks;
     std::set<my_mock_tcp_socket*> sockets;
-    std::shared_ptr<bzn::asio::Mockio_context_base> mock_io_context;
-    std::shared_ptr<bzn::beast::Mockwebsocket_base> mock_ws_factory;
+    std::shared_ptr<bzn::asio::mock_io_context_base> mock_io_context;
+    std::shared_ptr<bzn::beast::mock_websocket_base> mock_ws_factory;
     my_logger mylogger;
     size_t swarm_size;
 };
@@ -650,7 +661,6 @@ TEST_F(integration_test, test_create_db)
 
 TEST_F(integration_test, test_cant_create_db)
 {
-    size_t MAX_RETRY{5}; // set in swarm_factory.cpp
     bzapi::uuid_t uuid{"my_uuid"};
     this->initialize(uuid);
 
@@ -661,10 +671,7 @@ TEST_F(integration_test, test_cant_create_db)
     this->primary_node = "node_0";
 
     // reverse order is intentional to match most recent expectations first
-    for (size_t i = 0; i < MAX_RETRY + 1; i++)
-    {
-        expect_create_db(false);
-    }
+    expect_create_db(false);
     expect_has_db(false);
 
 
@@ -720,7 +727,7 @@ TEST_F(integration_test, test_create)
     // once for client timeout, once for request timeout
     EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).Times(Exactly(2)).WillRepeatedly(Invoke([]()
     {
-        return std::make_unique<NiceMock<bzn::asio::Mocksteady_timer_base>>();
+        return std::make_unique<NiceMock<bzn::asio::mock_steady_timer_base>>();
     })).RetiresOnSaturation();;
 
     auto create_response = db->create("test_key", "test_value", 0);
@@ -798,7 +805,7 @@ TEST_F(integration_test, test_read)
     // once for client timeout, once for request timeout
     EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).Times(Exactly(2)).WillRepeatedly(Invoke([]()
     {
-        return std::make_unique<NiceMock<bzn::asio::Mocksteady_timer_base>>();
+        return std::make_unique<NiceMock<bzn::asio::mock_steady_timer_base>>();
     })).RetiresOnSaturation();;
 
     auto create_response = db->read("test_key");
@@ -899,7 +906,124 @@ TEST_F(integration_test, blocking_response_test)
 
 namespace
 {
-    std::string NODE_ID{"MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEDGawpRFfrF/z2E6nJWFdctKBebtaKf83eZ2q9mcBGW4TzwtLghJWhB+u6snXFqigaBNNE1r9ZRuOBrB/o3JYSQ=="};
+    std::string NODE_ID{"MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEtfNUlS3OjEFfaqr3P4b/PEyrd9pH/PUgI7cyyu+4K7h/r8Y31gBQwGLxuLQR09w+SKmhKPuvWECz6b4pFKEouA=="};
+}
+
+uint64_t now()
+{
+    return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count());
+}
+
+TEST_F(integration_test, perf_test)
+{
+    bzapi::set_logger(&mylogger);
+
+    auto rand = generate_random_number(0, 100000);
+    std::string db_name = "testdb_" + std::to_string(rand);
+
+    bool res = bzapi::initialize(pub_key, priv_key, "ws://localhost:50000", NODE_ID, "my_swarm");
+    EXPECT_TRUE(res);
+
+    auto db = bzapi::create_db(db_name.data(), 0, false);
+    auto start = now();
+
+    for (size_t i = 0; i < 10; i++)
+    {
+        db->create("key_" + std::to_string(i), "value_" + std::to_string(i), 0);
+    }
+
+    auto end = now();
+    auto ms = end - start;
+    std::cout << "test took " << ms << " milliseconds" << std::endl;
+
+    bzapi::terminate();
+}
+
+TEST_F(integration_test, para_perf_test)
+{
+    bzapi::init_logging();
+    bzapi::set_logger(&mylogger);
+
+    auto rand = generate_random_number(0, 100000);
+    std::string db_name = "testdb_" + std::to_string(rand);
+
+    bool res = bzapi::initialize(pub_key, priv_key, "ws://localhost:50000", NODE_ID, "my_swarm");
+    EXPECT_TRUE(res);
+
+    auto resp = bzapi::async_create_db(db_name.data(), 0, false);
+    resp->get_result();
+    auto db = resp->get_db();
+    std::vector<std::shared_ptr<bzapi::response>> responses;
+    auto start = now();
+
+    for (size_t i = 0; i < 10; i++)
+    {
+        responses.push_back(db->create("key_" + std::to_string(i), "value_" + std::to_string(i), 0));
+    }
+    for (auto& r : responses)
+    {
+        r->get_result();
+    }
+
+    auto end = now();
+    auto ms = end - start;
+    std::cout << "test took " << ms << " milliseconds" << std::endl;
+
+    bzapi::terminate();
+}
+
+TEST_F(integration_test, viewchange_test)
+{
+    auto rand = generate_random_number(0, 100000);
+    std::string db_name = "testdb_" + std::to_string(rand);
+
+    bool res = bzapi::initialize(pub_key, priv_key, "ws://localhost:50000", NODE_ID, "my_swarm");
+    EXPECT_TRUE(res);
+
+    auto resp = bzapi::async_create_db(db_name.data(), 0, false);
+    Json::Value res_json;
+    std::stringstream(resp->get_result()) >> res_json;
+    auto result = res_json["result"].asInt();
+    auto db_uuid = res_json["uuid"].asString();
+    EXPECT_EQ(result, 1);
+    EXPECT_EQ(db_uuid, db_name);
+
+    auto db = resp->get_db();
+    ASSERT_NE(db, nullptr);
+
+//    auto create_resp = db->create("test_key", "test_value", 0);
+//    Json::Value create_json;
+//    std::stringstream(create_resp->get_result()) >> create_json;
+//    EXPECT_EQ(create_json["result"].asInt(), 1);
+
+    std::vector<std::shared_ptr<bzapi::response>> responses;
+    for (size_t i = 0; i < 20; i++)
+    {
+        responses.push_back(db->create("test_key" + std::to_string(i), "test_value", 0));
+    }
+
+    for (auto& r : responses)
+    {
+        Json::Value create_json;
+        std::stringstream(r->get_result()) >> create_json;
+        EXPECT_EQ(create_json["result"].asInt(), 1);
+    }
+    responses.clear();
+
+    for (size_t i = 20; i < 21; i++)
+    {
+        responses.push_back(db->create("test_key" + std::to_string(i), "test_value", 0));
+    }
+
+    for (auto& r : responses)
+    {
+        Json::Value create_json;
+        std::stringstream(r->get_result()) >> create_json;
+        EXPECT_EQ(create_json["result"].asInt(), 1);
+    }
+
+    bzapi::terminate();
 }
 
 TEST_F(integration_test, live_test)
@@ -912,9 +1036,7 @@ TEST_F(integration_test, live_test)
     std::string db_name = "testdb_" + std::to_string(rand);
 
     bzapi::set_logger(&mylogger);
-    bool res = bzapi::initialize(pub_key, priv_key, "ws://localhost:50000"
-        , NODE_ID
-        , "my_swarm");
+    bool res = bzapi::initialize(pub_key, priv_key, "ws://localhost:50000", NODE_ID, "my_swarm");
 //    bool res = bzapi::initialize(pub_key, priv_key, "ws://127.0.0.1:50000");
 //    bool res = bzapi::initialize(pub_key, priv_key, "ws://75.96.163.85:51010");
     EXPECT_TRUE(res);

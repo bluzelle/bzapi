@@ -15,7 +15,7 @@
 //
 
 #include <include/bzapi.hpp>
-#include <database/db_impl.hpp>
+#include <database/db_dispatch.hpp>
 #include <boost/chrono.hpp>
 #include <boost/thread/thread.hpp>
 #include <json/json.h>
@@ -30,19 +30,19 @@ namespace
 {
 }
 
-class db_impl_test : public Test
+class db_dispatch_test : public Test
 {
 public:
 
 protected:
-    std::shared_ptr<bzn::asio::Mockio_context_base> mock_io_context  = std::make_shared<bzn::asio::Mockio_context_base>();
+    std::shared_ptr<bzn::asio::mock_io_context_base> mock_io_context  = std::make_shared<bzn::asio::mock_io_context_base>();
     std::shared_ptr<mock_swarm> swarm = std::make_shared<mock_swarm>();
-    std::shared_ptr<db_impl> db = std::make_shared<db_impl>(mock_io_context);
+    std::shared_ptr<db_dispatch> db = std::make_shared<db_dispatch>(mock_io_context);
 
 };
 
 
-TEST_F(db_impl_test, basic_test)
+TEST_F(db_dispatch_test, basic_test)
 {
     swarm_response_handler_t swarm_response_handler;
     completion_handler_t timer_callback;
@@ -56,14 +56,14 @@ TEST_F(db_impl_test, basic_test)
     EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).Times(Exactly(1))
         .WillOnce(Invoke([&]
         {
-            return std::make_unique<NiceMock<bzn::asio::Mocksteady_timer_base>>();
+            return std::make_unique<NiceMock<bzn::asio::mock_steady_timer_base>>();
         }));
 
     EXPECT_CALL(*swarm, send_request(_, _)).Times(Exactly(1)).WillOnce(Invoke([&](auto e, auto)
     {
         bzn_envelope env;
         database_msg request;
-        EXPECT_TRUE(request.ParseFromString(e->database_msg()));
+        EXPECT_TRUE(request.ParseFromString(e.database_msg()));
         database_response response;
         *response.mutable_header() = request.header();
         env.set_database_response(response.SerializeAsString());
@@ -83,7 +83,7 @@ TEST_F(db_impl_test, basic_test)
     EXPECT_TRUE(called);
 }
 
-TEST_F(db_impl_test, collation_and_timeout_test)
+TEST_F(db_dispatch_test, collation_and_timeout_test)
 {
     swarm_response_handler_t swarm_response_handler;
     completion_handler_t timer_callback;
@@ -97,11 +97,11 @@ TEST_F(db_impl_test, collation_and_timeout_test)
     EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).Times(AtLeast(2))
     .WillOnce(Invoke([&]
     {
-        return std::make_unique<NiceMock<bzn::asio::Mocksteady_timer_base>>();
+        return std::make_unique<NiceMock<bzn::asio::mock_steady_timer_base>>();
     }))
     .WillRepeatedly(Invoke([&]
     {
-        auto timer = std::make_unique<bzn::asio::Mocksteady_timer_base>();
+        auto timer = std::make_unique<bzn::asio::mock_steady_timer_base>();
         EXPECT_CALL(*timer, expires_from_now(_)).Times(AtLeast(1));
         EXPECT_CALL(*timer, async_wait(_)).WillRepeatedly(Invoke([&](auto handler)
         {
@@ -113,7 +113,7 @@ TEST_F(db_impl_test, collation_and_timeout_test)
     EXPECT_CALL(*swarm, honest_majority_size()).Times(Exactly(1)).WillOnce(Return(3));
 
     bool broadcasted = false;
-    std::shared_ptr<bzn_envelope> envelope;
+    bzn_envelope envelope;
     EXPECT_CALL(*swarm, send_request(_, send_policy::normal)).Times(Exactly(1)).WillOnce(Invoke([&](auto, auto)
     {
         EXPECT_CALL(*swarm, send_request(_, send_policy::broadcast)).Times(Exactly(1)).WillOnce(Invoke([&](auto e, auto)
@@ -139,7 +139,7 @@ TEST_F(db_impl_test, collation_and_timeout_test)
     ASSERT_TRUE(broadcasted);
 
     bzn_envelope env;
-    ASSERT_TRUE(request.ParseFromString(envelope->database_msg()));
+    ASSERT_TRUE(request.ParseFromString(envelope.database_msg()));
     database_response response;
     *response.mutable_header() = request.header();
     env.set_database_response(response.SerializeAsString());
@@ -180,7 +180,7 @@ TEST_F(db_impl_test, collation_and_timeout_test)
     swarm_response_handler("node3", env);
 }
 
-TEST_F(db_impl_test, client_timeout_test)
+TEST_F(db_dispatch_test, client_timeout_test)
 {
     completion_handler_t timer_callback;
 
@@ -194,7 +194,7 @@ TEST_F(db_impl_test, client_timeout_test)
     EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).Times(Exactly(1))
         .WillOnce(Invoke([&]
         {
-            auto timer = std::make_unique<bzn::asio::Mocksteady_timer_base>();
+            auto timer = std::make_unique<bzn::asio::mock_steady_timer_base>();
             EXPECT_CALL(*timer, expires_from_now(_)).Times(AtLeast(1)).WillOnce(Invoke([](auto time)
             {
                 EXPECT_EQ(time, std::chrono::seconds(1));

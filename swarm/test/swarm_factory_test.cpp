@@ -36,14 +36,14 @@ public:
     swarm_factory_test()
     {
         the_esr = std::make_shared<mock_esr>();
-        mock_ws_factory = std::make_shared<bzn::beast::Mockwebsocket_base>();
-        mock_io_context = std::make_shared<bzn::asio::Mockio_context_base>();
+        mock_ws_factory = std::make_shared<bzn::beast::mock_websocket_base>();
+        mock_io_context = std::make_shared<bzn::asio::mock_io_context_base>();
         the_crypto = std::make_shared<null_crypto>();
     }
 
 protected:
-    std::shared_ptr<bzn::asio::Mockio_context_base> mock_io_context;
-    std::shared_ptr<bzn::beast::Mockwebsocket_base> mock_ws_factory;
+    std::shared_ptr<bzn::asio::mock_io_context_base> mock_io_context;
+    std::shared_ptr<bzn::beast::mock_websocket_base> mock_ws_factory;
     std::shared_ptr<crypto_base> the_crypto;
     std::shared_ptr<mock_esr> the_esr;
 };

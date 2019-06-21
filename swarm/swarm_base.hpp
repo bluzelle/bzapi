@@ -45,9 +45,9 @@ namespace bzapi
 
         virtual void initialize(completion_handler_t handler) = 0;
 
-        virtual void add_nodes(const std::vector<std::pair<node_id_t, bzn::peer_address_t>>& nodes) = 0;
+        virtual void sign_and_date_request(bzn_envelope& request, send_policy policy) = 0;
 
-        virtual int send_request(std::shared_ptr<bzn_envelope> request, send_policy policy) = 0;
+        virtual int send_request(const bzn_envelope& request, send_policy policy) = 0;
 
         virtual bool register_response_handler(payload_t type, swarm_response_handler_t handler) = 0;
 
