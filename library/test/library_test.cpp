@@ -319,12 +319,12 @@ public:
         })).RetiresOnSaturation();
     }
 
-    void expect_create_db()
+    void expect_create_db(bool succeed = true)
     {
         EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).Times(Exactly(2)).WillOnce(Invoke([]()
         {
             return std::make_unique<NiceMock<bzn::asio::Mocksteady_timer_base>>();
-        })).WillOnce(Invoke([this]()
+        })).WillOnce(Invoke([this, succeed]()
         {
             static int nonce  = 0;
             static int node_id = -1;
@@ -350,7 +350,7 @@ public:
                     CATCHALL();
                 };
 
-                this->node_websocks[i].read_func = [i, this](const auto& /*buffer*/)
+                this->node_websocks[i].read_func = [this, succeed](const auto& /*buffer*/)
                 {
                     try
                     {
@@ -362,6 +362,11 @@ public:
                             dr.set_allocated_header(new database_header(header));
 
                             bzn_envelope env2;
+                            if (!succeed)
+                            {
+                                dr.mutable_error()->set_message("ACCESS_DENIED");
+                            }
+
                             env2.set_database_response(dr.SerializeAsString());
                             env2.set_sender("node_" + std::to_string(j));
                             env2.set_signature("xxx");
@@ -376,30 +381,14 @@ public:
             return std::make_unique<NiceMock<bzn::asio::Mocksteady_timer_base>>();
         }))
         .RetiresOnSaturation();;
-
-        EXPECT_CALL(*mock_io_context, make_unique_tcp_socket()).Times(Exactly(1)).WillOnce(Invoke([]()
-        {
-            auto tcp_sock = std::make_unique<bzn::asio::Mocktcp_socket_base>();
-
-            EXPECT_CALL(*tcp_sock, async_connect(_, _)).Times(AtLeast(1))
-                .WillRepeatedly(Invoke([](auto, auto callback)
-                {
-                    callback(boost::system::error_code{});
-                }));
-
-            static boost::asio::ip::tcp::socket socket{real_io_context};
-            EXPECT_CALL(*tcp_sock, get_tcp_socket()).Times(AtLeast(1))
-                .WillRepeatedly(ReturnRef(socket));
-
-            return tcp_sock;
-        })).RetiresOnSaturation();
     }
 
     void expect_swarm_initialize()
     {
         uint16_t node_count = 0;
 
-        EXPECT_CALL(*mock_io_context, make_unique_tcp_socket()).WillRepeatedly(Invoke([]()
+        EXPECT_CALL(*mock_io_context, make_unique_tcp_socket()).Times(Exactly(swarm_size - 1))
+            .WillRepeatedly(Invoke([]()
         {
             auto tcp_sock = std::make_unique<bzn::asio::Mocktcp_socket_base>();
 
@@ -641,6 +630,33 @@ TEST_F(integration_test, test_create_db)
 
     auto db = create_db(uuid, 0, false);
     EXPECT_NE(db, nullptr);
+
+    this->teardown();
+}
+
+TEST_F(integration_test, test_cant_create_db)
+{
+    bzapi::uuid_t uuid{"my_uuid"};
+    this->initialize(uuid);
+
+    for (size_t i = 0; i < 4; i++)
+    {
+        this->node_websocks.push_back(mock_websocket{static_cast<uint16_t>(i)});
+    }
+    this->primary_node = "node_0";
+
+    // reverse order is intentional to match most recent expectations first
+    expect_create_db(false);
+    expect_create_db(false);
+    expect_create_db(false);
+    expect_create_db(false);
+    expect_create_db(false);
+    expect_create_db(false);
+    expect_has_db(false);
+
+
+    auto db = create_db(uuid, 0, false);
+    EXPECT_EQ(db, nullptr);
 
     this->teardown();
 }
