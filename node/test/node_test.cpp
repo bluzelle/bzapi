@@ -28,12 +28,11 @@ public:
     void init_test()
     {
         EXPECT_CALL(*io_context, get_io_context()).Times(AtLeast(1)).WillRepeatedly(ReturnRef(real_io_context));
-        this->node = std::make_shared<bzapi::node>(io_context, ws_factory, "127.0.0.1", 80);
 
         EXPECT_CALL(*io_context, make_unique_tcp_socket()).Times(Exactly(2))
             .WillRepeatedly(Invoke([&]()
         {
-            auto tcp_sock = std::make_unique<bzn::asio::Mocktcp_socket_base>();
+            auto tcp_sock = std::make_unique<bzn::asio::mock_tcp_socket_base>();
 
             EXPECT_CALL(*tcp_sock, async_connect(_, _)).WillOnce(Invoke([&](auto, auto lambda)
             {
@@ -46,12 +45,27 @@ public:
 
             return tcp_sock;
         }));
+
+        EXPECT_CALL(*io_context, make_unique_strand()).WillRepeatedly(Invoke(
+            []()
+            {
+                auto strand = std::make_unique<bzn::asio::mock_strand_base>();
+                EXPECT_CALL(*strand, wrap(A<bzn::asio::close_handler>())).WillRepeatedly(ReturnArg<0>());
+                EXPECT_CALL(*strand, wrap(A<bzn::asio::write_handler>())).WillRepeatedly(ReturnArg<0>());
+                EXPECT_CALL(*strand, post(_)).WillRepeatedly(Invoke([](auto func)
+                {
+                    func();
+                }));
+                return strand;
+            }));
+
+        this->node = std::make_shared<bzapi::node>(io_context, ws_factory, "127.0.0.1", 80);
     }
 
 protected:
     std::shared_ptr<bzapi::node> node;
-    std::shared_ptr<bzn::asio::Mockio_context_base> io_context = std::make_shared<bzn::asio::Mockio_context_base>();
-    std::shared_ptr<bzn::beast::Mockwebsocket_base> ws_factory = std::make_shared<bzn::beast::Mockwebsocket_base>();
+    std::shared_ptr<bzn::asio::mock_io_context_base> io_context = std::make_shared<bzn::asio::mock_io_context_base>();
+    std::shared_ptr<bzn::beast::mock_websocket_base> ws_factory = std::make_shared<bzn::beast::mock_websocket_base>();
 };
 
 TEST_F(node_test, test_send_and_receive_message)
@@ -69,7 +83,7 @@ TEST_F(node_test, test_send_and_receive_message)
         EXPECT_CALL(*ws_factory, make_unique_websocket_stream(_)).Times(Exactly(2))
             .WillOnce(Invoke([&](auto& /*sock*/)
             {
-                auto websocket = std::make_unique<bzn::beast::Mockwebsocket_stream_base>();
+                auto websocket = std::make_unique<bzn::beast::mock_websocket_stream_base>();
 
                 EXPECT_CALL(*websocket, binary(_)).Times(AtLeast(1));
 
@@ -123,7 +137,7 @@ TEST_F(node_test, test_send_and_receive_message)
             }))
             .WillOnce(Invoke([&](auto& /*sock*/)
             {
-                auto websocket = std::make_unique<bzn::beast::Mockwebsocket_stream_base>();
+                auto websocket = std::make_unique<bzn::beast::mock_websocket_stream_base>();
 
                 EXPECT_CALL(*websocket, binary(_)).Times(AtLeast(1));
 

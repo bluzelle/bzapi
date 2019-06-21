@@ -77,6 +77,7 @@ namespace bzapi
         database_error,
         timeout_error,
         already_exists,
+        no_space,
         no_database
     };
 

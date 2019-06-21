@@ -27,6 +27,8 @@ namespace
 {
     const std::string PEM_PREFIX = "-----BEGIN PUBLIC KEY-----\n";
     const std::string PEM_SUFFIX = "\n-----END PUBLIC KEY-----\n";
+    const std::string PRIV_KEY_PREFIX{"-----BEGIN EC PRIVATE KEY-----\n"};
+    const std::string PRIV_KEY_SUFFIX{"\n-----END EC PRIVATE KEY-----"};
 }
 
 crypto::crypto(const std::string& private_key)
@@ -186,7 +188,8 @@ crypto::log_openssl_errors()
 bool
 crypto::load_private_key(const std::string& key)
 {
-    BIO *bio = BIO_new_mem_buf((void *)key.c_str(), key.length());
+    auto formatted_key = PRIV_KEY_PREFIX + key + PRIV_KEY_SUFFIX;
+    BIO *bio = BIO_new_mem_buf((void *)formatted_key.c_str(), formatted_key.length());
     this->private_key_EVP = EVP_PKEY_ptr_t(PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL), EVP_PKEY_free);
 
     if (!this->private_key_EVP)

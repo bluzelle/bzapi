@@ -17,7 +17,6 @@
 #pragma once
 
 #include <library/mutable_response.hpp>
-#include <atomic>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -43,31 +42,23 @@ namespace bzapi
                 throw std::runtime_error("unable to create udp socket");
             }
 
-            sockaddr_in local;
-            memset(&local, 0, sizeof(sockaddr_in));
-            local.sin_family = AF_INET;
-            local.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-            local.sin_port = 0; //randomly selected port
+            sockaddr_in local = this->make_addr(0);
             if (bind(sock, (sockaddr*)&local, sizeof(local)) == -1)
             {
                 throw std::runtime_error("unable to bind udp socket");
             }
 
-            struct sockaddr_in sin;
-            socklen_t addrlen = sizeof(sin);
-            if (getsockname(sock, (struct sockaddr *)&sin, &addrlen) == 0
-                && sin.sin_family == AF_INET && addrlen == sizeof(sin))
+            struct sockaddr_in my_addr;
+            socklen_t addrlen = sizeof(my_addr);
+            if (getsockname(sock, (struct sockaddr *)&my_addr, &addrlen) == 0
+                && my_addr.sin_family == AF_INET && addrlen == sizeof(my_addr))
             {
-                my_id = ntohs(sin.sin_port);
+                my_id = ntohs(my_addr.sin_port);
             }
             else
             {
                 throw std::runtime_error("error determining local port");
             }
-        }
-
-        ~udp_response()
-        {
         }
 
         int set_signal_id(int signal_id) override
@@ -103,11 +94,7 @@ namespace bzapi
         void send_signal()
         {
             assert(their_id);
-            struct sockaddr_in their_addr;
-            memset(&their_addr, 0, sizeof(sockaddr_in));
-            their_addr.sin_family = AF_INET;
-            their_addr.sin_port = htons(their_id);
-            their_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+            struct sockaddr_in their_addr = this->make_addr(their_id);
             int res = sendto(sock, &error_val, sizeof(error_val), 0, (sockaddr*)&their_addr, sizeof(their_addr));
             if (!res)
             {
@@ -122,8 +109,7 @@ namespace bzapi
 
         void set_ready() override
         {
-            this->prom.set_value(0);
-            this->signal(0);
+            this->set_error(0);
         }
 
         void set_error(int error) override
@@ -168,5 +154,15 @@ namespace bzapi
         bool deferred_signal = false;
         std::promise<int> prom;
         std::mutex mutex;
+
+        sockaddr_in make_addr(uint16_t port)
+        {
+            struct sockaddr_in addr;
+            memset(&addr, 0, sizeof(sockaddr_in));
+            addr.sin_family = AF_INET;
+            addr.sin_port = htons(port);
+            addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+            return addr;
+        }
     };
 }

@@ -115,7 +115,11 @@ namespace
     )"};
 
     const size_t ESR_RESPONSE_LINE_LENGTH{64};
-
+    const size_t REQUIRED_SIZE_MULTIPLE{64};
+    const off_t PARAMETER_OFFSET{64};
+    const std::string GET_SWARMS_ADDRESS{"0043d7e7"};
+    const std::string GET_PEERS_ADDRESS{"46e76d8b"}; // TODO: refactor to put the 0x back
+    const std::string GET_PEER_INFO_SIGNATURE{"0xcc8575cb"};
 
     void
     trim_right_nulls(std::string& s)
@@ -130,7 +134,7 @@ namespace
     {
         json_message json_msg;
         Json::CharReaderBuilder builder;
-        Json::CharReader *reader = builder.newCharReader();
+        Json::CharReader* reader = builder.newCharReader();
         std::string errors;
         if (!reader->parse(
             json_str.c_str()
@@ -225,14 +229,22 @@ namespace
             {
                 state = (index == node_count + 1 ? PEER_ID_SIZE : state);
             }
-                break;
+            break;
             case PEER_ID_SIZE:
             {
                 // the first line of data is the size of the string
                 peer_id_length = std::strtoul(line, nullptr, 16);
-                state = PEER_ID;
+                if (peer_id_length)
+                {
+                    state = PEER_ID;
+                }
+                else
+                {
+                    --node_count;
+                    state = PEER_ID_SIZE;
+                }
             }
-                break;
+            break;
             case PEER_ID:
             {
                 peer_id.append(hex_to_char_string(std::string{line}));
@@ -254,7 +266,13 @@ namespace
             }
             ++index;
         }
-//        assert(results.size() == node_count);
+
+        // TODO: rhn - reconsider if we need to keep node_count and this check.
+        if (results.size() != node_count)
+        {
+            LOG(warning) << "Actual size of the peers list [" << results.size() << "] does not agree with the expected size [" << node_count << "]";
+        }
+
         return results;
     }
 
@@ -263,14 +281,11 @@ namespace
     bzn::peer_address_t
     parse_get_peer_info_result_to_peer_address(const std::string& peer_id, const std::string_view& result)
     {
-        uint16_t port{0};
+        size_t      text_size{0};
+        uint16_t    port{0};
         std::string host;
-        uint16_t http_port{0};
         std::string name;
-        enum
-        {
-            NODE_COUNT, NA_0, HTTP_PORT, NA_1, NODE_PORT, NA_2, NODE_HOST, NA_3, NODE_NAME
-        } state{NODE_COUNT};
+        enum {NODE_COUNT, NA_0, NA_1, NODE_PORT, NODE_HOST_SIZE, NODE_HOST, NODE_NAME_SIZE, NODE_NAME, FINISHED} state {NODE_COUNT};
 
         // NOTE: I needed to add the extra null character to "line" so that any 64 length buffer read from the result
         // will be correctly null terminated for the boost::algorithm::unhex function
@@ -280,89 +295,109 @@ namespace
         {
             switch (state)
             {
-            case NODE_COUNT:
-                state = NA_0;
-                break;
-            case NA_0:
-                state = HTTP_PORT;
-                break;
-            case HTTP_PORT:
-            {
-                http_port = uint16_t(std::strtoul(line, nullptr, 16));
-                if (!http_port)
+                case NODE_COUNT:
                 {
-                    LOG(warning) << "Invalid value for http port:[" << http_port << "] node may not exist";
+                    state = NA_0;
                 }
-                state = NA_1;
-            }
                 break;
-            case NA_1:
-            {
-                state = NODE_PORT;
-            }
-                break;
-            case NODE_PORT:
-            {
 
-                port = std::strtoul(line, nullptr, 16);
-                if (!http_port)
+                case NA_0:
                 {
-                    LOG(warning) << "Invalid value for port:[" << port << "] node may not exist";
+                    state = NA_1;
                 }
-                state = NA_2;
-            }
                 break;
-            case NA_2:
-            {
-                state = NODE_HOST;
-            }
-                break;
-            case NODE_HOST:
-            {
-                host = hex_to_char_string(line);
-                trim_right_nulls(host);
-                if (!http_port)
+
+                case NA_1:
                 {
-                    LOG(warning) << "Empty value for host ip, node may not exist";
+                    state = NODE_PORT;
                 }
-                state = NA_3;
-            }
                 break;
-            case NA_3:
-            {
-                state = NODE_NAME;
-            }
-                break;
-            case NODE_NAME:
-            {
-                name = hex_to_char_string(line);
-                trim_right_nulls(name);
-                if (!http_port)
+
+                case NODE_PORT:
                 {
-                    LOG(warning) << "Empty value for host name, node may not exist";
+                    port = std::strtoul(line, nullptr, 16);
+                    if (!port)
+                    {
+                        LOG(warning) << "Invalid value for port:[" << port << "], node may not exist";
+                    }
+                    state = NODE_HOST_SIZE;
                 }
-            }
                 break;
-            default:
-            {
-                LOG(error) << "Failed to correctly parse peer info from esr";
-                return bzn::peer_address_t(host, port, http_port, name, peer_id);
-            }
+
+                case NODE_HOST_SIZE:
+                {
+                    text_size = std::strtoul(line, nullptr, 16);
+                    if (!text_size)
+                    {
+                        LOG(warning) << "Invalid value for host string length:[" << text_size << "]";
+                    }
+                    state = NODE_HOST;
+                }
+                break;
+
+                case NODE_HOST:
+                {
+                    host = hex_to_char_string(line);
+                    trim_right_nulls(host);
+                    if (text_size != host.size())
+                    {
+                        LOG(warning) << "Parsed host string size does not match expected size";
+                    }
+                    state = NODE_NAME_SIZE;
+                }
+                break;
+
+                case NODE_NAME_SIZE:
+                {
+                    text_size = std::strtoul(line, nullptr, 16);
+                    if (!text_size)
+                    {
+                        LOG(warning) << "Invalid value for node name string length:[" << text_size << "]";
+                    }
+                    state = NODE_NAME;
+                    name.clear();
+                }
+                break;
+
+                case NODE_NAME:
+                {
+                    name.append(hex_to_char_string(line));
+                    trim_right_nulls(name);
+                    if (text_size == name.size())
+                    {
+                        state = FINISHED;
+                    }
+                }
+                break;
+
+                case FINISHED:
+                {
+                    LOG(warning) << "Peer Info result contains too many lines";
+                }
+                break;
+
+                default:
+                {
+                    LOG(error) << "Failed to correctly parse peer info from esr";
+                    return bzn::peer_address_t(host, port, 0, name, peer_id);
+                }
                 break;
             }
         }
-        return bzn::peer_address_t(host, port, http_port, name, peer_id);
+        return bzn::peer_address_t(host, port, 0, name, peer_id);
     }
 
 
     std::string
-    pad_str_to_mod_64(const std::string& parameter)
+    pad_str_to_mod_64(std::string parameter)
     {
-        const size_t REQUIRED_MOD{64};
-        const size_t PADDING_REQUIRED = (REQUIRED_MOD - parameter.size() % REQUIRED_MOD);
-        std::string result{parameter};
-        result.insert(result.size(), PADDING_REQUIRED, '0');
-        return result;
+        const size_t REMAINDER{parameter.size() % REQUIRED_SIZE_MULTIPLE};
+        if (REMAINDER)
+        {
+            const size_t padding_required = REQUIRED_SIZE_MULTIPLE - REMAINDER;
+            parameter.insert(parameter.size(), padding_required, '0');
+        }
+        return parameter;
     }
 
 
@@ -389,9 +424,6 @@ namespace
     const std::string
     data_string_for_get_swarms()
     {
-        static const auto SWARM_LIST_ABI = str_to_json(GET_SWARM_LIST_ABI);
-        static const auto GET_SWARMS_ADDRESS{SWARM_LIST_ABI["signature"].asCString() + 2}; // 0x46e76d8b -> 46e76d8b
-
         return std::string{"0x"
             + pad_str_to_mod_64(GET_SWARMS_ADDRESS)};
     }
@@ -400,9 +432,6 @@ namespace
     const std::string
     data_string_for_get_peers(const std::string& swarm_id)
     {
-        static const auto NODE_LIST_ABI = str_to_json(GET_NODE_LIST_ABI);
-        static const auto GET_PEERS_ADDRESS{NODE_LIST_ABI["signature"].asCString() + 2}; // 0x46e76d8b -> 46e76d8b
-
         return std::string{"0x"
             + pad_str_to_mod_64(GET_PEERS_ADDRESS)
             + pad_str_to_mod_64("00000020")             // input parameter type? (no)
@@ -410,29 +439,40 @@ namespace
             + pad_str_to_mod_64(string_to_hex(swarm_id))// hexified swarm id
         };
     }
+}
 
 
+namespace bzn::utils::esr
+{
     // TODO: replace this with a function that uses the ABI to create the request data
     const std::string
     data_string_for_get_peer_info(const std::string& swarm_id, const std::string& peer_id)
     {
-        static const auto PEER_INFO_ABI{str_to_json(GET_PEER_INFO_ABI)};
-        static const auto GET_PEER_INFO_SIGNATURE{PEER_INFO_ABI["signature"].asCString() + 2};
 
-        return std::string{"0x"
-            + pad_str_to_mod_64(GET_PEER_INFO_SIGNATURE)
-            + pad_str_to_mod_64("00000040")                 // first param type?
-            + pad_str_to_mod_64("00000080")                 // second param type?
-            + size_type_to_hex(swarm_id.size())             // size of swarm id string (pre hexification)
-            + pad_str_to_mod_64(string_to_hex(swarm_id))    // parameter 1 - swarm id
-            + size_type_to_hex(peer_id.size(), 64)          // size of peer id (pre hexification)
-            + pad_str_to_mod_64(string_to_hex(peer_id))     // parameter 2 - peer id
+        const std::string SWARM_ID_PARAMETER {
+            size_type_to_hex(swarm_id.size(), 64)           // size of variable parameter
+            + pad_str_to_mod_64(string_to_hex(swarm_id))    // swarm id parameter
+        };
+
+        const std::string PEER_ID_PARAMETER {
+            size_type_to_hex(peer_id.size(), 64)
+            + pad_str_to_mod_64(string_to_hex(peer_id))
+        };
+
+        const std::string PREAMBLE {
+            GET_PEER_INFO_SIGNATURE
+            + size_type_to_hex( PARAMETER_OFFSET, 64)
+            + size_type_to_hex( PARAMETER_OFFSET + SWARM_ID_PARAMETER.size() / 2, 64)
+        };
+
+        return std::string{
+                PREAMBLE
+                + SWARM_ID_PARAMETER
+                + PEER_ID_PARAMETER
         };
     }
-}
 
-namespace bzn::utils::esr
-{
+
     std::vector<std::string>
     get_swarm_ids(const std::string& esr_address, const std::string& url)
     {

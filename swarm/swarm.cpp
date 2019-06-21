@@ -16,7 +16,7 @@
 
 #include <include/bluzelle.hpp>
 #include <swarm/swarm.hpp>
-#include <database/db_impl_base.hpp>
+#include <database/db_dispatch_base.hpp>
 #include <proto/database.pb.h>
 #include <utils/peer_address.hpp>
 #include <json/json.h>
@@ -26,43 +26,20 @@ using namespace bzapi;
 
 namespace
 {
-    const std::string INITIAL_NODE{"initial_node"};
-    const std::chrono::seconds STATUS_REQUEST_TIME{std::chrono::seconds(60)};
+    const uint32_t STATUS_REQUEST_TIME{60};
 }
 
 swarm::swarm(std::shared_ptr<node_factory_base> node_factory
     , std::shared_ptr<bzn::beast::websocket_base> ws_factory
     , std::shared_ptr<bzn::asio::io_context_base> io_context
     , std::shared_ptr<crypto_base> crypto
-    , const swarm_id_t& swarm_id
-    , const uuid_t& uuid)
+    , swarm_id_t swarm_id
+    , uuid_t uuid
+    , const std::vector<std::pair<node_id_t, bzn::peer_address_t>>& node_list)
 : node_factory(std::move(node_factory)), ws_factory(std::move(ws_factory)), io_context(std::move(io_context))
-    , crypto(std::move(crypto)), swarm_id(swarm_id), my_uuid(uuid)
+    , crypto(std::move(crypto)), swarm_id(std::move(swarm_id)), my_uuid(std::move(uuid))
 {
-}
-
-swarm::~swarm()
-{
-    node_factory = nullptr;
-}
-
-void
-swarm::add_nodes(const std::vector<std::pair<node_id_t, bzn::peer_address_t>>& nodes)
-{
-    if (nodes.empty())
-    {
-        throw(std::runtime_error("Attempt to create swarm with no nodes"));
-    }
-
-    this->nodes = std::make_shared<std::unordered_map<uuid_t, node_info>>();
-    for (auto node : nodes)
-    {
-        (*this->nodes)[node.first] = this->add_node(node.first, node.second);
-    }
-
-    // until we have status...
-    this->primary_node = nodes.front().first;
-    this->fastest_node = this->primary_node;
+    this->add_nodes(node_list);
 }
 
 void
@@ -70,12 +47,15 @@ swarm::initialize(completion_handler_t handler)
 {
     if (this->init_called)
     {
-        handler(boost::system::error_code{});
+        handler(boost::system::error_code{boost::system::errc::operation_in_progress, boost::system::system_category()});
         return;
     }
 
-    // TODO: enforce this at top level
-    assert(!this->nodes->empty());
+    if (this->nodes->empty())
+    {
+        LOG(error) << "Attempt to initialize swarm with no members";
+        throw(std::runtime_error("Attempt to initialize swarm with no members"));
+    }
 
     this->init_called = true;
     this->init_handler = handler;
@@ -101,41 +81,51 @@ swarm::initialize(completion_handler_t handler)
     }
 }
 
-int
-swarm::send_request(std::shared_ptr<bzn_envelope> request, send_policy policy)
+void
+swarm::sign_and_date_request(bzn_envelope& request, send_policy policy)
 {
     // TODO: refactor the message so we don't need to break encapsulation like this
-    if (request->payload_case() == bzn_envelope::PayloadCase::kDatabaseMsg)
+    if (request.payload_case() == bzn_envelope::PayloadCase::kDatabaseMsg)
     {
         database_msg db_msg;
-        if (db_msg.ParseFromString(request->database_msg()))
+        if (db_msg.ParseFromString(request.database_msg()))
         {
-            auto db_header = new database_header(*db_msg.mutable_header());
-            db_header->set_point_of_contact(policy == send_policy::fastest ?
+            db_msg.mutable_header()->set_point_of_contact(policy == send_policy::fastest ?
                 this->fastest_node : this->primary_node);
-            db_msg.set_allocated_header(db_header);
-            request->set_database_msg(db_msg.SerializeAsString());
+            request.set_database_msg(db_msg.SerializeAsString());
         }
     }
 
-    request->set_sender(my_uuid);
-    request->set_swarm_id(swarm_id);
-    request->set_timestamp(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+    request.set_sender(my_uuid);
+    request.set_swarm_id(swarm_id);
+    request.set_timestamp(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch()).count()));
-    if (request->signature().empty())
+    this->crypto->sign(request);
+}
+
+int
+swarm::send_request(const bzn_envelope& request, send_policy policy)
+{
+    // cache the current swarm info
+    std::shared_ptr<node_map> current_nodes;
+    std::string primary;
+    std::string fastest;
     {
-        this->crypto->sign(*request);
+        std::scoped_lock<std::mutex> lock(this->info_mutex);
+        current_nodes = this->nodes;
+        primary = this->primary_node;
+        fastest = this->fastest_node;
     }
 
     switch (policy)
     {
         case send_policy::normal:
         {
-            auto it = this->nodes->find(this->primary_node);
-            if (it == this->nodes->end())
+            auto it = current_nodes->find(primary);
+            if (it == current_nodes->end())
             {
                 // just use the first node we can find
-                it = this->nodes->begin();
+                it = current_nodes->begin();
             }
 
             this->send_node_request(it->second.node, request);
@@ -144,11 +134,11 @@ swarm::send_request(std::shared_ptr<bzn_envelope> request, send_policy policy)
 
         case send_policy::fastest:
         {
-            auto it = this->nodes->find(this->fastest_node);
-            if (it == this->nodes->end())
+            auto it = current_nodes->find(fastest);
+            if (it == current_nodes->end())
             {
                 // just use the first node we can find
-                it = this->nodes->begin();
+                it = current_nodes->begin();
             }
 
             this->send_node_request(it->second.node, request);
@@ -157,7 +147,7 @@ swarm::send_request(std::shared_ptr<bzn_envelope> request, send_policy policy)
 
         case send_policy::broadcast:
         {
-            for (auto& i : *(this->nodes))
+            for (auto& i : *(current_nodes))
             {
                 this->send_node_request(i.second.node, request);
             }
@@ -168,17 +158,11 @@ swarm::send_request(std::shared_ptr<bzn_envelope> request, send_policy policy)
 }
 
 void
-swarm::send_node_request(std::shared_ptr<node_base> node, std::shared_ptr<bzn_envelope> request)
+swarm::send_node_request(const std::shared_ptr<node_base>& node, const bzn_envelope& request)
 {
-    std::string msg = request->SerializeAsString();
-    node->send_message(msg, [](auto ec)
+    node->send_message(request.SerializeAsString(), [](auto ec)
     {
-        if (ec)
-        {
-            return true;
-        }
-
-        return false;
+        return ec ? true: false;
     });
 }
 
@@ -191,6 +175,8 @@ swarm::register_response_handler(payload_t type, swarm_response_handler_t handle
 std::string
 swarm::get_status()
 {
+    std::scoped_lock<std::mutex> lock(this->info_mutex);
+
     Json::Value status;
     status["swarm_version"] = this->last_status.swarm_version();
     status["swarm_git_commit"] = this->last_status.swarm_git_commit();
@@ -206,7 +192,11 @@ swarm::get_status()
         info["host"] = i.second.host;
         info["port"] = i.second.port;
         info["latency"] = static_cast<Json::Value::UInt64>(i.second.last_status_duration.count());
-        // what to do about last send/receive?
+
+        auto last_send = std::chrono::system_clock::to_time_t(i.second.last_message_sent);
+        auto last_recv = std::chrono::system_clock::to_time_t(i.second.last_message_received);
+        info["last_send"] = last_send ? std::string(std::ctime(&last_send)) : "never";
+        info["last_receive"] = last_recv ? std::string(std::ctime(&last_recv)) : "never";
 
         node_list.append(info);
     }
@@ -219,14 +209,11 @@ bool
 swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
 {
     bool res = false;
+    auto current_nodes = this->get_nodes();
 
     // calculate time for retrieving status from this node
-    std::chrono::microseconds this_node_duration = std::chrono::duration_cast<std::chrono::microseconds>(
-        std::chrono::steady_clock::now() - (*this->nodes)[uuid].last_status_request_sent);
-
-    // TODO: fix this
-//    auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>( std::chrono::steady_clock::now()
-//    - (*this->nodes)[uuid].last_status_request_sent);
+    auto this_node_duration = std::chrono::duration_cast<std::chrono::microseconds>(
+        std::chrono::steady_clock::now() - (*current_nodes)[uuid].last_status_request_sent);
     auto fastest_time = this_node_duration;
     auto fastest_node_so_far = uuid;
 
@@ -241,18 +228,15 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
         Json::Value module_status;
         std::stringstream(status.module_status_json()) >> module_status;
 
-        // find the pbft module status (verify this exists first?)
-        Json::Value swarm_status = module_status["module"][0];
-
+        auto swarm_status = module_status["module"][0];
         auto new_nodes = std::make_shared<std::unordered_map<uuid_t, node_info>>();
         std::vector<std::string> new_uuids;
 
-        Json::Value peer_index = swarm_status["status"]["peer_index"];
-        for (Json::ArrayIndex i = 0; i < peer_index.size(); i++)
+        auto peer_index = swarm_status["status"]["peer_index"];
+        for (auto& node : peer_index)
         {
-            Json::Value node = peer_index[i];
             auto node_uuid = node["uuid"].asString();
-            auto info = (*this->nodes)[node_uuid];
+            auto info = (*current_nodes)[node_uuid];
             if (!info.node)
             {
                 uint16_t port = node["port"].asUInt();
@@ -267,19 +251,7 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
                 // store its response time
                 info.last_status_duration = this_node_duration;
 
-                // schedule another status request for this node
-                info.status_timer->expires_from_now(STATUS_REQUEST_TIME);
-                info.status_timer->async_wait([weak_this = weak_from_this(), node_uuid](auto ec)
-                {
-                    if (!ec)
-                    {
-                        auto strong_this = weak_this.lock();
-                        if (strong_this)
-                        {
-                            strong_this->send_status_request(node_uuid);
-                        }
-                    }
-                });
+                this->schedule_status_request(node_uuid, info);
             }
 
             if (info.last_status_duration > static_cast<std::chrono::microseconds>(0) &&
@@ -292,11 +264,13 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
             (*new_nodes)[node_uuid] = info;
         }
 
-        this->nodes = new_nodes;
-        this->primary_node = swarm_status["status"]["primary"]["uuid"].asString();
-        this->fastest_node = fastest_node_so_far;
-        this->last_status = status;
-
+        {
+            std::scoped_lock<std::mutex> lock(this->info_mutex);
+            this->nodes = new_nodes;
+            this->primary_node = swarm_status["status"]["primary"]["uuid"].asString();
+            this->fastest_node = fastest_node_so_far;
+            this->last_status = status;
+        }
         // kick off status requests for newly added nodes
         for (const auto& n : new_uuids)
         {
@@ -315,52 +289,73 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
 }
 
 void
-swarm::send_status_request(uuid_t node_uuid)
+swarm::send_status_request(const uuid_t& node_uuid)
 {
-    auto elem = this->nodes->find(node_uuid);
-    if (elem == this->nodes->end())
+    auto current_nodes = this->get_nodes();
+    auto elem = current_nodes->find(node_uuid);
+    if (elem == current_nodes->end())
     {
         // this node doesn't exist. It may have been erased
         return;
     }
 
     auto& info = elem->second;
-    auto node = info.node;
+    auto& node = info.node;
 
     status_request req;
     bzn_envelope env;
-    env.set_swarm_id(swarm_id);
-    env.set_sender(my_uuid);
     env.set_status_request(req.SerializeAsString());
-    env.set_swarm_id(swarm_id);
-    env.set_sender(my_uuid);
-    this->crypto->sign(env);
+    this->sign_and_date_request(env, send_policy::normal);
     auto msg = env.SerializeAsString();
+
     info.last_status_request_sent = std::chrono::steady_clock::now();
-    info.last_message_sent = std::chrono::steady_clock::now();
-    node->send_message(msg, [](auto& ec)
+    info.last_message_sent = std::chrono::system_clock::now();
+    node->send_message(msg, [&info, node_uuid, weak_this = weak_from_this()](auto& ec)
     {
         if (ec)
         {
-            // TODO: this needs to be caught
             LOG(error) << "Error sending status request to node: " << ec.message();
-            throw(std::runtime_error("Error sending status request to node: " + ec.message()));
+
+            // reset latency so this node won't be fastest
+            info.last_status_duration = static_cast<std::chrono::microseconds>(0);
+
+            auto strong_this = weak_this.lock();
+            strong_this->schedule_status_request(node_uuid, info);
         }
     });
 }
 
+void
+swarm::schedule_status_request(const uuid_t& node_uuid, node_info& info)
+{
+    // schedule another status request for this node
+    info.status_timer->expires_from_now(this->random_avg_time(STATUS_REQUEST_TIME));
+    info.status_timer->async_wait([weak_this = weak_from_this(), node_uuid](auto ec)
+    {
+        if (!ec)
+        {
+            auto strong_this = weak_this.lock();
+            if (strong_this)
+            {
+                strong_this->send_status_request(node_uuid);
+            }
+        }
+    });
+
+}
 bool
 swarm::handle_node_message(const std::string& uuid, const std::string& data)
 {
-    auto it = this->nodes->find(uuid);
-    if (it == this->nodes->end())
+    auto current_nodes = this->get_nodes();
+    auto it = current_nodes->find(uuid);
+    if (it == current_nodes->end())
     {
         LOG(debug) << "Dropping message relayed by unknown node: " << uuid;
         return true;
     }
 
-    auto info = it->second;
-    info.last_message_received = std::chrono::steady_clock::now();
+    auto& info = it->second;
+    info.last_message_received = std::chrono::system_clock::now();
 
     bzn_envelope env;
     if (!env.ParseFromString(data))
@@ -370,8 +365,8 @@ swarm::handle_node_message(const std::string& uuid, const std::string& data)
     }
 
     // verify sender is on node list
-    // TODO: quickread responses don't have a sender????
-    if (!env.sender().empty() && this->nodes->find(env.sender()) == this->nodes->end() && uuid != INITIAL_NODE)
+    // note: quickread responses don't have a sender
+    if (0)//!env.sender().empty() && current_nodes->find(env.sender()) == current_nodes->end())
     {
         LOG(debug) << "Dropping message from unknown sender: " << env.sender();
         return false;
@@ -397,23 +392,27 @@ swarm::handle_node_message(const std::string& uuid, const std::string& data)
 size_t
 swarm::honest_majority_size()
 {
+    std::scoped_lock<std::mutex> lock(this->info_mutex);
     return (((this->nodes->size() - 1) / 3) * 2) + 1;
 }
 
 void
-swarm::setup_client_timeout(std::shared_ptr<node_base> node, std::function<void(db_error)> callback)
+swarm::add_nodes(const std::vector<std::pair<node_id_t, bzn::peer_address_t>>& node_list)
 {
-    this->timeout_timer = this->io_context->make_unique_steady_timer();
-    this->timeout_timer->expires_from_now(std::chrono::milliseconds {std::chrono::seconds(get_timeout())});
-    this->timeout_timer->async_wait([node, callback](const auto& ec)
+    if (node_list.empty())
     {
-        if (!ec)
-        {
-            LOG(warning) << "Request timeout querying swarm";
-            callback(db_error::timeout_error);
-            node->register_message_handler([](const auto){return true;});
-        }
-    });
+        throw(std::runtime_error("Attempt to create swarm with no nodes"));
+    }
+
+    this->nodes = std::make_shared<node_map>();
+    for (auto& node : node_list)
+    {
+        (*this->nodes)[node.first] = this->add_node(node.first, node.second);
+    }
+
+    // until we have status...
+    this->primary_node = node_list.front().first;
+    this->fastest_node = this->primary_node;
 }
 
 swarm::node_info
@@ -427,19 +426,27 @@ swarm::add_node(const node_id_t& node_id, const bzn::peer_address_t& addr)
 
     LOG(debug) << "adding node: " << info.host << ":" << info.port;
 
-    std::weak_ptr<swarm> weak_this{shared_from_this()};
-    info.node->register_message_handler([weak_this, node_id](const std::string& data)
+    info.node->register_message_handler([this, node_id](const std::string& data)
     {
-        auto strong_this = weak_this.lock();
-        if (strong_this)
-        {
-            return strong_this->handle_node_message(node_id, data);
-        }
-        else
-        {
-            return true;
-        }
+        return this->handle_node_message(node_id, data);
     });
 
     return info;
+}
+
+std::shared_ptr<swarm::node_map>
+swarm::get_nodes()
+{
+    std::scoped_lock<std::mutex> lock(this->info_mutex);
+    return this->nodes;
+}
+
+std::chrono::seconds
+swarm::random_avg_time(uint32_t avg)
+{
+    uint32_t base = avg / 2;
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<uint32_t> dist(0, base);
+    return std::chrono::seconds{base + dist(gen)};
 }

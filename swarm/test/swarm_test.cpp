@@ -58,17 +58,54 @@ protected:
     std::shared_ptr<std::thread> io_thread = nullptr;
 
     std::shared_ptr<mock_node_factory> node_factory = std::make_shared<mock_node_factory>();
-    std::shared_ptr<bzn::asio::Mockio_context_base> mock_io_context = std::make_shared<bzn::asio::Mockio_context_base>();
+    std::shared_ptr<bzn::asio::mock_io_context_base> mock_io_context = std::make_shared<bzn::asio::mock_io_context_base>();
     std::shared_ptr<crypto_base> crypto = std::make_shared<null_crypto>();
-    std::shared_ptr<bzn::beast::websocket_base> ws_factory = std::make_shared<bzn::beast::Mockwebsocket_base>();
-    std::shared_ptr<swarm_base> the_swarm = std::make_shared<swarm>(node_factory, ws_factory, mock_io_context, crypto
-        , SWARM_ID, "my_uuid");
+    std::shared_ptr<bzn::beast::websocket_base> ws_factory = std::make_shared<bzn::beast::mock_websocket_base>();
+    std::shared_ptr<swarm_base> the_swarm;
 
     std::map<uint16_t, node_meta> nodes;
     bzapi::uuid_t primary_node;
 
-    void init()
+    void init(uint64_t time, uint64_t node_count)
     {
+        EXPECT_CALL(*node_factory, create_node(_, _, _, _)).Times(Exactly(node_count))
+            .WillRepeatedly(Invoke([self = this, node_count](auto, auto, auto, auto)
+            {
+                static size_t count = 0;
+                size_t n = count;
+                if (++count == node_count)
+                {
+                    count = 0;
+                }
+                return self->nodes[n].node;
+            }));
+
+        // status timer
+        EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).Times(Exactly(node_count))
+            .WillRepeatedly(Invoke([this, node_count]
+        {
+            static size_t count = 0;
+            size_t n = count;
+            if (++count == node_count)
+            {
+                count = 0;
+            }
+
+            auto timer = std::make_unique<bzn::asio::mock_steady_timer_base>();
+            EXPECT_CALL(*timer, expires_from_now(_)).Times(AtLeast(0));
+            EXPECT_CALL(*timer, async_wait(_)).WillRepeatedly(Invoke([this, n](auto handler)
+            {
+                this->nodes[n].timer_callback = handler;
+            }));
+            return timer;
+        }));
+
+        this->add_node(0, time);
+        std::vector<std::pair<node_id_t, bzn::peer_address_t>> node_list{std::make_pair<node_id_t, bzn::peer_address_t>
+            ("node_0", {"127.0.0.1", 0, 0, "", ""})};
+        the_swarm = std::make_shared<swarm>(node_factory, ws_factory, mock_io_context, crypto
+            , SWARM_ID, "my_uuid", node_list);
+
         // TODO: replace with work
         this->signals = std::make_shared<boost::asio::signal_set>(this->real_io_context->get_io_context()
             , SIGINT);
@@ -89,6 +126,17 @@ protected:
         {
             this->real_io_context->run();
         });
+    }
+
+    void teardown()
+    {
+        this->the_swarm = nullptr;
+        this->nodes.clear();
+        if (this->io_thread)
+        {
+            this->real_io_context->stop();
+            this->io_thread->join();
+        }
     }
 
     status_response make_status_response()
@@ -170,38 +218,12 @@ protected:
 
 TEST_F(swarm_test, test_swarm_node_management)
 {
-    this->init();
+    this->init(200, 4);
 
-    this->add_node(0, 200);
     this->add_node(1, 110);
     this->add_node(2, 100);
     this->add_node(3, 130);
     this->primary_node = "node_1";
-
-    // status timer
-    EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).WillRepeatedly(Invoke([this]
-    {
-        static size_t count = 0;
-        size_t n = count;
-        count++;
-
-        auto timer = std::make_unique<bzn::asio::Mocksteady_timer_base>();
-        EXPECT_CALL(*timer, expires_from_now(_)).Times(AtLeast(1));
-        EXPECT_CALL(*timer, async_wait(_)).WillRepeatedly(Invoke([this, n](auto handler)
-        {
-            this->nodes[n].timer_callback = handler;
-        }));
-        return timer;
-    }));
-
-    EXPECT_CALL(*node_factory, create_node(_, _, _, _)).Times(Exactly(this->nodes.size()))
-        .WillRepeatedly(Invoke([self = this](auto, auto, auto, auto)
-        {
-            static size_t count = 0;
-            return self->nodes[count++].node;
-        }));
-
-    this->the_swarm->add_nodes({std::make_pair<node_id_t, bzn::peer_address_t>("node_0", {"127.0.0.1", 0, 0, "", ""})});
 
     std::promise<int> prom;
     this->the_swarm->initialize([&prom](auto& /*ec*/){prom.set_value(1);});
@@ -231,13 +253,12 @@ TEST_F(swarm_test, test_swarm_node_management)
     EXPECT_EQ(status2["primary_node"].asString(), this->primary_node);
     EXPECT_EQ(status2["nodes"].size(), this->nodes.size());
 
-    this->real_io_context->stop();
-    this->io_thread->join();
-
     for (auto& n : this->nodes)
     {
         EXPECT_TRUE(Mock::VerifyAndClearExpectations(n.second.node.get()));
     }
+
+    this->teardown();
 }
 
 #ifdef __APPLE__
@@ -246,35 +267,10 @@ TEST_F(swarm_test, DISABLED_test_send_policy) // todo: fix me!
 TEST_F(swarm_test, test_send_policy)
 #endif
 {
-    this->init();
+    this->init(20, 2);
 
-    this->add_node(0, 20);
     this->add_node(1, 110);
     this->primary_node = "node_1";
-
-    EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).WillRepeatedly(Invoke([this]
-    {
-        static size_t count = 0;
-        size_t n = count;
-        count++;
-
-        auto timer = std::make_unique<bzn::asio::Mocksteady_timer_base>();
-        EXPECT_CALL(*timer, expires_from_now(_)).Times(AtLeast(1));
-        EXPECT_CALL(*timer, async_wait(_)).WillRepeatedly(Invoke([this, n](auto handler)
-        {
-            this->nodes[n].timer_callback = handler;
-        }));
-        return timer;
-    }));
-
-    EXPECT_CALL(*node_factory, create_node(_, _, _, _)).Times(Exactly(this->nodes.size()))
-        .WillRepeatedly(Invoke([self = this](auto, auto, auto, auto)
-        {
-            static size_t count = 0;
-            return self->nodes[count++].node;
-        }));
-
-    this->the_swarm->add_nodes({std::make_pair<node_id_t, bzn::peer_address_t>("node_0", {"127.0.0.1", 0, 0, "", ""})});
 
     std::promise<int> prom;
     this->the_swarm->initialize([&prom](auto& /*ec*/){prom.set_value(1);});
@@ -330,7 +326,7 @@ TEST_F(swarm_test, test_send_policy)
             callback(boost::system::error_code{});
             respond(meta0);
         })).RetiresOnSaturation();
-    the_swarm->send_request(env, send_policy::normal);
+    the_swarm->send_request(*env, send_policy::normal);
     EXPECT_EQ(called, 1u);
 
     // fastest policy - should go through fastest node
@@ -341,7 +337,7 @@ TEST_F(swarm_test, test_send_policy)
             callback(boost::system::error_code{});
             respond(meta1);
         })).RetiresOnSaturation();
-    the_swarm->send_request(env, send_policy::fastest);
+    the_swarm->send_request(*env, send_policy::fastest);
     EXPECT_EQ(called, 2u);
 
     // broadcast - should go to both
@@ -359,42 +355,21 @@ TEST_F(swarm_test, test_send_policy)
             callback(boost::system::error_code{});
             respond(meta3);
         }));
-    the_swarm->send_request(env, send_policy::broadcast);
+    the_swarm->send_request(*env, send_policy::broadcast);
     EXPECT_EQ(called, 4u);
-
-
-    this->real_io_context->stop();
-    this->io_thread->join();
 
     for (auto& n : this->nodes)
     {
         EXPECT_TRUE(Mock::VerifyAndClearExpectations(n.second.node.get()));
     }
+
+    this->teardown();
 }
 
 TEST_F(swarm_test, test_bad_status)
 {
-    node_meta meta;
-    meta.id = 0;
-    meta.node = std::make_shared<mock_node>();
-    meta.latency = 200;
-    meta.response_timer = this->real_io_context->make_unique_steady_timer();
-
-    this->primary_node = "node_0";
-
-    EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).WillRepeatedly(Invoke([] {
-        return std::make_unique<NiceMock<bzn::asio::Mocksteady_timer_base >>();
-    }));
-
-    EXPECT_CALL(*node_factory, create_node(_, _, _, _)).WillRepeatedly(Invoke([&meta](auto, auto, auto, auto) {
-        return meta.node;
-    }));
-
-    EXPECT_CALL(*meta.node, register_message_handler(_)).Times(AtLeast(1))
-        .WillRepeatedly(Invoke([&meta](const auto& handler)
-        {
-            meta.handler = handler;
-        }));
+    this->init(200, 1);
+    auto meta = this->nodes[0];
 
     EXPECT_CALL(*meta.node, send_message(_, _)).Times(AtLeast(1))
         .WillRepeatedly(Invoke([&meta](auto /*msg*/, auto /*callback*/)
@@ -409,6 +384,12 @@ TEST_F(swarm_test, test_bad_status)
         }));
 
     auto l = [](auto& /*ec*/){};
-    this->the_swarm->add_nodes({std::make_pair<node_id_t, bzn::peer_address_t>("node_0", {"127.0.0.1", 0, 0, "", ""})});
     this->the_swarm->initialize(l);
+
+    for (auto& n : this->nodes)
+    {
+        EXPECT_TRUE(Mock::VerifyAndClearExpectations(n.second.node.get()));
+    }
+
+    this->teardown();
 }

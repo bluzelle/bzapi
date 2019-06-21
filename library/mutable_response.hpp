@@ -22,12 +22,6 @@ namespace bzapi
 {
     class async_database;
 
-    /// response object used to determine the outcome of an asynchronous
-    /// bzapi swarmDB operation. The caller can be notified of a result by calling
-    // set_signal_id() with the port of a UDP socket which will be written to when
-    // a result or error is available, at which time get_result() will not block.
-    // Alternatively, the caller can call get_result() at any time, which will block
-    // until the result or error is available.
     class mutable_response : public response
     {
     public:

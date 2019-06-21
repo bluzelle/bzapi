@@ -17,14 +17,13 @@
 #pragma once
 
 #include <gmock/gmock.h>
-#include <database/db_impl_base.hpp>
+#include <database/db_dispatch_base.hpp>
 
 namespace bzapi
 {
-    class mock_db_impl : public db_impl_base
+    class mock_db_dispatch : public db_dispatch_base
     {
     public:
-        MOCK_METHOD1(initialize, void(completion_handler_t));
         MOCK_METHOD3(has_uuid, void(std::shared_ptr<swarm_base>, uuid_t, std::function<void(db_error)>));
         MOCK_METHOD5(create_uuid, void(std::shared_ptr<swarm_base>, uuid_t, uint64_t, bool, std::function<void(db_error)>));
         MOCK_METHOD5(send_message_to_swarm, void(std::shared_ptr<swarm_base>, uuid_t, database_msg&, send_policy, db_response_handler_t));

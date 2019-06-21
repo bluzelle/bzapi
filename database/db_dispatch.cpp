@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 
-#include <database/db_impl.hpp>
+#include <database/db_dispatch.hpp>
 #include <boost/format.hpp>
 
 using namespace bzapi;
@@ -25,77 +25,47 @@ namespace
     const std::chrono::milliseconds BROADCAST_RETRY_TIME{std::chrono::milliseconds(3000)};
 }
 
-db_impl::db_impl(std::shared_ptr<bzn::asio::io_context_base> io_context)
-    : io_context(io_context)
-{
-}
-
-db_impl::~db_impl()
+db_dispatch::db_dispatch(std::shared_ptr<bzn::asio::io_context_base> io_context)
+    : io_context(std::move(io_context))
 {
 }
 
 void
-db_impl::initialize(completion_handler_t /*handler*/)
-{
-//    this->swarm->register_response_handler(bzn_envelope::kDatabaseResponse
-//        , [weak_this = weak_from_this()](const uuid_t& /*uuid*/, const bzn_envelope& env)->bool
-//    {
-//        auto strong_this = weak_this.lock();
-//        if (strong_this)
-//        {
-//            return strong_this->handle_swarm_response(env);
-//        }
-//        else
-//        {
-//            return true;
-//        }
-//    });
-//
-//    this->swarm->initialize(handler);
-}
-
-void
-db_impl::send_message_to_swarm(std::shared_ptr<swarm_base> swarm, uuid_t uuid, database_msg& msg, send_policy policy, db_response_handler_t handler)
+db_dispatch::send_message_to_swarm(std::shared_ptr<swarm_base> swarm, uuid_t db_uuid, database_msg& msg
+    , send_policy policy, db_response_handler_t handler)
 {
     auto nonce = this->next_nonce++;
 
     auto header = new database_header;
-    header->set_db_uuid(uuid);
+    header->set_db_uuid(db_uuid);
     header->set_nonce(nonce);
     msg.set_allocated_header(header);
 
     auto env = std::make_shared<bzn_envelope>();
     env->set_database_msg(msg.SerializeAsString());
-    env->set_timestamp(this->now());
+    swarm->sign_and_date_request(*env, policy);
 
     // store message info
     msg_info info;
     info.swarm = swarm;
     info.request = env;
+    info.handler = handler;
     this->setup_client_timeout(nonce, info);
     this->setup_request_policy(info, policy, nonce);
-    info.handler = handler;
 
     this->messages[nonce] = info;
 
     LOG(debug) << "Sending database request for message " << nonce;
     this->register_swarm_handler(swarm);
-    swarm->send_request(env, policy);
-}
-
-uint64_t
-db_impl::now() const
-{
-    return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::system_clock::now().time_since_epoch()).count());
+    swarm->send_request(*env, policy);
 }
 
 void
-db_impl::setup_request_policy(msg_info& info, send_policy policy, nonce_t nonce)
+db_dispatch::setup_request_policy(msg_info& info, send_policy policy, nonce_t nonce)
 {
     info.policy = policy;
 
-    // should probably split into send_policy and failure_policy
+    // consider splitting into send_policy and failure_policy
     if (policy != send_policy::fastest)
     {
         info.responses_required = info.swarm->honest_majority_size();
@@ -117,7 +87,7 @@ db_impl::setup_request_policy(msg_info& info, send_policy policy, nonce_t nonce)
 }
 
 void
-db_impl::handle_request_timeout(const boost::system::error_code& ec, nonce_t nonce)
+db_dispatch::handle_request_timeout(const boost::system::error_code& ec, nonce_t nonce)
 {
     if (ec == boost::asio::error::operation_aborted)
     {
@@ -129,6 +99,9 @@ db_impl::handle_request_timeout(const boost::system::error_code& ec, nonce_t non
         LOG(error) << "handle_request_timeout error: " << ec.message();
         return;
     }
+
+    static uint64_t timeouts;
+    std::cout << ++timeouts << " timeouts" << std::endl;
 
     auto i = this->messages.find(nonce);
     if (i == this->messages.end())
@@ -153,11 +126,11 @@ db_impl::handle_request_timeout(const boost::system::error_code& ec, nonce_t non
     });
 
     // broadcast the retry
-    info.swarm->send_request(info.request, send_policy::broadcast);
+    info.swarm->send_request(*info.request, send_policy::broadcast);
 }
 
 bool
-db_impl::handle_swarm_response(const bzn_envelope& response)
+db_dispatch::handle_swarm_response(const bzn_envelope& response)
 {
     database_response db_response;
     if (!db_response.ParseFromString(response.database_response()))
@@ -177,7 +150,7 @@ db_impl::handle_swarm_response(const bzn_envelope& response)
     }
 
     // all responses apart from quickreads require a signature
-    // TODO: this isn't ideal if we wan't to enable/disable signatures globally
+    // TODO: this isn't ideal if we want to enable/disable signatures globally
     if (!db_response.has_quick_read() && response.signature().empty())
     {
         LOG(debug) << "Dropping unsigned response for message: " << nonce;
@@ -199,7 +172,7 @@ db_impl::handle_swarm_response(const bzn_envelope& response)
 }
 
 bool
-db_impl::qualify_response(bzapi::db_impl::msg_info &info, const uuid_t& sender) const
+db_dispatch::qualify_response(bzapi::db_dispatch::msg_info &info, const uuid_t& sender) const
 {
     auto num_responses = info.responses.size();
     if (num_responses < info.responses_required)
@@ -239,15 +212,14 @@ db_impl::qualify_response(bzapi::db_impl::msg_info &info, const uuid_t& sender) 
 }
 
 bool
-db_impl::responses_are_equal(const database_response& r1, const database_response& r2) const
+db_dispatch::responses_are_equal(const database_response& r1, const database_response& r2) const
 {
-    // TODO: this needs to be made better
     return r1.response_case() == r2.response_case() &&
            r1.SerializeAsString() == r2.SerializeAsString();
 }
 
 void
-db_impl::setup_client_timeout(nonce_t nonce, msg_info& info)
+db_dispatch::setup_client_timeout(nonce_t nonce, msg_info& info)
 {
     info.timeout_timer = this->io_context->make_unique_steady_timer();
     info.timeout_timer->expires_from_now(std::chrono::milliseconds {std::chrono::seconds(get_timeout())});
@@ -262,10 +234,10 @@ db_impl::setup_client_timeout(nonce_t nonce, msg_info& info)
                 if (i != strong_this->messages.end())
                 {
                     LOG(warning) << "Request timeout querying swarm";
-                    database_error error;
-                    error.set_message("Request timeout");
+                    auto error = new database_error;
+                    error->set_message("Request timeout");
                     database_response response;
-                    response.set_allocated_error(new database_error(error));
+                    response.set_allocated_error(error);
                     i->second.handler(response, boost::system::error_code{});
                     strong_this->messages.erase(nonce);
                 }
@@ -275,16 +247,15 @@ db_impl::setup_client_timeout(nonce_t nonce, msg_info& info)
 }
 
 void
-db_impl::has_uuid(std::shared_ptr<swarm_base> swarm, uuid_t uuid, std::function<void(db_error)> callback)
+db_dispatch::has_uuid(std::shared_ptr<swarm_base> swarm, uuid_t db_uuid, std::function<void(db_error)> callback)
 {
     bzn_envelope env;
     database_msg request;
-    database_header header;
-    request.set_allocated_header(new database_header(header));
-    request.set_allocated_has_db(new database_has_db());
+    request.set_allocated_header(new database_header);
+    request.set_allocated_has_db(new database_has_db);
 
     this->register_swarm_handler(swarm);
-    this->send_message_to_swarm(swarm, uuid, request, send_policy::normal, [uuid, callback](auto response, auto err)
+    this->send_message_to_swarm(swarm, db_uuid, request, send_policy::normal, [db_uuid, callback](auto response, auto err)
     {
         if (err)
         {
@@ -292,32 +263,34 @@ db_impl::has_uuid(std::shared_ptr<swarm_base> swarm, uuid_t uuid, std::function<
         }
         else
         {
-            if (response.has_db().uuid() != uuid)
+            // TODO: need to check for has_error
+            if (response.has_db().uuid() != db_uuid)
             {
                 LOG(error) << "Invalid uuid response to has_db: " << response.has_db().uuid();
                 callback(db_error::database_error);
             }
-
-            callback(response.has_db().has() ? db_error::success : db_error::no_database);
+            else
+            {
+                callback(response.has_db().has() ? db_error::success : db_error::no_database);
+            }
         }
     });
 }
 
 void
-db_impl::create_uuid(std::shared_ptr<swarm_base> swarm, uuid_t uuid, uint64_t max_size, bool random_evict, std::function<void(db_error)> callback)
+db_dispatch::create_uuid(std::shared_ptr<swarm_base> swarm, uuid_t db_uuid, uint64_t max_size, bool random_evict, std::function<void(db_error)> callback)
 {
     bzn_envelope env;
     database_msg request;
-    database_header header;
-    request.set_allocated_header(new database_header(header));
-    database_create_db create;
-    create.set_max_size(max_size);
-    create.set_eviction_policy(random_evict ? database_create_db_eviction_policy_type_RANDOM
+    request.set_allocated_header(new database_header);
+    auto create = new database_create_db;
+    create->set_max_size(max_size);
+    create->set_eviction_policy(random_evict ? database_create_db_eviction_policy_type_RANDOM
         : database_create_db_eviction_policy_type_NONE);
-    request.set_allocated_create_db(new database_create_db(create));
+    request.set_allocated_create_db(create);
 
     this->register_swarm_handler(swarm);
-    this->send_message_to_swarm(swarm, uuid, request, send_policy::normal, [uuid, callback](auto response, auto err)
+    this->send_message_to_swarm(swarm, db_uuid, request, send_policy::normal, [db_uuid, callback](auto response, auto err)
     {
         if (err)
         {
@@ -338,7 +311,7 @@ db_impl::create_uuid(std::shared_ptr<swarm_base> swarm, uuid_t uuid, uint64_t ma
 }
 
 void
-db_impl::register_swarm_handler(std::shared_ptr<swarm_base> swarm)
+db_dispatch::register_swarm_handler(std::shared_ptr<swarm_base> swarm)
 {
     swarm->register_response_handler(bzn_envelope::kDatabaseResponse
         , [weak_this = weak_from_this()](const uuid_t& /*uuid*/, const bzn_envelope& env)
