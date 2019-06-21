@@ -530,11 +530,24 @@ TEST_F(integration_test, test_initialize)
     EXPECT_EQ(bzapi::get_error_str(), std::string{"Not Initialized"});
 }
 
-TEST_F(integration_test, test_initialize_esr)
+TEST_F(integration_test, test_initialize_fails_with_bad_endpoint)
 {
     EXPECT_EQ(bzapi::get_error(), -1);
     EXPECT_EQ(bzapi::get_error_str(), std::string{"Not Initialized"});
 
+    bool result = bzapi::initialize(pub_key, priv_key, "127.0.0.1:50000", "", "");
+    EXPECT_FALSE(result);
+    EXPECT_EQ(bzapi::get_error(), -1);
+    EXPECT_EQ(bzapi::get_error_str(), std::string{"Bad Endpoint"});
+
+    result = bzapi::initialize(pub_key, priv_key, "ws://127.0.0.1", "", "");
+    EXPECT_FALSE(result);
+    EXPECT_EQ(bzapi::get_error(), -1);
+    EXPECT_EQ(bzapi::get_error_str(), std::string{"Bad Endpoint"});
+}
+
+TEST_F(integration_test, test_initialize_esr)
+{
     auto esr = std::make_shared<mock_esr>();
     bzapi::the_esr = esr;
     EXPECT_CALL(*esr, get_swarm_ids(_, _)).WillOnce(Invoke([](auto, auto)
@@ -636,6 +649,7 @@ TEST_F(integration_test, test_create_db)
 
 TEST_F(integration_test, test_cant_create_db)
 {
+    size_t MAX_RETRY{5}; // set in swarm_factory.cpp
     bzapi::uuid_t uuid{"my_uuid"};
     this->initialize(uuid);
 
@@ -646,12 +660,10 @@ TEST_F(integration_test, test_cant_create_db)
     this->primary_node = "node_0";
 
     // reverse order is intentional to match most recent expectations first
-    expect_create_db(false);
-    expect_create_db(false);
-    expect_create_db(false);
-    expect_create_db(false);
-    expect_create_db(false);
-    expect_create_db(false);
+    for (size_t i = 0; i < MAX_RETRY + 1; i++)
+    {
+        expect_create_db(false);
+    }
     expect_has_db(false);
 
 
