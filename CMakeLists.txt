@@ -50,9 +50,18 @@ include(FindProtobuf)
 find_package(Protobuf REQUIRED)
 include_directories(SYSTEM ${PROTOBUF_INCLUDE_DIR})
 
+
+###include(FindPkgConfig)
+###pkg_search_module(JSONCPP REQUIRED jsoncpp)
+###include_directories(SYSTEM ${JSONCPP_INCLUDE_DIRS})
+
+# JSONCPP
 include(FindPkgConfig)
 pkg_search_module(JSONCPP REQUIRED jsoncpp)
 include_directories(SYSTEM ${JSONCPP_INCLUDE_DIRS})
+link_directories(${JSONCPP_LIBRARY_DIRS})
+
+
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
