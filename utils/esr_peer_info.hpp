@@ -23,6 +23,6 @@ using namespace bzapi;
 namespace bzn::utils::esr
 {
     std::vector<std::string> get_swarm_ids(const std::string& esr_address, const std::string& url);
-    std::vector<std::string> get_peer_ids(const uuid_t& swarm_id, const std::string& esr_address, const std::string& url);
-    bzn::peer_address_t get_peer_info(const uuid_t& swarm_id, const std::string& peer_id, const std::string& esr_address, const std::string& url);
+    std::vector<std::string> get_peer_ids(const bzapi::uuid_t& swarm_id, const std::string& esr_address, const std::string& url);
+    bzn::peer_address_t get_peer_info(const bzapi::uuid_t& swarm_id, const std::string& peer_id, const std::string& esr_address, const std::string& url);
 }

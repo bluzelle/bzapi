@@ -274,7 +274,7 @@ TEST_F(swarm_test, test_send_policy)
     std::promise<int> prom;
     this->the_swarm->initialize([&prom](auto& /*ec*/){prom.set_value(1);});
     prom.get_future().get();
-    boost::this_thread::sleep_for(boost::chrono::seconds(1));
+    boost::this_thread::sleep_for(boost::chrono::seconds(2));
 
     auto status_str = this->the_swarm->get_status();
     Json::Value status;
@@ -320,7 +320,7 @@ TEST_F(swarm_test, test_send_policy)
     // normal policy - should go through primary
     auto& meta0 = this->nodes[1];
     EXPECT_CALL(*meta0.node, send_message(ResultOf(is_status, Eq(false)), _)).Times(Exactly(1))
-        .WillRepeatedly(Invoke([this, &meta0, respond](auto /*msg*/, auto callback)
+        .WillRepeatedly(Invoke([&meta0, respond](auto /*msg*/, auto callback)
         {
             callback(boost::system::error_code{});
             respond(meta0);
@@ -331,7 +331,7 @@ TEST_F(swarm_test, test_send_policy)
     // fastest policy - should go through fastest node
     auto meta1 = this->nodes[0];
     EXPECT_CALL(*meta1.node, send_message(ResultOf(is_status, Eq(false)), _)).Times(Exactly(1))
-        .WillRepeatedly(Invoke([this, &meta1, respond](auto /*msg*/, auto callback)
+        .WillRepeatedly(Invoke([&meta1, respond](auto /*msg*/, auto callback)
         {
             callback(boost::system::error_code{});
             respond(meta1);
@@ -342,14 +342,14 @@ TEST_F(swarm_test, test_send_policy)
     // broadcast - should go to both
     auto meta2 = this->nodes[0];
     EXPECT_CALL(*meta2.node, send_message(ResultOf(is_status, Eq(false)), _)).Times(Exactly(1))
-        .WillRepeatedly(Invoke([this, &meta2, respond](auto /*msg*/, auto callback)
+        .WillRepeatedly(Invoke([&meta2, respond](auto /*msg*/, auto callback)
         {
             callback(boost::system::error_code{});
             respond(meta2);
         }));
     auto meta3 = this->nodes[1];
     EXPECT_CALL(*meta3.node, send_message(ResultOf(is_status, Eq(false)), _)).Times(Exactly(1))
-        .WillRepeatedly(Invoke([this, &meta3, respond](auto /*msg*/, auto callback)
+        .WillRepeatedly(Invoke([&meta3, respond](auto /*msg*/, auto callback)
         {
             callback(boost::system::error_code{});
             respond(meta3);

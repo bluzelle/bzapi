@@ -40,19 +40,16 @@ else()
     include(cmake/boost.cmake)
     include(cmake/googletest.cmake)
     include(cmake/openssl.cmake)
+    include(cmake/jsoncpp.cmake)
 endif()
 
 include(cmake/add_gmock_test.cmake)
 
 # find packages
-set(Protobuf_USE_STATIC_LIBS ON)
+#set(Protobuf_USE_STATIC_LIBS ON) # not built with PIC!
 include(FindProtobuf)
 find_package(Protobuf REQUIRED)
 include_directories(SYSTEM ${PROTOBUF_INCLUDE_DIR})
-
-include(FindPkgConfig)
-pkg_search_module(JSONCPP REQUIRED jsoncpp)
-include_directories(SYSTEM ${JSONCPP_INCLUDE_DIRS})
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -70,7 +67,7 @@ endif()
 
 add_subdirectory(proto)
 
-set(BLUZELLE_STD_INCLUDES ${Boost_INCLUDE_DIRS} ${GTEST_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR} ${PROTO_INCLUDE_DIR})
+set(BLUZELLE_STD_INCLUDES ${Boost_INCLUDE_DIRS} ${GTEST_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR} ${JSONCPP_INCLUDE_DIRS} ${PROTO_INCLUDE_DIR})
 
 add_subdirectory(crypto)
 add_subdirectory(database)
