@@ -20,14 +20,9 @@
 #include <utils/esr_peer_info.hpp>
 #include <random>
 
-// Note: the intention is for a swarm to serve multiple db_impl clients (swarm sharing)
-// however the current code will allocate a new swarm for each db instance, even if
-// it's the same uuid.
-// This will be fixed in an upcoming sprint.
-
 namespace bzapi
 {
-    extern std::shared_ptr<db_impl_base> get_db_dispatcher();
+    extern std::shared_ptr<db_dispatch_base> get_db_dispatcher();
 }
 
 namespace
@@ -42,19 +37,15 @@ swarm_factory::swarm_factory(std::shared_ptr<bzn::asio::io_context_base> io_cont
     , std::shared_ptr<crypto_base> crypto
     , std::shared_ptr<esr_base> esr
     , const uuid_t& uuid)
-: io_context(std::move(io_context)), ws_factory(std::move(ws_factory)), crypto(std::move(crypto)), esr(esr), my_uuid(uuid)
-{
-    this->node_factory = std::make_shared<::node_factory>();
-}
-
-swarm_factory::~swarm_factory()
+: io_context(std::move(io_context)), ws_factory(std::move(ws_factory)), crypto(std::move(crypto)), esr(std::move(esr))
+    , my_uuid(uuid), node_factory(std::make_shared<::node_factory>())
 {
 }
 
 void
-swarm_factory::initialize(const std::string& esr_address, const std::string& url)
+swarm_factory::initialize(const std::string& esr_addr, const std::string& url)
 {
-    this->esr_address = esr_address;
+    this->esr_address = esr_addr;
     this->esr_url = url;
     this->swarm_reg = std::make_shared<swarm_registry>();
     this->update_swarm_registry();
@@ -65,7 +56,7 @@ void
 swarm_factory::initialize(const swarm_id_t& default_swarm, const std::vector<std::pair<node_id_t, bzn::peer_address_t>>& nodes)
 {
     auto sw_reg = std::make_shared<swarm_registry>();
-    for (auto node : nodes)
+    for (const auto& node : nodes)
     {
         sw_reg->add_node(default_swarm, node.first, node.second);
     }
@@ -232,8 +223,7 @@ swarm_factory::get_or_create_swarm(const swarm_id_t& swarm_id)
         auto nodes = this->swarm_reg->get_nodes(swarm_id);
         assert(!nodes.empty());
         auto swm = std::make_shared<swarm>(this->node_factory, this->ws_factory, this->io_context, this->crypto
-            , swarm_id, this->my_uuid);
-        swm->add_nodes(nodes);
+            , swarm_id, this->my_uuid, nodes);
         this->swarm_reg->set_swarm(swarm_id, swm);
         return swm;
     }

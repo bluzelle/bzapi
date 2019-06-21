@@ -16,7 +16,7 @@
 #include <include/bluzelle.hpp>
 #include <crypto/crypto.hpp>
 #include <crypto/null_crypto.hpp>
-#include <database/db_impl.hpp>
+#include <database/db_dispatch.hpp>
 #include <include/bzapi.hpp>
 #include <include/logger.hpp>
 #include <library/udp_response.hpp>
@@ -38,7 +38,7 @@ namespace bzapi
     extern std::shared_ptr<swarm_factory> the_swarm_factory;
     extern std::shared_ptr<crypto_base> the_crypto;
     extern std::shared_ptr<bzn::beast::websocket_base> ws_factory;
-    extern std::shared_ptr<bzapi::db_impl_base> db_dispatcher;
+    extern std::shared_ptr<bzapi::db_dispatch_base> db_dispatcher;
     extern std::shared_ptr<bzapi::esr_base> the_esr;
     extern bool initialized;
 
@@ -195,7 +195,7 @@ public:
         EXPECT_CALL(*mock_io_context, get_io_context()).Times(AtLeast(1)).WillRepeatedly(ReturnRef(real_io_context));
 
         io_context = mock_io_context;
-        db_dispatcher = std::make_shared<db_impl>(io_context);
+        db_dispatcher = std::make_shared<db_dispatch>(io_context);
         the_crypto = std::make_shared<null_crypto>();
         mock_ws_factory = std::make_shared<bzn::beast::Mockwebsocket_base>();
         ws_factory = mock_ws_factory;
@@ -898,7 +898,7 @@ TEST_F(integration_test, blocking_response_test)
 
 namespace
 {
-    std::string NODE_ID{"MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEDGawpRFfrF/z2E6nJWFdctKBebtaKf83eZ2q9mcBGW4TzwtLghJWhB+u6snXFqigaBNNE1r9ZRuOBrB/o3JYSQ=="};
+    std::string NODE_ID{"MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEoqaq8sFA3tnGXBySuET0IdLgKXvmz+uCA2FL/DiTPOTpM3q/9kIscZ1I+Ryh2W+xpfFVkp2m9d6ZIp/XjQcHwg=="};
 }
 
 TEST_F(integration_test, live_test)
@@ -911,9 +911,7 @@ TEST_F(integration_test, live_test)
     std::string db_name = "testdb_" + std::to_string(rand);
 
     bzapi::set_logger(&mylogger);
-    bool res = bzapi::initialize(pub_key, priv_key, "ws://localhost:50000"
-        , NODE_ID
-        , "my_swarm");
+    bool res = bzapi::initialize(pub_key, priv_key, "ws://localhost:50000", NODE_ID, "my_swarm");
 //    bool res = bzapi::initialize(pub_key, priv_key, "ws://127.0.0.1:50000");
 //    bool res = bzapi::initialize(pub_key, priv_key, "ws://75.96.163.85:51010");
     EXPECT_TRUE(res);

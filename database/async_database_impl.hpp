@@ -17,20 +17,20 @@
 
 #include <include/bluzelle.hpp>
 #include <include/async_database.hpp>
-#include <database/db_impl_base.hpp>
+#include <database/db_dispatch_base.hpp>
 #include <library/mutable_response.hpp>
 #include <swarm/swarm_base.hpp>
 
 
 namespace bzapi
 {
-    class db_impl_base;
+    class db_dispatch_base;
 
     class async_database_impl : public async_database, public std::enable_shared_from_this<async_database_impl>
     {
     public:
 
-        async_database_impl(std::shared_ptr<db_impl_base> db_impl, std::shared_ptr<swarm_base> swarm, uuid_t uuid);
+        async_database_impl(std::shared_ptr<db_dispatch_base> db_impl, std::shared_ptr<swarm_base> swarm, uuid_t uuid);
         ~async_database_impl();
 
         void open(completion_handler_t handler);
@@ -58,7 +58,7 @@ namespace bzapi
 
         enum class init_state {none, initializing, initialized} state{init_state::none};
 
-        std::shared_ptr<db_impl_base> db_impl;
+        std::shared_ptr<db_dispatch_base> db_impl;
         std::shared_ptr<swarm_base> swarm;
         uuid_t uuid;
 

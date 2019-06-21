@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include <database/db_impl_base.hpp>
+#include <database/db_dispatch_base.hpp>
 
 namespace bzapi
 {
@@ -23,13 +23,10 @@ namespace bzapi
     // handles incoming database responses
     // applies collation policy and forwards acceptable responses
     // handles response timeout and resend
-    class db_impl : public db_impl_base, public std::enable_shared_from_this<db_impl>
+    class db_dispatch : public db_dispatch_base, public std::enable_shared_from_this<db_dispatch>
     {
     public:
-        db_impl(std::shared_ptr<bzn::asio::io_context_base> io_context);
-        ~db_impl();
-
-        void initialize(completion_handler_t handler) override;
+        db_dispatch(std::shared_ptr<bzn::asio::io_context_base> io_context);
 
         void has_uuid(std::shared_ptr<swarm_base> swarm, uuid_t uuid, std::function<void(db_error)> callback) override;
 
@@ -52,13 +49,11 @@ namespace bzapi
             db_response_handler_t handler;
         };
 
-        std::shared_ptr<bzn::asio::io_context_base> io_context;
-        uuid_t uuid;
+        const std::shared_ptr<bzn::asio::io_context_base> io_context;
         nonce_t next_nonce = 1;
         std::map<nonce_t, msg_info> messages;
 
         void setup_request_policy(msg_info& info, send_policy policy, nonce_t nonce);
-        uint64_t now() const;
         void handle_request_timeout(const boost::system::error_code& ec, nonce_t nonce);
         bool handle_swarm_response(/*const uuid_t& uuid, */const bzn_envelope& response);
         bool qualify_response(msg_info& info, const uuid_t& sender) const;

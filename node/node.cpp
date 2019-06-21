@@ -21,12 +21,7 @@ node::node(std::shared_ptr<bzn::asio::io_context_base> io_context
     , std::shared_ptr<bzn::beast::websocket_base> ws_factory
     , const std::string& host
     , uint16_t port)
-: io_context(std::move(io_context)), ws_factory(std::move(ws_factory))
-{
-    this->endpoint = this->make_tcp_endpoint(host, port);
-}
-
-node::~node()
+: io_context(std::move(io_context)), ws_factory(std::move(ws_factory)), endpoint(this->make_tcp_endpoint(host, port))
 {
 }
 
@@ -68,27 +63,27 @@ node::make_tcp_endpoint(const std::string& host, uint16_t port)
 {
     boost::asio::ip::tcp::resolver resolver(this->io_context->get_io_context());
     boost::asio::ip::tcp::resolver::query query(host, std::to_string(port));
-    boost::asio::ip::tcp::resolver::iterator iter = resolver.resolve(query);
-    boost::asio::ip::tcp::endpoint endpoint;
+    auto iter = resolver.resolve(query);
+    boost::asio::ip::tcp::endpoint ep;
 
-    std::for_each(iter, {}, [&endpoint](auto& it)
+    std::for_each(iter, {}, [&ep](auto& it)
     {
         if (it.endpoint().address().is_v4())
         {
-            endpoint = it.endpoint();
+            ep = it.endpoint();
         }
     });
 
-    return endpoint;
+    return ep;
 }
 
 void
-node::connect(completion_handler_t callback)
+node::connect(const completion_handler_t& callback)
 {
     std::shared_ptr<bzn::asio::tcp_socket_base> socket = this->io_context->make_unique_tcp_socket();
     socket->async_connect(this->endpoint, [weak_this = weak_from_this(), callback, socket](auto ec)
     {
-        // TODO: save connection latency...
+        // TODO: save connection latency - KEP-1382
 
         if (ec)
         {
@@ -107,50 +102,51 @@ node::connect(completion_handler_t callback)
             socket->get_tcp_socket().set_option(boost::asio::ip::tcp::no_delay(true), option_ec);
             if (option_ec)
             {
-                LOG(error) << "failed to set socket option: " << option_ec.message();
+                LOG(warning) << "failed to set no_delay socket option: " << option_ec.message();
             }
 
             strong_this->websocket = strong_this->ws_factory->make_unique_websocket_stream(
                 socket->get_tcp_socket());
             strong_this->websocket->async_handshake(strong_this->endpoint.address().to_string(), "/"
-                , [weak_this2 = std::weak_ptr<node>(strong_this), callback](auto ec)
+                , [weak_this, callback](auto ec)
                 {
                     try
                     {
-                        auto strong_this2 = weak_this2.lock();
-                        if (strong_this2)
+                        auto strong_this = weak_this.lock();
+                        if (strong_this)
                         {
                             if (ec)
                             {
-                                // connect failed
+                                LOG(warning) << "websocket handshake failure: " << ec.message();
                                 callback(ec);
                                 return;
                             }
 
                             callback(ec);
-                            //                    auto strong_this2 = weak_this2.lock();
-                            if (strong_this2)
-                            {
-                                strong_this2->receive();
-                            }
+                            strong_this->receive();
                         }
                     }
-                    catch(...){}
+                    CATCHALL();
                 });
         }
     });
 }
 
 void
-node::send(const std::string& msg, completion_handler_t callback, bool is_retry)
+node::send(const std::string& msg, const completion_handler_t& callback, bool is_retry)
 {
     boost::asio::mutable_buffers_1 buffer((void*)msg.c_str(), msg.length());
 
+    // guard against multiple threads trying to send on the same socket at the same time
+    // this can happen if a status request is sent on an asio thread at the same time as an API request is issued
+    auto send_lock = std::make_shared<std::unique_lock<std::mutex>>(this->send_mutex);
+
     this->websocket->binary(true);
-    this->websocket->async_write(buffer, [weak_this = weak_from_this(), callback, is_retry, msg](auto ec, auto /*bytes*/)
+    this->websocket->async_write(buffer, [weak_this = weak_from_this(), callback, is_retry, msg, send_lock](auto ec, auto /*bytes*/)
     {
         try
         {
+            send_lock->unlock();
             if (ec == boost::beast::websocket::error::closed || ec == boost::asio::error::eof)
             {
                 auto strong_this = weak_this.lock();
@@ -161,7 +157,7 @@ node::send(const std::string& msg, completion_handler_t callback, bool is_retry)
                     // try to reconnect once
                     if (!is_retry)
                     {
-                        strong_this->connect([weak_this2 = std::weak_ptr<node>(strong_this), callback, msg](auto ec)
+                        strong_this->connect([weak_this, callback, msg](auto ec)
                         {
                             if (ec)
                             {
@@ -169,10 +165,10 @@ node::send(const std::string& msg, completion_handler_t callback, bool is_retry)
                                 return;
                             }
 
-                            auto strong_this2 = weak_this2.lock();
-                            if (strong_this2)
+                            auto strong_this = weak_this.lock();
+                            if (strong_this)
                             {
-                                strong_this2->send(msg, callback, true);
+                                strong_this->send(msg, callback, true);
                                 return;
                             }
                         });
@@ -192,7 +188,7 @@ void
 node::receive()
 {
     auto buffer = std::make_shared<boost::beast::multi_buffer>();
-    this->websocket->async_read(*buffer, [weak_this = weak_from_this(), buffer, ws = this->websocket](auto ec, auto /*bytes_transferred*/)
+    this->websocket->async_read(*buffer, [weak_this = weak_from_this(), buffer, ws = this->websocket](auto ec, auto /*bytes*/)
     {
         try
         {
@@ -230,10 +226,10 @@ node::close()
     {
         this->connected = false;
 
-        // ignoring close errors for now
+        // hold onto reference to websocket to prevent boost exception if node is gone
         this->websocket->async_close(boost::beast::websocket::close_code::normal, [ws = this->websocket](auto)
         {
-
+            // ignore close errors
         });
     }
 }

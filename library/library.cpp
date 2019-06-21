@@ -17,7 +17,7 @@
 #include <include/boost_asio_beast.hpp>
 #include <crypto/crypto.hpp>
 #include <database/database_impl.hpp>
-#include <database/db_impl.hpp>
+#include <database/db_dispatch.hpp>
 #include <include/bzapi.hpp>
 #include <library/log.hpp>
 #include <library/udp_response.hpp>
@@ -50,7 +50,7 @@ namespace bzapi
     std::shared_ptr<bzapi::swarm_factory> the_swarm_factory;
     std::shared_ptr<bzapi::crypto_base> the_crypto;
     std::shared_ptr<bzn::beast::websocket_base> ws_factory;
-    std::shared_ptr<bzapi::db_impl_base> db_dispatcher;
+    std::shared_ptr<bzapi::db_dispatch_base> db_dispatcher;
     std::shared_ptr<bzapi::esr_base> the_esr{new bzapi::esr};
     bool initialized = false;
 
@@ -60,7 +60,7 @@ namespace bzapi
         return std::make_shared<udp_response>();
     }
 
-    std::shared_ptr<bzapi::db_impl_base>
+    std::shared_ptr<bzapi::db_dispatch_base>
     get_db_dispatcher()
     {
         return db_dispatcher;
@@ -115,7 +115,7 @@ namespace bzapi
             LOG(debug) << "Events run: " << res << std::endl;
         });
 
-        db_dispatcher = std::make_shared<db_impl>(io_context);
+        db_dispatcher = std::make_shared<db_dispatch>(io_context);
         the_crypto = std::make_shared<crypto>(private_key);
         ws_factory = std::make_shared<bzn::beast::websocket>();
         the_swarm_factory = std::make_shared<swarm_factory>(io_context, ws_factory, the_crypto, the_esr, public_key);

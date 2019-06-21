@@ -23,11 +23,10 @@ namespace bzapi
 {
     using db_response_handler_t = std::function<void(const database_response &response, const boost::system::error_code &error)>;
 
-    class db_impl_base
+    class db_dispatch_base
     {
     public:
-        virtual ~db_impl_base() = default;
-        virtual void initialize(completion_handler_t handler) = 0;
+        virtual ~db_dispatch_base() = default;
         virtual void has_uuid(std::shared_ptr<swarm_base> swarm, uuid_t uuid, std::function<void(db_error)> callback) = 0;
         virtual void create_uuid(std::shared_ptr<swarm_base> swarm, uuid_t uuid, uint64_t max_size, bool random_evict, std::function<void(db_error)> callback) = 0;
 
