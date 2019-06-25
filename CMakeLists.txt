@@ -2,6 +2,12 @@ cmake_minimum_required(VERSION 3.10)
 
 project(bzapi CXX)
 
+# for now...
+set(PROJECT_VERSION_MAJOR 0)
+set(PROJECT_VERSION_MINOR 1)
+set(PROJECT_VERSION_PATCH 1)
+set(PROJECT_VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}")
+
 option(OMIT_LIBRARY "Omit compiling the shared library" OFF)
 
 # ensure type is set
@@ -40,7 +46,17 @@ else()
     include(cmake/boost.cmake)
     include(cmake/googletest.cmake)
     include(cmake/openssl.cmake)
-    include(cmake/jsoncpp.cmake)
+    if (NOT USE_JSONCPP_SO)
+        include(cmake/jsoncpp.cmake)
+    endif()
+endif()
+
+# use jsoncpp shared library instead?
+if (USE_JSONCPP_SO)
+    include(FindPkgConfig)
+    pkg_search_module(JSONCPP REQUIRED jsoncpp)
+    include_directories(SYSTEM ${JSONCPP_INCLUDE_DIRS})
+    link_directories(${JSONCPP_LIBRARY_DIRS})
 endif()
 
 include(cmake/add_gmock_test.cmake)
@@ -77,6 +93,9 @@ add_subdirectory(utils)
 
 if (NOT OMIT_LIBRARY)
     add_subdirectory(library)
+    if (NOT APPLE)
+        add_subdirectory(pkg)
+    endif()
 endif(NOT OMIT_LIBRARY)
 
 include(cmake/static_analysis.cmake)
