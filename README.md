@@ -4,3 +4,10 @@
 
 
 Bluzelle SwarmDB Client Runtime Library
+
+# dev notes
+
+1. lsb_release required for packaging
+2. build with libjsoncpp.so use cmake arg: -DUSE_JSONCPP_SO=ON
+3. fill out LICENCE-2.0
+
