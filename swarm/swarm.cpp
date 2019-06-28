@@ -279,14 +279,15 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
             std::scoped_lock<std::mutex> lock(this->info_mutex);
             this->nodes = new_nodes;
             this->primary_node = swarm_status["status"]["primary"]["uuid"].asString();
+            std::cout << "Primary node is " << this->primary_node << std::endl;
             this->fastest_node = fastest_node_so_far;
             this->last_status = status;
         }
         // kick off status requests for newly added nodes
-        for (const auto& n : new_uuids)
-        {
-            this->send_status_request(n);
-        }
+//        for (const auto& n : new_uuids)
+//        {
+//            this->send_status_request(n);
+//        }
     }
 
     // initialization is done once we've received one status response

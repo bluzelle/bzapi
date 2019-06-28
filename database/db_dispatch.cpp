@@ -99,6 +99,9 @@ db_dispatch::handle_request_timeout(const boost::system::error_code& ec, nonce_t
         return;
     }
 
+    static uint64_t timeouts;
+    std::cout << ++timeouts << " timeouts" << std::endl;
+
     auto i = this->messages.find(nonce);
     if (i == this->messages.end())
     {

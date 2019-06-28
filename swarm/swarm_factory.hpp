@@ -23,7 +23,6 @@
 #include <swarm/esr_base.hpp>
 #include <utils/peer_address.hpp>
 
-
 namespace bzapi
 {
     class swarm_factory : public std::enable_shared_from_this<swarm_factory>

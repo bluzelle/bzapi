@@ -133,20 +133,55 @@ node::connect(const completion_handler_t& callback)
 }
 
 void
+node::queued_send(boost::asio::mutable_buffers_1 &buffer, bzn::asio::write_handler callback)
+{
+    std::shared_ptr<queued_message> msg;
+    {
+        std::scoped_lock<std::mutex> lock(this->send_mutex);
+        this->send_queue.push_back(std::make_shared<queued_message>(std::make_pair(std::move(buffer), callback)));
+        if (this->send_queue.size() == 1)
+        {
+            msg = this->send_queue.front();
+        }
+    }
+    if (msg)
+    {
+        do_send(msg);
+    }
+}
+
+void
+node::do_send(std::shared_ptr<queued_message> msg)
+{
+    this->websocket->binary(true);
+    this->websocket->async_write(msg->first, [this, msg](const boost::system::error_code& ec, unsigned long bytes)
+    {
+        {
+            std::scoped_lock<std::mutex> lock(this->send_mutex);
+            assert(this->send_queue.front() == msg);
+            this->send_queue.pop_front();
+            if (!this->send_queue.empty())
+            {
+                this->do_send(this->send_queue.front());
+            }
+        }
+
+        msg->second(ec, bytes);
+    });
+
+}
+
+void
 node::send(const std::string& msg, const completion_handler_t& callback, bool is_retry)
 {
     boost::asio::mutable_buffers_1 buffer((void*)msg.c_str(), msg.length());
 
-    // guard against multiple threads trying to send on the same socket at the same time
-    // this can happen if a status request is sent on an asio thread at the same time as an API request is issued
-    auto send_lock = std::make_shared<std::unique_lock<std::mutex>>(this->send_mutex);
-
     this->websocket->binary(true);
-    this->websocket->async_write(buffer, [weak_this = weak_from_this(), callback, is_retry, msg, send_lock](auto ec, auto /*bytes*/)
+//    this->websocket->async_write(buffer, [weak_this = weak_from_this(), callback, is_retry, msg](auto ec, auto /*bytes*/)
+    this->queued_send(buffer, [weak_this = weak_from_this(), callback, is_retry, msg](auto ec, auto /*bytes*/)
     {
         try
         {
-            send_lock->unlock();
             if (ec == boost::beast::websocket::error::closed || ec == boost::asio::error::eof)
             {
                 auto strong_this = weak_this.lock();

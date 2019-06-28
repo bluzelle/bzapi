@@ -898,7 +898,119 @@ TEST_F(integration_test, blocking_response_test)
 
 namespace
 {
-    std::string NODE_ID{"MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEoqaq8sFA3tnGXBySuET0IdLgKXvmz+uCA2FL/DiTPOTpM3q/9kIscZ1I+Ryh2W+xpfFVkp2m9d6ZIp/XjQcHwg=="};
+    std::string NODE_ID{"MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAE+i5miFkeb0+NnnkaFapKKoWH6GqAX0fgP9lXP7OfjQsO/sPp5hBXIhk23e0AK+j833MFK3Rm7oE0OVpFKEE7qw=="};
+}
+
+uint64_t now()
+{
+    return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count());
+}
+
+TEST_F(integration_test, perf_test)
+{
+    auto rand = generate_random_number(0, 100000);
+    std::string db_name = "testdb_" + std::to_string(rand);
+
+    bool res = bzapi::initialize(pub_key, priv_key, "ws://localhost:50000", NODE_ID, "my_swarm");
+    EXPECT_TRUE(res);
+
+    auto db = bzapi::create_db(db_name.data(), 0, false);
+    auto start = now();
+
+    for (size_t i = 0; i < 120; i++)
+    {
+        db->create("key_" + std::to_string(i), "value_" + std::to_string(i), 0);
+    }
+
+    auto end = now();
+    auto ms = end - start;
+    std::cout << "test took " << ms << " milliseconds" << std::endl;
+
+    bzapi::terminate();
+}
+
+TEST_F(integration_test, para_perf_test)
+{
+    auto rand = generate_random_number(0, 100000);
+    std::string db_name = "testdb_" + std::to_string(rand);
+
+    bool res = bzapi::initialize(pub_key, priv_key, "ws://localhost:50000", NODE_ID, "my_swarm");
+    EXPECT_TRUE(res);
+
+    auto resp = bzapi::async_create_db(db_name.data(), 0, false);
+    resp->get_result();
+    auto db = resp->get_db();
+    std::vector<std::shared_ptr<bzapi::response>> responses;
+    auto start = now();
+
+    for (size_t i = 0; i < 120; i++)
+    {
+        responses.push_back(db->create("key_" + std::to_string(i), "value_" + std::to_string(i), 0));
+    }
+    for (auto& r : responses)
+    {
+        r->get_result();
+    }
+
+    auto end = now();
+    auto ms = end - start;
+    std::cout << "test took " << ms << " milliseconds" << std::endl;
+
+    bzapi::terminate();
+}
+
+TEST_F(integration_test, viewchange_test)
+{
+    auto rand = generate_random_number(0, 100000);
+    std::string db_name = "testdb_" + std::to_string(rand);
+
+    bool res = bzapi::initialize(pub_key, priv_key, "ws://localhost:50000", NODE_ID, "my_swarm");
+    EXPECT_TRUE(res);
+
+    auto resp = bzapi::async_create_db(db_name.data(), 0, false);
+    Json::Value res_json;
+    std::stringstream(resp->get_result()) >> res_json;
+    auto result = res_json["result"].asInt();
+    auto db_uuid = res_json["uuid"].asString();
+    EXPECT_EQ(result, 1);
+    EXPECT_EQ(db_uuid, db_name);
+
+    auto db = resp->get_db();
+    ASSERT_NE(db, nullptr);
+
+//    auto create_resp = db->create("test_key", "test_value", 0);
+//    Json::Value create_json;
+//    std::stringstream(create_resp->get_result()) >> create_json;
+//    EXPECT_EQ(create_json["result"].asInt(), 1);
+
+    std::vector<std::shared_ptr<bzapi::response>> responses;
+    for (size_t i = 0; i < 20; i++)
+    {
+        responses.push_back(db->create("test_key" + std::to_string(i), "test_value", 0));
+    }
+
+    for (auto& r : responses)
+    {
+        Json::Value create_json;
+        std::stringstream(r->get_result()) >> create_json;
+        EXPECT_EQ(create_json["result"].asInt(), 1);
+    }
+    responses.clear();
+
+    for (size_t i = 20; i < 21; i++)
+    {
+        responses.push_back(db->create("test_key" + std::to_string(i), "test_value", 0));
+    }
+
+    for (auto& r : responses)
+    {
+        Json::Value create_json;
+        std::stringstream(r->get_result()) >> create_json;
+        EXPECT_EQ(create_json["result"].asInt(), 1);
+    }
+
+    bzapi::terminate();
 }
 
 TEST_F(integration_test, live_test)

@@ -18,6 +18,7 @@
 #include <include/boost_asio_beast.hpp>
 #include <node/node_base.hpp>
 #include <cstdint>
+#include <deque>
 
 using namespace bzn::asio;
 
@@ -46,10 +47,16 @@ namespace bzapi
         std::shared_ptr<bzn::beast::websocket_stream_base> websocket;
         std::mutex send_mutex;
 
+        using queued_message = std::pair<boost::asio::mutable_buffers_1, bzn::asio::write_handler>;
+        std::deque<std::shared_ptr<queued_message>> send_queue;
+
         boost::asio::ip::tcp::endpoint make_tcp_endpoint(const std::string& host, uint16_t port);
         void connect(const completion_handler_t& callback);
         void send(const std::string& msg, const completion_handler_t& callback, bool is_retry = false);
         void receive();
         void close();
+
+        void queued_send(boost::asio::mutable_buffers_1 &buffer, bzn::asio::write_handler callback);
+        void do_send(std::shared_ptr<queued_message> msg);
     };
 }
