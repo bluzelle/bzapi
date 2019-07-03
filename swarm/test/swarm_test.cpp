@@ -1,16 +1,17 @@
-// Copyright (C) 2018 Bluzelle
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License, version 3,
-// as published by the Free Software Foundation.
+// Copyright (C) 2019 Bluzelle
 //
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// You should have received a copy of the GNU Affero General Public License
-// along with this program. If not, see <http://www.gnu.org/licenses/>.
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //
 
 #include <gtest/gtest.h>
@@ -205,7 +206,7 @@ TEST_F(swarm_test, test_swarm_node_management)
     std::promise<int> prom;
     this->the_swarm->initialize([&prom](auto& /*ec*/){prom.set_value(1);});
     prom.get_future().get();
-    boost::this_thread::sleep_for(boost::chrono::seconds(1));
+    boost::this_thread::sleep_for(boost::chrono::seconds(2));
 
     auto status_str = this->the_swarm->get_status();
     Json::Value status;
