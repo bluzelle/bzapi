@@ -8,7 +8,7 @@ set(PROJECT_VERSION_MINOR 1)
 set(PROJECT_VERSION_PATCH 1)
 set(PROJECT_VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}")
 
-option(OMIT_LIBRARY "Omit compiling the shared library" OFF)
+option(STATIC_LIBRARY "Compiling a static library" OFF)
 
 # ensure type is set
 if (NOT CMAKE_BUILD_TYPE)
@@ -90,12 +90,12 @@ add_subdirectory(database)
 add_subdirectory(node)
 add_subdirectory(swarm)
 add_subdirectory(utils)
+add_subdirectory(library)
 
-if (NOT OMIT_LIBRARY)
-    add_subdirectory(library)
+if (NOT STATIC_LIBRARY)
     if (NOT APPLE)
         add_subdirectory(pkg)
     endif()
-endif(NOT OMIT_LIBRARY)
+endif()
 
 include(cmake/static_analysis.cmake)
