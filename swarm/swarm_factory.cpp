@@ -126,7 +126,7 @@ swarm_factory::create_db(const uuid_t& db_uuid, uint64_t max_size, bool random_e
         if (strong_this)
         {
             strong_this->do_create_db(db_uuid, max_size, random_evict
-                , std::min(MAX_RETRY, strong_this->swarm_reg->get_swarms().size() - 1), callback);
+                , std::min(MAX_RETRY, static_cast<uint64_t>(strong_this->swarm_reg->get_swarms().size() - 1)), callback);
         }
     });
 }
