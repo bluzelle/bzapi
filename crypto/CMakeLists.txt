@@ -8,6 +8,6 @@ add_library(crypto
 add_dependencies(crypto openssl boost)
 target_include_directories(crypto PRIVATE ${BLUZELLE_STD_INCLUDES})
 
-if (NOT OMIT_LIBRARY)
+if (BUILD_TESTS)
     add_subdirectory(test)
-endif(NOT OMIT_LIBRARY)
+endif()

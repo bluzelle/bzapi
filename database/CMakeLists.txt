@@ -12,6 +12,6 @@ add_library(
 add_dependencies(database proto boost)
 target_include_directories(database PRIVATE ${BLUZELLE_STD_INCLUDES})
 
-if (NOT OMIT_LIBRARY)
+if (BUILD_TESTS)
     add_subdirectory(test)
-endif(NOT OMIT_LIBRARY)
+endif()
