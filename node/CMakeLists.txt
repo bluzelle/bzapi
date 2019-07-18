@@ -10,7 +10,7 @@ add_library(node
 add_dependencies(node boost)
 target_include_directories(node PRIVATE ${BLUZELLE_STD_INCLUDES})
 
-if (NOT OMIT_LIBRARY)
+if (BUILD_TESTS)
     add_subdirectory(test)
-endif(NOT OMIT_LIBRARY)
+endif()
 

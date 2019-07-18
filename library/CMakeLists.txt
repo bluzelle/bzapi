@@ -18,6 +18,6 @@ add_dependencies(bzapi boost)
 target_include_directories(bzapi PRIVATE ${BLUZELLE_STD_INCLUDES})
 target_link_libraries(bzapi database swarm node utils crypto proto ${JSONCPP_LIBRARIES} ${Boost_LIBRARIES} ${OPENSSL_LIBRARIES} ${Protobuf_LIBRARIES})
 
-if (NOT STATIC_LIBRARY)
+if (BUILD_TESTS)
     add_subdirectory(test)
 endif()

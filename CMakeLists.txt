@@ -9,6 +9,7 @@ set(PROJECT_VERSION_PATCH 1)
 set(PROJECT_VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}")
 
 option(STATIC_LIBRARY "Compiling a static library" OFF)
+option(BUILD_TESTS "Build unit tests" ON)
 
 # ensure type is set
 if (NOT CMAKE_BUILD_TYPE)
