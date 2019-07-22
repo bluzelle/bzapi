@@ -190,7 +190,8 @@ node::send(const std::string& msg, const completion_handler_t& callback, bool is
     {
         try
         {
-            if (ec == boost::beast::websocket::error::closed || ec == boost::asio::error::eof)
+            if (ec == boost::beast::websocket::error::closed || ec == boost::asio::error::eof
+                || boost::asio::error::operation_aborted)
             {
                 auto strong_this = weak_this.lock();
                 if (strong_this)

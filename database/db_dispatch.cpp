@@ -263,8 +263,12 @@ db_dispatch::has_uuid(std::shared_ptr<swarm_base> swarm, uuid_t db_uuid, std::fu
         }
         else
         {
-            // TODO: need to check for has_error
-            if (response.has_db().uuid() != db_uuid)
+            if (response.has_error())
+            {
+                LOG(error) << "Error from swarm: " << response.error().message();
+                callback(db_error::database_error);
+            }
+            else if (response.has_db().uuid() != db_uuid)
             {
                 LOG(error) << "Invalid uuid response to has_db: " << response.has_db().uuid();
                 callback(db_error::database_error);
@@ -294,6 +298,7 @@ db_dispatch::create_uuid(std::shared_ptr<swarm_base> swarm, uuid_t db_uuid, uint
     {
         if (err)
         {
+            LOG(error) << "Error from swarm: " << response.error().message();
             callback(db_error::database_error);
         }
         else
