@@ -14,6 +14,7 @@
 # limitations under the License.
 #
 
+
 include(ExternalProject)
 include(ProcessorCount)
 
@@ -38,6 +39,8 @@ else()
     endif()
 endif()
 
+string(TOLOWER ${CMAKE_BUILD_TYPE} PKG_BUILD_TYPE)
+
 ExternalProject_Add(boost
     PREFIX "${CMAKE_CURRENT_BINARY_DIR}/boost"
     URL "https://dl.bintray.com/boostorg/release/${REQUIRED_BOOST}/source/${BOOST_TARBALL}"
@@ -45,8 +48,7 @@ ExternalProject_Add(boost
     TIMEOUT 120
     INSTALL_COMMAND ""
     CONFIGURE_COMMAND "${CMAKE_CURRENT_BINARY_DIR}/boost/src/boost/bootstrap.sh" "--with-libraries=${BOOST_LIBS}"
-    #BUILD_COMMAND "${CMAKE_CURRENT_BINARY_DIR}/boost/src/boost/b2" cxxflags=-fPIC cflags=-fPIC -a link=static visibility=global "${BUILD_FLAGS} "
-    BUILD_COMMAND "${CMAKE_CURRENT_BINARY_DIR}/boost/src/boost/b2" variant=${PKG_BUILD_TYPE} cxxflags=-fPIC cflags=-fPIC link=static visibility=global -j${NPROC} install
+    BUILD_COMMAND "${CMAKE_CURRENT_BINARY_DIR}/boost/src/boost/b2" variant=${PKG_BUILD_TYPE} cxxflags=-fPIC cflags=-fPIC link=static visibility=global "${BUILD_FLAGS} "
     BUILD_IN_SOURCE true
     DOWNLOAD_NO_PROGRESS true
     )
