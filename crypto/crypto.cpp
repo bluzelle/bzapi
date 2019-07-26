@@ -191,6 +191,7 @@ crypto::load_private_key(const std::string& key)
     auto formatted_key = PRIV_KEY_PREFIX + key + PRIV_KEY_SUFFIX;
     BIO *bio = BIO_new_mem_buf((void *)formatted_key.c_str(), formatted_key.length());
     this->private_key_EVP = EVP_PKEY_ptr_t(PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL), EVP_PKEY_free);
+    BIO_free(bio);
 
     if (!this->private_key_EVP)
     {
