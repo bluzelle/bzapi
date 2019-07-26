@@ -90,8 +90,7 @@ swarm_factory::has_db(const uuid_t& uuid, std::function<void(db_error, std::shar
             (*count)--;
             if (err == db_error::success)
             {
-                auto strong_this = weak_this.lock();
-                if (strong_this)
+                if (auto strong_this = weak_this.lock())
                 {
                     strong_this->swarm_dbs[uuid] = sw_id;
                 }
@@ -122,8 +121,7 @@ swarm_factory::create_db(const uuid_t& db_uuid, uint64_t max_size, bool random_e
             return;
         }
 
-        auto strong_this = weak_this.lock();
-        if (strong_this)
+        if (auto strong_this = weak_this.lock())
         {
             strong_this->do_create_db(db_uuid, max_size, random_evict
                 , std::min(MAX_RETRY, static_cast<uint64_t>(strong_this->swarm_reg->get_swarms().size() - 1)), callback);
@@ -144,8 +142,7 @@ swarm_factory::do_create_db(const uuid_t& db_uuid, uint64_t max_size, bool rando
             return;
         }
 
-        auto strong_this = weak_this.lock();
-        if (strong_this)
+        if (auto strong_this = weak_this.lock())
         {
             auto sw = strong_this->get_or_create_swarm(sw_id);
             get_db_dispatcher()->create_uuid(sw, db_uuid, max_size, random_evict
@@ -153,8 +150,7 @@ swarm_factory::do_create_db(const uuid_t& db_uuid, uint64_t max_size, bool rando
                 {
                     if (err == db_error::success)
                     {
-                        auto strong_this = weak_this.lock();
-                        if (strong_this)
+                        if (auto strong_this = weak_this.lock())
                         {
                             try
                             {
@@ -168,8 +164,7 @@ swarm_factory::do_create_db(const uuid_t& db_uuid, uint64_t max_size, bool rando
                     {
                         if (retry > 0)
                         {
-                            auto strong_this = weak_this.lock();
-                            if (strong_this)
+                            if (auto strong_this = weak_this.lock())
                             {
                                 strong_this->do_create_db(db_uuid, max_size, random_evict, retry - 1, callback);
                             }

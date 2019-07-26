@@ -49,8 +49,6 @@ namespace bzapi
         bool load_private_key(const std::string& key);
 
         EVP_PKEY_ptr_t private_key_EVP = EVP_PKEY_ptr_t(nullptr, &EVP_PKEY_free);
-        EC_KEY_ptr_t private_key_EC = EC_KEY_ptr_t(nullptr, &EC_KEY_free);
-
     };
 }
 

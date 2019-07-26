@@ -42,8 +42,7 @@ async_database_impl::open(completion_handler_t handler)
     {
         if (!ec)
         {
-            auto strong_this = weak_this.lock();
-            if (strong_this)
+            if (auto strong_this = weak_this.lock())
             {
                 strong_this->state = init_state::initialized;
             }
@@ -110,13 +109,10 @@ async_database_impl::create(const std::string& key, const std::string& value, ui
     try
     {
         auto resp = make_response();
-        auto request = new database_create;
-        request->set_key(key);
-        request->set_value(value);
-        request->set_expire(expiry);
-
         database_msg msg;
-        msg.set_allocated_create(request);
+        msg.mutable_create()->set_key(key);
+        msg.mutable_create()->set_value(value);
+        msg.mutable_create()->set_expire(expiry);
 
         send_message_with_basic_response(msg, resp);
 
@@ -132,11 +128,8 @@ async_database_impl::read(const std::string& key)
     try
     {
         auto resp = make_response();
-        auto request = new database_read;
-        request->set_key(key);
-
         database_msg msg;
-        msg.set_allocated_read(request);
+        msg.mutable_read()->set_key(key);
 
         this->db_impl->send_message_to_swarm(this->swarm, this->uuid, msg, send_policy::normal
             , [resp](const database_response &response, const boost::system::error_code &error)
@@ -165,12 +158,9 @@ async_database_impl::update(const std::string& key, const std::string& value)
     try
     {
         auto resp = make_response();
-        auto request = new database_update;
-        request->set_key(key);
-        request->set_value(value);
-
         database_msg msg;
-        msg.set_allocated_update(request);
+        msg.mutable_update()->set_key(key);
+        msg.mutable_update()->set_value(value);
 
         send_message_with_basic_response(msg, resp);
 
@@ -186,11 +176,8 @@ async_database_impl::remove(const std::string& key)
     try
     {
         auto resp = make_response();
-        auto request = new database_delete;
-        request->set_key(key);
-
         database_msg msg;
-        msg.set_allocated_delete_(request);
+        msg.mutable_delete_()->set_key(key);
 
         send_message_with_basic_response(msg, resp);
 
@@ -206,11 +193,8 @@ async_database_impl::quick_read(const std::string& key)
     try
     {
         auto resp = make_response();
-        auto request = new database_read;
-        request->set_key(key);
-
         database_msg msg;
-        msg.set_allocated_quick_read(request);
+        msg.mutable_quick_read()->set_key(key);
 
         this->db_impl->send_message_to_swarm(this->swarm, this->uuid, msg, send_policy::fastest
             , [resp](const database_response &response, const boost::system::error_code &ec)
@@ -254,11 +238,8 @@ async_database_impl::has(const std::string& key)
     try
     {
         auto resp = make_response();
-        auto request = new database_has;
-        request->set_key(key);
-
         database_msg msg;
-        msg.set_allocated_has(request);
+        msg.mutable_has()->set_key(key);
 
         this->db_impl->send_message_to_swarm(this->swarm, this->uuid, msg, send_policy::normal
             , [resp](const database_response &response, const boost::system::error_code &error)
@@ -284,10 +265,8 @@ async_database_impl::keys()
     try
     {
         auto resp = make_response();
-        auto request = new database_request;
-
         database_msg msg;
-        msg.set_allocated_keys(request);
+        msg.mutable_keys();
 
         this->db_impl->send_message_to_swarm(this->swarm, this->uuid, msg, send_policy::normal
             , [resp](const database_response &response, const boost::system::error_code &ec)
@@ -320,10 +299,8 @@ async_database_impl::size()
     try
     {
         auto resp = make_response();
-        auto request = new database_request;
-
         database_msg msg;
-        msg.set_allocated_size(request);
+        msg.mutable_size();
 
         this->db_impl->send_message_to_swarm(this->swarm, this->uuid, msg, send_policy::normal
             , [resp](const database_response &response, const boost::system::error_code &ec)
@@ -354,12 +331,9 @@ async_database_impl::expire(const std::string& key, expiry_t expiry)
     try
     {
         auto resp = make_response();
-        auto request = new database_expire;
-        request->set_key(key);
-        request->set_expire(expiry);
-
         database_msg msg;
-        msg.set_allocated_expire(request);
+        msg.mutable_expire()->set_key(key);
+        msg.mutable_expire()->set_expire(expiry);
 
         send_message_with_basic_response(msg, resp);
 
@@ -375,11 +349,8 @@ async_database_impl::persist(const std::string& key)
     try
     {
         auto resp = make_response();
-        auto request = new database_read;
-        request->set_key(key);
-
         database_msg msg;
-        msg.set_allocated_persist(request);
+        msg.mutable_persist()->set_key(key);
 
         send_message_with_basic_response(msg, resp);
 
@@ -395,11 +366,8 @@ async_database_impl::ttl(const std::string& key)
     try
     {
         auto resp = make_response();
-        auto request = new database_read;
-        request->set_key(key);
-
         database_msg msg;
-        msg.set_allocated_ttl(request);
+        msg.mutable_ttl()->set_key(key);
 
         this->db_impl->send_message_to_swarm(this->swarm, this->uuid, msg, send_policy::normal
             , [resp](const database_response &response, const boost::system::error_code &ec)
@@ -428,10 +396,8 @@ async_database_impl::writers()
     try
     {
         auto resp = make_response();
-        auto request = new database_request;
-
         database_msg msg;
-        msg.set_allocated_writers(request);
+        msg.mutable_writers();
 
         this->db_impl->send_message_to_swarm(this->swarm, this->uuid, msg, send_policy::normal
             , [resp](const database_response &response, const boost::system::error_code &ec)
@@ -467,11 +433,8 @@ async_database_impl::add_writer(const std::string& writer)
     try
     {
         auto resp = make_response();
-        auto request = new database_writers;
-        request->add_writers(writer);
-
         database_msg msg;
-        msg.set_allocated_add_writers(request);
+        msg.mutable_add_writers()->add_writers(writer);
         send_message_with_basic_response(msg, resp);
 
         return resp;
@@ -486,11 +449,8 @@ async_database_impl::remove_writer(const std::string& writer)
     try
     {
         auto resp = make_response();
-        auto request = new database_writers;
-        request->add_writers(writer);
-
         database_msg msg;
-        msg.set_allocated_remove_writers(request);
+        msg.mutable_remove_writers()->add_writers(writer);
         send_message_with_basic_response(msg, resp);
 
         return resp;

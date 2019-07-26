@@ -56,7 +56,7 @@ namespace bzapi
 
         void setup_request_policy(msg_info& info, send_policy policy, nonce_t nonce);
         void handle_request_timeout(const boost::system::error_code& ec, nonce_t nonce);
-        bool handle_swarm_response(/*const uuid_t& uuid, */const bzn_envelope& response);
+        bool handle_swarm_response(const bzn_envelope& response);
         bool qualify_response(msg_info& info, const uuid_t& sender) const;
         bool responses_are_equal(const database_response& r1, const database_response& r2) const;
         void setup_client_timeout(nonce_t nonce, msg_info& info);

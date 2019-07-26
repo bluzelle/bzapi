@@ -36,10 +36,8 @@ db_dispatch::send_message_to_swarm(std::shared_ptr<swarm_base> swarm, uuid_t db_
 {
     auto nonce = this->next_nonce++;
 
-    auto header = new database_header;
-    header->set_db_uuid(db_uuid);
-    header->set_nonce(nonce);
-    msg.set_allocated_header(header);
+    msg.mutable_header()->set_db_uuid(db_uuid);
+    msg.mutable_header()->set_nonce(nonce);
 
     auto env = std::make_shared<bzn_envelope>();
     env->set_database_msg(msg.SerializeAsString());
@@ -73,8 +71,7 @@ db_dispatch::setup_request_policy(msg_info& info, send_policy policy, nonce_t no
         info.retry_timer->expires_from_now(REQUEST_RETRY_TIME);
         info.retry_timer->async_wait([weak_this = weak_from_this(), nonce](const auto& ec)
         {
-            auto strong_this = weak_this.lock();
-            if (strong_this)
+            if (auto strong_this = weak_this.lock())
             {
                 strong_this->handle_request_timeout(ec, nonce);
             }
@@ -100,9 +97,6 @@ db_dispatch::handle_request_timeout(const boost::system::error_code& ec, nonce_t
         return;
     }
 
-    static uint64_t timeouts;
-    std::cout << ++timeouts << " timeouts" << std::endl;
-
     auto i = this->messages.find(nonce);
     if (i == this->messages.end())
     {
@@ -118,8 +112,7 @@ db_dispatch::handle_request_timeout(const boost::system::error_code& ec, nonce_t
     info.retry_timer->expires_from_now(BROADCAST_RETRY_TIME);
     info.retry_timer->async_wait([weak_this = weak_from_this(), nonce](const auto& ec2)
     {
-        auto strong_this = weak_this.lock();
-        if (strong_this)
+        if (auto strong_this = weak_this.lock())
         {
             strong_this->handle_request_timeout(ec2, nonce);
         }
@@ -227,8 +220,7 @@ db_dispatch::setup_client_timeout(nonce_t nonce, msg_info& info)
     {
         if (!ec)
         {
-            auto strong_this = weak_this.lock();
-            if (strong_this)
+            if (auto strong_this = weak_this.lock())
             {
                 auto i = strong_this->messages.find(nonce);
                 if (i != strong_this->messages.end())
@@ -286,12 +278,10 @@ db_dispatch::create_uuid(std::shared_ptr<swarm_base> swarm, uuid_t db_uuid, uint
 {
     bzn_envelope env;
     database_msg request;
-    request.set_allocated_header(new database_header);
-    auto create = new database_create_db;
-    create->set_max_size(max_size);
-    create->set_eviction_policy(random_evict ? database_create_db_eviction_policy_type_RANDOM
+    request.mutable_header();
+    request.mutable_create_db()->set_max_size(max_size);
+    request.mutable_create_db()->set_eviction_policy(random_evict ? database_create_db_eviction_policy_type_RANDOM
         : database_create_db_eviction_policy_type_NONE);
-    request.set_allocated_create_db(create);
 
     this->register_swarm_handler(swarm);
     this->send_message_to_swarm(swarm, db_uuid, request, send_policy::normal, [db_uuid, callback](auto response, auto err)
@@ -321,8 +311,7 @@ db_dispatch::register_swarm_handler(std::shared_ptr<swarm_base> swarm)
     swarm->register_response_handler(bzn_envelope::kDatabaseResponse
         , [weak_this = weak_from_this()](const uuid_t& /*uuid*/, const bzn_envelope& env)
         {
-            auto strong_this = weak_this.lock();
-            if (strong_this)
+            if (auto strong_this = weak_this.lock())
             {
                 return strong_this->handle_swarm_response(env);
             }

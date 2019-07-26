@@ -46,8 +46,7 @@ node::send_message(const std::string& msg, completion_handler_t callback)
                 return;
             }
 
-            auto strong_this = weak_this.lock();
-            if (strong_this)
+            if (auto strong_this = weak_this.lock())
             {
                 strong_this->send(msg, callback, true);
                 return;
@@ -84,8 +83,7 @@ node::connect(const completion_handler_t& callback)
 {
     this->strand->post([callback, weak_this = weak_from_this()]()
     {
-        auto strong_this = weak_this.lock();
-        if (strong_this)
+        if (auto strong_this = weak_this.lock())
         {
             std::shared_ptr<bzn::asio::tcp_socket_base> socket = strong_this->io_context->make_unique_tcp_socket();
             socket->async_connect(strong_this->endpoint, strong_this->strand->wrap([weak_this, callback, socket](auto ec)
@@ -99,8 +97,7 @@ node::connect(const completion_handler_t& callback)
                     return;
                 }
 
-                auto strong_this = weak_this.lock();
-                if (strong_this)
+                if (auto strong_this = weak_this.lock())
                 {
                     strong_this->connected = true;
 
@@ -119,8 +116,7 @@ node::connect(const completion_handler_t& callback)
                         {
                             try
                             {
-                                auto strong_this = weak_this.lock();
-                                if (strong_this)
+                                if (auto strong_this = weak_this.lock())
                                 {
                                     if (ec)
                                     {
@@ -146,10 +142,9 @@ node::queued_send(const std::string& msg, bzn::asio::write_handler callback)
 {
     this->strand->post([msg, callback, weak_this = weak_from_this()]()
     {
-        auto strong_this = weak_this.lock();
-        if (strong_this)
+        if (auto strong_this = weak_this.lock())
         {
-            strong_this->send_queue.push_back(std::make_shared<queued_message>(std::make_pair(std::move(msg), callback)));
+            strong_this->send_queue.push_back(std::make_shared<queued_message>(std::make_pair(msg, callback)));
             if (strong_this->send_queue.size() == 1)
             {
                 strong_this->do_send();
@@ -169,8 +164,7 @@ node::do_send()
     this->websocket->async_write(buffer, this->strand->wrap([weak_this = weak_from_this(), callback = msg->second]
         (const boost::system::error_code& ec, unsigned long bytes)
     {
-        auto strong_this = weak_this.lock();
-        if (strong_this)
+        if (auto strong_this = weak_this.lock())
         {
             strong_this->send_queue.pop_front();
             if (!strong_this->send_queue.empty())
@@ -193,8 +187,7 @@ node::send(const std::string& msg, const completion_handler_t& callback, bool is
             if (ec == boost::beast::websocket::error::closed || ec == boost::asio::error::eof
                 || ec == boost::asio::error::operation_aborted)
             {
-                auto strong_this = weak_this.lock();
-                if (strong_this)
+                if (auto strong_this = weak_this.lock())
                 {
                     strong_this->connected = false;
 
@@ -209,8 +202,7 @@ node::send(const std::string& msg, const completion_handler_t& callback, bool is
                                 return;
                             }
 
-                            auto strong_this = weak_this.lock();
-                            if (strong_this)
+                            if (auto strong_this = weak_this.lock())
                             {
                                 strong_this->send(msg, callback, true);
                                 return;
@@ -237,8 +229,7 @@ node::receive()
     {
         try
         {
-            auto strong_this = weak_this.lock();
-            if (strong_this)
+            if (auto strong_this = weak_this.lock())
             {
                 if (ec)
                 {

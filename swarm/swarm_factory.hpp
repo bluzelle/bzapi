@@ -28,30 +28,6 @@ namespace bzapi
 {
     class swarm_factory : public std::enable_shared_from_this<swarm_factory>
     {
-    private:
-
-        class swarm_registry
-        {
-        public:
-            using swarm_id_t = std::string;
-            using node_map = std::map<node_id_t, bzn::peer_address_t>;
-            struct swarm_info
-            {
-                node_map nodes;
-                std::weak_ptr<swarm_base> swarm;
-            };
-            using swarm_map = std::map<swarm_id_t, swarm_info>;
-
-            void add_node(const swarm_id_t& swarm_id, const node_id_t& node_id, const bzn::peer_address_t& endpoint);
-            std::weak_ptr<swarm_base> get_swarm(const swarm_id_t& swarm_id);
-            void set_swarm(const swarm_id_t& swarm_id, std::shared_ptr<swarm_base> swarm);
-            std::vector<swarm_id_t> get_swarms();
-            std::vector<std::pair<node_id_t, bzn::peer_address_t>> get_nodes(const swarm_id_t& swarm_id);
-
-        private:
-            swarm_map swarms;
-        };
-
     public:
 
         swarm_factory(std::shared_ptr<bzn::asio::io_context_base> io_context
@@ -67,6 +43,27 @@ namespace bzapi
         void create_db(const uuid_t& uuid, uint64_t max_size, bool random_evict, std::function<void(db_error, std::shared_ptr<swarm_base>)>);
 
     private:
+        class swarm_registry
+        {
+        public:
+            using swarm_id_t = std::string;
+            using node_map = std::map<node_id_t, bzn::peer_address_t>;
+            struct swarm_info
+            {
+                node_map nodes;
+                std::weak_ptr<swarm_base> swarm;
+            };
+
+            void add_node(const swarm_id_t& swarm_id, const node_id_t& node_id, const bzn::peer_address_t& endpoint);
+            std::weak_ptr<swarm_base> get_swarm(const swarm_id_t& swarm_id);
+            void set_swarm(const swarm_id_t& swarm_id, std::shared_ptr<swarm_base> swarm);
+            std::vector<swarm_id_t> get_swarms();
+            std::vector<std::pair<node_id_t, bzn::peer_address_t>> get_nodes(const swarm_id_t& swarm_id);
+
+        private:
+            std::map<swarm_id_t, swarm_info> swarms;
+        };
+
         const std::shared_ptr<bzn::asio::io_context_base> io_context;
         const std::shared_ptr<bzn::beast::websocket_base> ws_factory;
         const std::shared_ptr<crypto_base> crypto;

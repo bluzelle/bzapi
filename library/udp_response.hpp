@@ -53,7 +53,7 @@ namespace bzapi
             if (getsockname(sock, (struct sockaddr *)&my_addr, &addrlen) == 0
                 && my_addr.sin_family == AF_INET && addrlen == sizeof(my_addr))
             {
-                my_id = ntohs(my_addr.sin_port);
+                this->my_id = ntohs(my_addr.sin_port);
             }
             else
             {
@@ -80,9 +80,9 @@ namespace bzapi
             std::scoped_lock<std::mutex> lock(this->mutex);
 
             this->error_val = error;
-            if (their_id)
+            if (this->their_id)
             {
-                send_signal();
+                this->send_signal();
             }
             else
             {
@@ -93,10 +93,9 @@ namespace bzapi
 
         void send_signal()
         {
-            assert(their_id);
-            struct sockaddr_in their_addr = this->make_addr(their_id);
-            int res = sendto(sock, &error_val, sizeof(error_val), 0, (sockaddr*)&their_addr, sizeof(their_addr));
-            if (!res)
+            assert(this->their_id);
+            struct sockaddr_in their_addr = this->make_addr(this->their_id);
+            if (!sendto(this->sock, &this->error_val, sizeof(this->error_val), 0, (sockaddr*)&their_addr, sizeof(their_addr)))
             {
                 LOG(error) << "Error: " << errno << " sending data to socket";
             }
@@ -136,7 +135,7 @@ namespace bzapi
 
         void set_db(std::shared_ptr<async_database> db_ptr) override
         {
-            this->db = db_ptr;
+            this->db = std::move(db_ptr);
         }
 
         std::shared_ptr<async_database> get_db() override
@@ -155,7 +154,7 @@ namespace bzapi
         std::promise<int> prom;
         std::mutex mutex;
 
-        sockaddr_in make_addr(uint16_t port)
+        static sockaddr_in make_addr(uint16_t port)
         {
             struct sockaddr_in addr;
             memset(&addr, 0, sizeof(sockaddr_in));

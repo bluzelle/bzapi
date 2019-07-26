@@ -16,7 +16,6 @@
 
 #include <include/bluzelle.hpp>
 #include <swarm/swarm.hpp>
-#include <database/db_dispatch_base.hpp>
 #include <proto/database.pb.h>
 #include <utils/peer_address.hpp>
 #include <json/json.h>
@@ -64,8 +63,7 @@ swarm::initialize(completion_handler_t handler)
     this->register_response_handler(bzn_envelope::kStatusResponse
         , [weak_this = weak_from_this()](const uuid_t& uuid, const bzn_envelope& response)
         {
-            auto strong_this = weak_this.lock();
-            if (strong_this)
+            if (auto strong_this = weak_this.lock())
             {
                 return strong_this->handle_status_response(uuid, response);
             }
@@ -254,7 +252,7 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
                 this->schedule_status_request(node_uuid, info);
             }
 
-            if (info.last_status_duration > static_cast<std::chrono::microseconds>(0) &&
+            if (info.last_status_duration > std::chrono::microseconds::zero() &&
                 info.last_status_duration < fastest_time)
             {
                 fastest_time = info.last_status_duration;
@@ -317,10 +315,12 @@ swarm::send_status_request(const uuid_t& node_uuid)
             LOG(error) << "Error sending status request to node: " << ec.message();
 
             // reset latency so this node won't be fastest
-            info.last_status_duration = static_cast<std::chrono::microseconds>(0);
+            info.last_status_duration = std::chrono::microseconds::zero();
 
-            auto strong_this = weak_this.lock();
-            strong_this->schedule_status_request(node_uuid, info);
+            if (auto strong_this = weak_this.lock())
+            {
+                strong_this->schedule_status_request(node_uuid, info);
+            }
         }
     });
 }
@@ -334,8 +334,7 @@ swarm::schedule_status_request(const uuid_t& node_uuid, node_info& info)
     {
         if (!ec)
         {
-            auto strong_this = weak_this.lock();
-            if (strong_this)
+            if (auto strong_this = weak_this.lock())
             {
                 strong_this->send_status_request(node_uuid);
             }
@@ -366,7 +365,7 @@ swarm::handle_node_message(const std::string& uuid, const std::string& data)
 
     // verify sender is on node list
     // note: quickread responses don't have a sender
-    if (0)//!env.sender().empty() && current_nodes->find(env.sender()) == current_nodes->end())
+    if (!env.sender().empty() && current_nodes->find(env.sender()) == current_nodes->end())
     {
         LOG(debug) << "Dropping message from unknown sender: " << env.sender();
         return false;

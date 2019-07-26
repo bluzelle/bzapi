@@ -94,10 +94,7 @@ namespace bzapi
             addr = endpoint.substr(5, offset - 5);
             port = boost::lexical_cast<uint16_t>(endpoint.substr(offset + 1).c_str());
         }
-        catch (boost::bad_lexical_cast &)
-        {
-            do_bad_endpoint(endpoint);
-        }
+        CATCHALL(do_bad_endpoint(endpoint));
 
         return std::make_pair(addr, port);
     }
