@@ -2,11 +2,9 @@ cmake_minimum_required(VERSION 3.13)
 
 project(bzapi CXX)
 
-# for now...
-set(PROJECT_VERSION_MAJOR 0)
-set(PROJECT_VERSION_MINOR 1)
-set(PROJECT_VERSION_PATCH 1)
-set(PROJECT_VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}")
+include(cmake/bzapi_version.cmake)
+
+message("Build version ${PROJECT_VERSION}")
 
 option(STATIC_LIBRARY "Compiling a static library" OFF)
 option(BUILD_TESTS "Build unit tests" ON)
@@ -36,7 +34,12 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(warnings "-Wno-deprecated-declarations -Wall -Wextra -Werror -Wpedantic -Wno-implicit-fallthrough")
 if (APPLE)
     set(warnings "${warnings} -Wno-extended-offsetof")
-endif(APPLE)
+else()
+    # for beast and gcc release builds...
+    if("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
+        set(warnings "${warnings} -Wno-maybe-uninitialized")
+    endif()
+endif()
 
 set(CMAKE_CXX_FLAGS ${warnings})
 set(CMAKE_C_FLAGS   ${warnings})
