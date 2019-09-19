@@ -93,12 +93,13 @@ set(BLUZELLE_STD_INCLUDES ${Boost_INCLUDE_DIRS} ${GTEST_INCLUDE_DIR} ${OPENSSL_I
 
 add_subdirectory(crypto)
 add_subdirectory(database)
+add_subdirectory(library)
 add_subdirectory(node)
 add_subdirectory(swarm)
 add_subdirectory(utils)
-add_subdirectory(library)
 
 if (NOT STATIC_LIBRARY)
+    add_subdirectory(bzapi-cli)
     if (NOT APPLE)
         add_subdirectory(pkg)
     endif()

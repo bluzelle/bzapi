@@ -22,7 +22,6 @@
 #include <include/bzapi.hpp>
 #include <library/log.hpp>
 #include <library/udp_response.hpp>
-#include <swarm/swarm.hpp>
 #include <swarm/swarm_factory.hpp>
 #include <swarm/esr.hpp>
 #include <boost/asio.hpp>
@@ -40,13 +39,13 @@ namespace
     std::shared_ptr<bzn::beast::websocket_base> ws_factory;
     std::string error_str = "Not Initialized";
     int error_val = -1;
-    const uint64_t DEFAULT_TIMEOUT = 3000;
+    const uint64_t DEFAULT_TIMEOUT = 30;
     uint64_t api_timeout = DEFAULT_TIMEOUT;
 }
 
 namespace bzapi
 {
-    // these need to be accessible to unit tssts
+    // these need to be accessible to unit tests
     std::shared_ptr<bzn::asio::io_context_base> io_context;
     std::shared_ptr<bzapi::swarm_factory> the_swarm_factory;
     std::shared_ptr<bzapi::crypto_base> the_crypto;
