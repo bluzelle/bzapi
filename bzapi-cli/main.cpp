@@ -128,7 +128,7 @@ load_config(const std::string& filename, Json::Value& config)
 
 
 bool
-initilize_bzapi(const Json::Value& config)
+initialize_bzapi(const Json::Value& config)
 {
     if (config.isMember(TIMEOUT))
     {
@@ -151,7 +151,7 @@ open_db(boost::program_options::variables_map& vm, const Json::Value& config)
 {
     std::shared_ptr<bzapi::database> db;
 
-    if (initilize_bzapi(config))
+    if (initialize_bzapi(config))
     {
         db = bzapi::open_db(vm[UUID].as<std::string>());
 
@@ -182,7 +182,7 @@ handle_status(boost::program_options::variables_map& vm, const Json::Value& conf
 bool
 handle_create_db(boost::program_options::variables_map& vm, const Json::Value& config)
 {
-    if (initilize_bzapi(config))
+    if (initialize_bzapi(config))
     {
         if (auto db = bzapi::create_db(vm[UUID].as<std::string>(), vm[CREATE_DB_MAX_SIZE].as<uint64_t>(),
                 vm[CREATE_DB_RANDOM_EVICT].as<bool>()); db)
@@ -200,7 +200,7 @@ handle_create_db(boost::program_options::variables_map& vm, const Json::Value& c
 bool
 handle_has_db(boost::program_options::variables_map& vm, const Json::Value& config)
 {
-    if (initilize_bzapi(config))
+    if (initialize_bzapi(config))
     {
         if (bzapi::has_db(vm[UUID].as<std::string>()))
         {
