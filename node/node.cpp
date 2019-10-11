@@ -18,6 +18,13 @@
 
 using namespace bzapi;
 
+namespace
+{
+    // TODO: Once we decide to use ssl between the client and the swarm then this will
+    // be included in the ESR data along with peer validation on/off.
+    const std::string WSS_ENABLED_ENV = "WSS_ENABLED";
+}
+
 node::node(std::shared_ptr<bzn::asio::io_context_base> io_context
     , std::shared_ptr<bzn::beast::websocket_base> ws_factory
     , const std::string& host
@@ -25,6 +32,22 @@ node::node(std::shared_ptr<bzn::asio::io_context_base> io_context
 : io_context(std::move(io_context)), ws_factory(std::move(ws_factory)), endpoint(this->make_tcp_endpoint(host, port))
     , strand(this->io_context->make_unique_strand())
 {
+    this->initialize_ssl_context();
+}
+
+void
+node::initialize_ssl_context()
+{
+    // if defined and not zero then we'll use ssl...
+    if (auto value = getenv(WSS_ENABLED_ENV.c_str()))
+    {
+        if (std::string(value) != "0")
+        {
+            LOG(info) << "WSS Enabled";
+
+            this->client_ctx = std::make_unique<boost::asio::ssl::context>(boost::asio::ssl::context::tlsv12_client);
+        }
+    }
 }
 
 void
@@ -109,8 +132,18 @@ node::connect(const completion_handler_t& callback)
                         LOG(warning) << "failed to set no_delay socket option: " << option_ec.message();
                     }
 
-                    strong_this->websocket = strong_this->ws_factory->make_unique_websocket_stream(
-                        socket->get_tcp_socket());
+                    // use ssl?
+                    if (strong_this->client_ctx)
+                    {
+                        strong_this->websocket = strong_this->ws_factory->make_websocket_secure_stream(
+                            socket->get_tcp_socket(), *strong_this->client_ctx);
+                    }
+                    else
+                    {
+                        strong_this->websocket = strong_this->ws_factory->make_websocket_stream(
+                            socket->get_tcp_socket());
+                    }
+
                     strong_this->websocket->async_handshake(strong_this->endpoint.address().to_string(), "/"
                         , strong_this->strand->wrap([weak_this, callback](auto ec)
                         {

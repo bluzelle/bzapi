@@ -287,7 +287,7 @@ public:
             return tcp_sock;
         })).RetiresOnSaturation();
 
-        EXPECT_CALL(*mock_ws_factory, make_unique_websocket_stream(_)).Times(Exactly(1)).WillOnce(
+        EXPECT_CALL(*mock_ws_factory, make_websocket_stream(_)).Times(Exactly(1)).WillOnce(
             Invoke([uuid = this->uuid, value, num_nodes = swarm_size, &ws = this->node_websocks[0]](auto&)
         {
             ws.write_func = [uuid](const boost::asio::mutable_buffers_1& buffer)
@@ -417,7 +417,7 @@ public:
             return tcp_sock;
         }));
 
-        EXPECT_CALL(*mock_ws_factory, make_unique_websocket_stream(_))
+        EXPECT_CALL(*mock_ws_factory, make_websocket_stream(_))
             .WillRepeatedly(Invoke([&node_count, uuid = this->uuid, this](auto &/*sock*/)
         {
             auto node_id = node_count++;

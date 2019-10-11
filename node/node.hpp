@@ -44,6 +44,8 @@ namespace bzapi
         const boost::asio::ip::tcp::endpoint endpoint;
         std::shared_ptr<bzn::asio::strand_base> strand;
 
+        void initialize_ssl_context();
+
         node_message_handler handler;
         bool connected = false;
         std::shared_ptr<bzn::beast::websocket_stream_base> websocket;
@@ -60,5 +62,7 @@ namespace bzapi
 
         void queued_send(const std::string& msg, bzn::asio::write_handler callback);
         void do_send();
+
+        std::unique_ptr<boost::asio::ssl::context> client_ctx;
     };
 }

@@ -175,8 +175,11 @@ namespace bzn::beast {
 
     class mock_websocket_base : public websocket_base {
     public:
-        MOCK_METHOD1(make_unique_websocket_stream,
+        MOCK_METHOD1(make_websocket_stream,
             std::unique_ptr<bzn::beast::websocket_stream_base>(boost::asio::ip::tcp::socket& socket));
+        MOCK_METHOD2(make_websocket_secure_stream,
+            std::shared_ptr<bzn::beast::websocket_stream_base>(boost::asio::ip::tcp::socket& socket,
+            boost::asio::ssl::context& ctx));
     };
 
 }  // namespace bzn::beast

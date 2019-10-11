@@ -15,6 +15,7 @@
 //
 
 #include <include/bzapi.hpp>
+#include <include/logger.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
 #include <json/json.h>
@@ -48,6 +49,7 @@ namespace
     const std::string EXPIRE_TTL = "expire_ttl";
     const std::string HAS_KEY = "has_key";
     const std::string HELP = "help";
+    const std::string VERBOSE = "verbose";
     const std::string COMMAND = "command";
     const std::string UUID = "uuid";
     const std::string CONFIG = "config";
@@ -98,6 +100,17 @@ namespace
     const std::string ESR_ADDRESS  = "esr_address";
     const std::string ETHEREUM_URL = "ethereum_url";
     const std::string TIMEOUT      = "timeout";
+
+
+    class my_logger : public bzapi::logger
+    {
+        void log(const std::string& severity, const std::string& message)
+        {
+            std::cout << severity << ": " << message << std::endl;
+        }
+    };
+
+    my_logger logger;
 }
 
 
@@ -512,6 +525,11 @@ process_program_options(boost::program_options::variables_map& vm, const Json::V
         {SIZE_CMD,          handle_size}
     };
 
+    if (vm.count(VERBOSE))
+    {
+        bzapi::set_logger(&logger);
+    }
+
     if (auto handler_it = bzapi_cmd_handlers.find(vm[COMMAND].as<std::string>()); handler_it != bzapi_cmd_handlers.end())
     {
         return (*(handler_it->second))(vm, config);
@@ -535,6 +553,7 @@ main(int argc, const char* argv[])
     {
         description.add_options()
             ("help,h",   "display this help message")
+            ("verbose,v","verbose logging")
             ("config,c", po::value<std::string>()->default_value("bzapi-cli.json"), "configuration file")
             ("command",  po::value<std::string>(), BZAPI_CMDS.c_str())
             ("uuid,u",   po::value<std::string>(), "database uuid");
@@ -658,8 +677,12 @@ main(int argc, const char* argv[])
 
         std::cerr << description;
 
+        bzapi::terminate();
+
         return ERROR_UNHANDLED_EXCEPTION;
     }
+
+    bzapi::terminate();
 
     return ERROR_IN_COMMAND_LINE;
 }
