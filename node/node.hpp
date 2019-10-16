@@ -37,6 +37,7 @@ namespace bzapi
 
         void register_message_handler(node_message_handler msg_handler) override;
         void send_message(const std::string& msg, completion_handler_t callback) override;
+        void back_off(bool value) override;
 
     private:
         const std::shared_ptr<bzn::asio::io_context_base> io_context;
@@ -50,6 +51,9 @@ namespace bzapi
         bool connected = false;
         std::shared_ptr<bzn::beast::websocket_stream_base> websocket;
         std::mutex send_mutex;
+        std::shared_ptr<bzn::asio::steady_timer_base> backoff_timer;
+        uint64_t backoff_time{0};
+
 
         using queued_message = std::pair<std::string, bzn::asio::write_handler>;
         std::deque<std::shared_ptr<queued_message>> send_queue;
@@ -62,6 +66,7 @@ namespace bzapi
 
         void queued_send(const std::string& msg, bzn::asio::write_handler callback);
         void do_send();
+        void send_func();
 
         std::unique_ptr<boost::asio::ssl::context> client_ctx;
     };

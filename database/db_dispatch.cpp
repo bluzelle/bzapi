@@ -101,7 +101,7 @@ db_dispatch::handle_request_timeout(const boost::system::error_code& ec, nonce_t
     if (i == this->messages.end())
     {
         // message has already been processed
-        LOG(debug) << "Ignoring timeout for already processed message: " << nonce;
+        LOG(trace) << "Ignoring timeout for already processed message: " << nonce;
         return;
     }
 
@@ -119,6 +119,7 @@ db_dispatch::handle_request_timeout(const boost::system::error_code& ec, nonce_t
     });
 
     // broadcast the retry
+    LOG(trace) << "Broadcasting message " << nonce;
     info.swarm->send_request(*info.request, send_policy::broadcast);
 }
 
@@ -138,7 +139,7 @@ db_dispatch::handle_swarm_response(const bzn_envelope& response)
     auto i = this->messages.find(nonce);
     if (i == this->messages.end())
     {
-        LOG(debug) << "Ignoring db response for unknown or already processed message: " << nonce;
+        LOG(trace) << "Ignoring db response for unknown or already processed message: " << nonce;
         return false;
     }
 
@@ -163,6 +164,66 @@ db_dispatch::handle_swarm_response(const bzn_envelope& response)
 
     return false;
 }
+
+bool
+db_dispatch::handle_swarm_error(const bzn_envelope& response)
+{
+    swarm_error err;
+    if (!err.ParseFromString(response.swarm_error()))
+    {
+        LOG(error) << "Failed to parse error response from swarm: " << response.DebugString().substr(0, MAX_MESSAGE_SIZE);
+        return true;
+    }
+
+    uint64_t nonce{0};
+    try
+    {
+        nonce = std::stoull(err.data());
+    }
+    catch(std::exception& e)
+    {}
+
+    if (!nonce)
+    {
+        LOG(error) << "Unable to extract nonce from swarm error";
+        return true;
+    }
+
+    auto i = this->messages.find(nonce);
+    if (i == this->messages.end())
+    {
+        LOG(trace) << "Ignoring error response for unknown or already processed message: " << nonce;
+        return false;
+    }
+    auto& info = i->second;
+
+    if (err.message() == TIMESTAMP_ERROR_MSG)
+    {
+        // this request can no longer be processed. Stop retrying
+        LOG(debug) << "Out of time window for message " << nonce;
+        this->messages.erase(nonce);
+    }
+    else if (err.message() == TOO_LARGE_ERROR_MSG)
+    {
+        // this request can no longer be processed. Stop retrying
+        // #TODO we should send an error to the client
+        // For now, let the request time out
+        LOG(debug) << "Request too large for message " << nonce;
+        this->messages.erase(nonce);
+    }
+    else if (err.message() == TOO_BUSY_ERROR_MSG)
+    {
+        LOG(trace) << "Too busy error for message " << nonce;
+    }
+    else if (err.message() == DUPLICATE_ERROR_MSG)
+    {
+        // this request has been received. Stop resending to avoid flooding
+        info.retry_timer->cancel();
+    }
+
+    return false;
+}
+
 
 bool
 db_dispatch::qualify_response(bzapi::db_dispatch::msg_info &info, const uuid_t& sender) const
@@ -314,6 +375,19 @@ db_dispatch::register_swarm_handler(std::shared_ptr<swarm_base> swarm)
             if (auto strong_this = weak_this.lock())
             {
                 return strong_this->handle_swarm_response(env);
+            }
+            else
+            {
+                return true;
+            }
+        });
+
+    swarm->register_response_handler(bzn_envelope::kSwarmError
+        , [weak_this = weak_from_this()](const uuid_t& /*uuid*/, const bzn_envelope& env)
+        {
+            if (auto strong_this = weak_this.lock())
+            {
+                return strong_this->handle_swarm_error(env);
             }
             else
             {
