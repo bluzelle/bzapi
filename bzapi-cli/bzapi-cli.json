@@ -2,6 +2,6 @@
   "public_key" : "",
   "private_key" : "",
   "esr_address" : "",
-  "ethereum-url" : "https://ropsten.infura.io",
+  "ethereum_url" : "https://ropsten.infura.io",
   "timeout" : 30
 }
