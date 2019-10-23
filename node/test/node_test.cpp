@@ -80,7 +80,7 @@ TEST_F(node_test, test_send_and_receive_message)
         bzn::asio::read_handler read_cb;
         std::string request;
 
-        EXPECT_CALL(*ws_factory, make_unique_websocket_stream(_)).Times(Exactly(2))
+        EXPECT_CALL(*ws_factory, make_websocket_stream(_)).Times(Exactly(2))
             .WillOnce(Invoke([&](auto& /*sock*/)
             {
                 auto websocket = std::make_unique<bzn::beast::mock_websocket_stream_base>();
