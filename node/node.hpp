@@ -65,6 +65,7 @@ namespace bzapi
         void close();
 
         void queued_send(const std::string& msg, bzn::asio::write_handler callback);
+        void schedule_send();
         void do_send();
         void send_func();
 

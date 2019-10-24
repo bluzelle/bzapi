@@ -20,7 +20,7 @@ using namespace bzapi;
 
 namespace
 {
-    uint64_t MAX_BACKOFF_TIME{1024};
+    const uint64_t MAX_BACKOFF_TIME{1024};
 
     // TODO: Once we decide to use ssl between the client and the swarm then this will
     // be included in the ESR data along with peer validation on/off.
@@ -195,14 +195,14 @@ node::queued_send(const std::string& msg, bzn::asio::write_handler callback)
             strong_this->send_queue.push_back(std::make_shared<queued_message>(std::make_pair(msg, callback)));
             if (strong_this->send_queue.size() == 1)
             {
-                strong_this->do_send();
+                strong_this->schedule_send();
             }
         }
     });
 }
 
 void
-node::send_func()
+node::do_send()
 {
     auto msg = this->send_queue.front();
     boost::asio::mutable_buffers_1 buffer((void *) msg->first.c_str(), msg->first.length());
@@ -216,7 +216,7 @@ node::send_func()
                 strong_this->send_queue.pop_front();
                 if (!strong_this->send_queue.empty())
                 {
-                    strong_this->do_send();
+                    strong_this->schedule_send();
                 }
             }
 
@@ -226,24 +226,25 @@ node::send_func()
 }
 
 void
-node::do_send()
+node::schedule_send()
 {
     if (this->backoff_time)
     {
         this->backoff_timer->expires_from_now(std::chrono::milliseconds{this->backoff_time});
-        this->backoff_timer->async_wait(this->strand->wrap([weak_this = weak_from_this()](const auto& /*ec*/)
-        {
-            if (auto strong_this = weak_this.lock())
+        this->backoff_timer->async_wait(this->strand->wrap(
+            [weak_this = weak_from_this()](const auto& ec)
             {
-                assert(!strong_this->send_queue.empty());
-                strong_this->send_func();
-            }
-        }));
+                if (auto strong_this = weak_this.lock(); !ec)
+                {
+                    assert(!strong_this->send_queue.empty());
+                    strong_this->do_send();
+                }
+            }));
     }
     else
     {
         assert(!this->send_queue.empty());
-        this->send_func();
+        this->do_send();
     }
 }
 

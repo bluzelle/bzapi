@@ -962,7 +962,7 @@ TEST_F(integration_test, para_perf_test)
     auto start = now();
     uint64_t num_errors = 0;
 
-    for (size_t i = 0; i < 200; i++)
+    for (size_t i = 0; i < 1000; i++)
     {
         responses.push_back(db->create("key_" + std::to_string(i), "value_" + std::to_string(i), 0));
     }

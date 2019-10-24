@@ -189,13 +189,12 @@ db_dispatch::handle_swarm_error(const bzn_envelope& response)
         return true;
     }
 
-    auto i = this->messages.find(nonce);
-    if (i == this->messages.end())
+    auto msg_it = this->messages.find(nonce);
+    if (msg_it == this->messages.end())
     {
         LOG(trace) << "Ignoring error response for unknown or already processed message: " << nonce;
         return false;
     }
-    auto& info = i->second;
 
     if (err.message() == TIMESTAMP_ERROR_MSG)
     {
@@ -218,7 +217,7 @@ db_dispatch::handle_swarm_error(const bzn_envelope& response)
     else if (err.message() == DUPLICATE_ERROR_MSG)
     {
         // this request has been received. Stop resending to avoid flooding
-        info.retry_timer->cancel();
+        msg_it->second.retry_timer->cancel();
     }
 
     return false;
