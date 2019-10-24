@@ -38,5 +38,6 @@ namespace bzapi
 
         virtual void register_message_handler(node_message_handler handler) = 0;
         virtual void send_message(const std::string& msg, completion_handler_t callback) = 0;
+        virtual void back_off(bool value) = 0;
    };
 }

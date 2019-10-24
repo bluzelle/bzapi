@@ -69,6 +69,11 @@ namespace bzapi
     const uint16_t MAX_MESSAGE_SIZE = 1024;
     const uint16_t MAX_SHORT_MESSAGE_SIZE = 32;
 
+    const std::string TIMESTAMP_ERROR_MSG{"INVALID TIMESTAMP"};
+    const std::string TOO_LARGE_ERROR_MSG{"REQUEST TOO LARGE"};
+    const std::string TOO_BUSY_ERROR_MSG{"SERVER TOO BUSY"};
+    const std::string DUPLICATE_ERROR_MSG{"DUPLICATE REQUEST"};
+
     enum class db_error
     {
         success = 0,

@@ -47,17 +47,22 @@ TEST_F(db_dispatch_test, basic_test)
     swarm_response_handler_t swarm_response_handler;
     completion_handler_t timer_callback;
 
-    EXPECT_CALL(*swarm, register_response_handler(_, _)).WillOnce(Invoke([&](auto, auto handler)
+    EXPECT_CALL(*swarm, register_response_handler(_, _))
+    .Times(Exactly(2))
+    .WillOnce(Invoke([&](auto, auto handler)
     {
         swarm_response_handler = handler;
         return true;
-    }));
+    }))
+    .WillOnce(Return(true));
 
     EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).Times(Exactly(1))
         .WillOnce(Invoke([&]
         {
             return std::make_unique<NiceMock<bzn::asio::mock_steady_timer_base>>();
         }));
+
+    EXPECT_CALL(*swarm, sign_and_date_request(_, _)).Times(Exactly(1));
 
     EXPECT_CALL(*swarm, send_request(_, _)).Times(Exactly(1)).WillOnce(Invoke([&](auto e, auto)
     {
@@ -88,11 +93,14 @@ TEST_F(db_dispatch_test, collation_and_timeout_test)
     swarm_response_handler_t swarm_response_handler;
     completion_handler_t timer_callback;
 
-    EXPECT_CALL(*swarm, register_response_handler(_, _)).WillOnce(Invoke([&](auto, auto handler)
-    {
-        swarm_response_handler = handler;
-        return true;
-    }));
+    EXPECT_CALL(*swarm, register_response_handler(_, _))
+        .Times(Exactly(2))
+        .WillOnce(Invoke([&](auto, auto handler)
+        {
+            swarm_response_handler = handler;
+            return true;
+        }))
+        .WillOnce(Return(true));
 
     EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).Times(AtLeast(2))
     .WillOnce(Invoke([&]
@@ -111,6 +119,8 @@ TEST_F(db_dispatch_test, collation_and_timeout_test)
     }));
 
     EXPECT_CALL(*swarm, honest_majority_size()).Times(Exactly(1)).WillOnce(Return(3));
+
+    EXPECT_CALL(*swarm, sign_and_date_request(_, _)).Times(Exactly(1));
 
     bool broadcasted = false;
     bzn_envelope envelope;
@@ -186,10 +196,9 @@ TEST_F(db_dispatch_test, client_timeout_test)
 
     bzapi::set_timeout(1);
 
-    EXPECT_CALL(*swarm, register_response_handler(_, _)).WillOnce(Invoke([&](auto, auto /*handler*/)
-    {
-        return true;
-    }));
+    EXPECT_CALL(*swarm, register_response_handler(_, _))
+        .Times(Exactly(2))
+        .WillRepeatedly(Return(true));
 
     EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).Times(Exactly(1))
         .WillOnce(Invoke([&]
@@ -207,6 +216,8 @@ TEST_F(db_dispatch_test, client_timeout_test)
             }));
             return timer;
         }));
+
+    EXPECT_CALL(*swarm, sign_and_date_request(_, _)).Times(Exactly(1));
 
     EXPECT_CALL(*swarm, send_request(_, _)).Times(Exactly(1)).WillOnce(Invoke([&](auto /*e*/, auto)
     {

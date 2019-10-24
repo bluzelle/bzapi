@@ -20,6 +20,8 @@ using namespace bzapi;
 
 namespace
 {
+    const uint64_t MAX_BACKOFF_TIME{1024};
+
     // TODO: Once we decide to use ssl between the client and the swarm then this will
     // be included in the ESR data along with peer validation on/off.
     const std::string WSS_ENABLED_ENV = "WSS_ENABLED";
@@ -30,7 +32,7 @@ node::node(std::shared_ptr<bzn::asio::io_context_base> io_context
     , const std::string& host
     , uint16_t port)
 : io_context(std::move(io_context)), ws_factory(std::move(ws_factory)), endpoint(this->make_tcp_endpoint(host, port))
-    , strand(this->io_context->make_unique_strand())
+    , strand(this->io_context->make_unique_strand()), backoff_timer(this->io_context->make_unique_steady_timer())
 {
     this->initialize_ssl_context();
 }
@@ -54,6 +56,19 @@ void
 node::register_message_handler(node_message_handler msg_handler)
 {
     this->handler = msg_handler;
+}
+
+void
+node::back_off(bool value)
+{
+    if (value)
+    {
+        this->backoff_time = std::min(this->backoff_time ? 2 * this->backoff_time : 1, MAX_BACKOFF_TIME);
+    }
+    else
+    {
+        this->backoff_time = this->backoff_time > 1 ? this->backoff_time / 2 : 0;
+    }
 }
 
 void
@@ -180,7 +195,7 @@ node::queued_send(const std::string& msg, bzn::asio::write_handler callback)
             strong_this->send_queue.push_back(std::make_shared<queued_message>(std::make_pair(msg, callback)));
             if (strong_this->send_queue.size() == 1)
             {
-                strong_this->do_send();
+                strong_this->schedule_send();
             }
         }
     });
@@ -189,25 +204,48 @@ node::queued_send(const std::string& msg, bzn::asio::write_handler callback)
 void
 node::do_send()
 {
-    assert(!this->send_queue.empty());
-
     auto msg = this->send_queue.front();
-    boost::asio::mutable_buffers_1 buffer((void*)msg->first.c_str(), msg->first.length());
+    boost::asio::mutable_buffers_1 buffer((void *) msg->first.c_str(), msg->first.length());
     this->websocket->binary(true);
-    this->websocket->async_write(buffer, this->strand->wrap([weak_this = weak_from_this(), callback = msg->second]
-        (const boost::system::error_code& ec, unsigned long bytes)
-    {
-        if (auto strong_this = weak_this.lock())
+    this->websocket->async_write(buffer, this->strand->wrap(
+        [weak_this = weak_from_this(), callback = msg->second]
+            (const boost::system::error_code& ec, unsigned long bytes)
         {
-            strong_this->send_queue.pop_front();
-            if (!strong_this->send_queue.empty())
+            if (auto strong_this = weak_this.lock())
             {
-                strong_this->do_send();
+                strong_this->send_queue.pop_front();
+                if (!strong_this->send_queue.empty())
+                {
+                    strong_this->schedule_send();
+                }
             }
-        }
 
-        callback(ec, bytes);
-    }));
+            callback(ec, bytes);
+        }));
+
+}
+
+void
+node::schedule_send()
+{
+    if (this->backoff_time)
+    {
+        this->backoff_timer->expires_from_now(std::chrono::milliseconds{this->backoff_time});
+        this->backoff_timer->async_wait(this->strand->wrap(
+            [weak_this = weak_from_this()](const auto& ec)
+            {
+                if (auto strong_this = weak_this.lock(); !ec)
+                {
+                    assert(!strong_this->send_queue.empty());
+                    strong_this->do_send();
+                }
+            }));
+    }
+    else
+    {
+        assert(!this->send_queue.empty());
+        this->do_send();
+    }
 }
 
 void
