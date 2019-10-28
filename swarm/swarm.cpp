@@ -378,6 +378,18 @@ swarm::handle_node_message(const std::string& uuid, const std::string& data)
         return true;
     }
 
+    // adjust node "speed"
+    bool backoff_val = false;
+    if (env.payload_case() == bzn_envelope::kSwarmError)
+    {
+        swarm_error err;
+        backoff_val = (err.ParseFromString(env.swarm_error()) && err.message() == TOO_BUSY_ERROR_MSG);
+    }
+    for (auto& n : *this->nodes)
+    {
+        n.second.node->back_off(backoff_val);
+    }
+
     auto it2 = this->response_handlers.find(env.payload_case());
     if (it2 == this->response_handlers.end())
     {

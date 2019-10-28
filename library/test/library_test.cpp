@@ -173,11 +173,21 @@ struct mock_websocket
     completion_handler_t timer_callback;
 };
 
+uint64_t
+now()
+{
+    return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count());
+}
+
 class my_logger : public bzapi::logger
 {
     void log(const std::string& severity, const std::string& message)
     {
-        std::cout << severity << ": " << message << std::endl;
+        if (severity != "trace")
+        {
+            std::cout << severity << ": " << message << std::endl;
+        }
     }
 };
 
@@ -264,8 +274,9 @@ public:
 
     void expect_has_db(bool value = true)
     {
-        // status timer for each node, plus client timeout, plus request timeout
-        EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).Times(Exactly(swarm_size + 2)).WillRepeatedly(Invoke([]()
+        // status and backoff timer for each node, plus client timeout, plus request timeout
+        EXPECT_CALL(*mock_io_context, make_unique_steady_timer()).Times(Exactly((swarm_size * 2) + 2))
+        .WillRepeatedly(Invoke([]()
         {
             return std::make_unique<NiceMock<bzn::asio::mock_steady_timer_base>>();
         })).RetiresOnSaturation();;
@@ -906,13 +917,7 @@ TEST_F(integration_test, blocking_response_test)
 
 namespace
 {
-    std::string NODE_ID{"MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEtfNUlS3OjEFfaqr3P4b/PEyrd9pH/PUgI7cyyu+4K7h/r8Y31gBQwGLxuLQR09w+SKmhKPuvWECz6b4pFKEouA=="};
-}
-
-uint64_t now()
-{
-    return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::system_clock::now().time_since_epoch()).count());
+    std::string NODE_ID{"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEdXYT8cPZ20OeAW0Ip96HSI06obDyu+mZPmnHPf48qcK0xE+bF7kkL+dBD+FlygYNWqmfOTylJYcFBsI9SwTAmg=="};
 }
 
 TEST_F(integration_test, perf_test)
@@ -928,7 +933,7 @@ TEST_F(integration_test, perf_test)
     auto db = bzapi::create_db(db_name.data(), 0, false);
     auto start = now();
 
-    for (size_t i = 0; i < 10; i++)
+    for (size_t i = 0; i < 1000; i++)
     {
         db->create("key_" + std::to_string(i), "value_" + std::to_string(i), 0);
     }
@@ -942,7 +947,6 @@ TEST_F(integration_test, perf_test)
 
 TEST_F(integration_test, para_perf_test)
 {
-    bzapi::init_logging();
     bzapi::set_logger(&mylogger);
 
     auto rand = generate_random_number(0, 100000);
@@ -956,19 +960,24 @@ TEST_F(integration_test, para_perf_test)
     auto db = resp->get_db();
     std::vector<std::shared_ptr<bzapi::response>> responses;
     auto start = now();
+    uint64_t num_errors = 0;
 
-    for (size_t i = 0; i < 10; i++)
+    for (size_t i = 0; i < 1000; i++)
     {
         responses.push_back(db->create("key_" + std::to_string(i), "value_" + std::to_string(i), 0));
     }
     for (auto& r : responses)
     {
         r->get_result();
+        if (r->get_error())
+        {
+            num_errors++;
+        }
     }
 
     auto end = now();
     auto ms = end - start;
-    std::cout << "test took " << ms << " milliseconds" << std::endl;
+    std::cout << "test took " << ms << " milliseconds and had " << num_errors << " errors" << std::endl;
 
     bzapi::terminate();
 }
