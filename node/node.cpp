@@ -100,20 +100,18 @@ node::send_message(const std::string& msg, completion_handler_t callback)
 boost::asio::ip::tcp::endpoint
 node::make_tcp_endpoint(const std::string& host, uint16_t port)
 {
-    boost::asio::ip::tcp::resolver resolver(this->io_context->get_io_context());
-    boost::asio::ip::tcp::resolver::query query(host, std::to_string(port));
+    using namespace boost::asio;
+
+    ip::tcp::resolver resolver(this->io_context->get_io_context());
+    ip::tcp::resolver::query query(ip::tcp::v4(), host, std::to_string(port));
     auto iter = resolver.resolve(query);
-    boost::asio::ip::tcp::endpoint ep;
 
-    std::for_each(iter, {}, [&ep](auto& it)
+    if (!iter.empty())
     {
-        if (it.endpoint().address().is_v4())
-        {
-            ep = it.endpoint();
-        }
-    });
+        return *iter;
+    }
 
-    return ep;
+    return {};
 }
 
 void
