@@ -914,12 +914,25 @@ TEST_F(integration_test, blocking_response_test)
 
 #if 0 // these tests need to be run manually with an active swarm
       // and need the node id to be set below to the first swarm member
-
+#if 0
 namespace
 {
-    std::string NODE_ID{"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEdXYT8cPZ20OeAW0Ip96HSI06obDyu+mZPmnHPf48qcK0xE+bF7kkL+dBD+FlygYNWqmfOTylJYcFBsI9SwTAmg=="};
+//    std::string NODE_ID{"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL3k8nUN1dTFl+i0nzSD/T7FacZNy4dxppo610GjCujKVWFCDKoA19lErjjXX9XhFHLdJpjN/puY4ZfIqryLhvA=="};
+
+    std::string NODE_ID{"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEDx3+Pop6RsWWUGCM519/SieCJqq7C/FP1DiXTAV1qpI4VUqrfIPm+ONTyMVspVA6I7ZyW+PExzKJmQom66mp2g=="};
+    std::string endpoint{"ws://localhost:50000"};
 }
 
+#else
+namespace
+{
+    std::string NODE_ID{"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEiTbQpq2Wv/FCyCnnGyHpDLByojWtKGe1jLMa4+9qPy7YwSq16GKnfEuaErha7M9Zmu8ExrDcUqUUjO4jRwcWEg=="};
+    std::string endpoint{"ws://54.208.32.57:51010"};
+
+//    std::string NODE_ID{"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE4BgXMBvFKErsLF7jaZDxCVugKByYw9FJsrBkGq1qu/9g8QfhQ7no7qdiKvRmfidGpRky2LaGXIaTkDXGSxOjlA=="};
+//    std::string endpoint{"ws://99.79.48.29:51010"};
+}
+#endif
 TEST_F(integration_test, perf_test)
 {
     bzapi::set_logger(&mylogger);
@@ -927,7 +940,7 @@ TEST_F(integration_test, perf_test)
     auto rand = generate_random_number(0, 100000);
     std::string db_name = "testdb_" + std::to_string(rand);
 
-    bool res = bzapi::initialize(pub_key, priv_key, "ws://localhost:50000", NODE_ID, "my_swarm");
+    bool res = bzapi::initialize(pub_key, priv_key, endpoint, NODE_ID, "my_swarm");
     EXPECT_TRUE(res);
 
     auto db = bzapi::create_db(db_name.data(), 0, false);
@@ -952,7 +965,7 @@ TEST_F(integration_test, para_perf_test)
     auto rand = generate_random_number(0, 100000);
     std::string db_name = "testdb_" + std::to_string(rand);
 
-    bool res = bzapi::initialize(pub_key, priv_key, "ws://localhost:50000", NODE_ID, "my_swarm");
+    bool res = bzapi::initialize(pub_key, priv_key, endpoint, NODE_ID, "my_swarm");
     EXPECT_TRUE(res);
 
     auto resp = bzapi::async_create_db(db_name.data(), 0, false);
@@ -961,23 +974,32 @@ TEST_F(integration_test, para_perf_test)
     std::vector<std::shared_ptr<bzapi::response>> responses;
     auto start = now();
     uint64_t num_errors = 0;
+    std::vector<uint64_t> failures;
 
     for (size_t i = 0; i < 1000; i++)
     {
         responses.push_back(db->create("key_" + std::to_string(i), "value_" + std::to_string(i), 0));
     }
-    for (auto& r : responses)
+    for (size_t i = 0; i < 1000; i++)
     {
-        r->get_result();
-        if (r->get_error())
+        responses[i]->get_result();
+        if (responses[i]->get_error())
         {
             num_errors++;
+            failures.push_back(i);
         }
     }
 
     auto end = now();
     auto ms = end - start;
     std::cout << "test took " << ms << " milliseconds and had " << num_errors << " errors" << std::endl;
+    if (num_errors)
+    {
+        for (auto& e : failures)
+        {
+            std::cout << "request " << e << " failed" << std::endl;
+        }
+    }
 
     bzapi::terminate();
 }
