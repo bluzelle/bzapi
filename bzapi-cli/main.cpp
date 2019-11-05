@@ -559,82 +559,82 @@ main(int argc, const char* argv[])
             ("uuid,u",   po::value<std::string>(), "database uuid");
 
         // some help as subparsers don't exists ("easily") in boost::program_options...
-        po::options_description status("status (Swarm status)");
+        po::options_description status(STATUS_CMD + " (Swarm status)");
         description.add(status);
 
         // const std::string& uuid, uint64_t max_size, bool random_evict);
-        po::options_description create_db("create-db (Create database)");
+        po::options_description create_db(CREATE_DB_CMD + " (Create database)");
         create_db.add_options()
             (CREATE_DB_MAX_SIZE.c_str(), po::value<uint64_t>()->default_value(0), "database max size")
             (CREATE_DB_RANDOM_EVICT.c_str(), po::value<bool>()->default_value(false), "database policy");
         description.add(create_db);
 
-        po::options_description has_db("has-db (Has database)");
+        po::options_description has_db(HAS_DB_CMD + " (Has database)");
         description.add(has_db);
 
-        po::options_description writers("writers (Database writers)");
+        po::options_description writers(WRITERS_CMD + " (Database writers)");
         description.add(writers);
 
-        po::options_description add_writer("add-writer (Add database writer)");
+        po::options_description add_writer(ADD_WRITER_CMD + " (Add database writer)");
         add_writer.add_options()
             (ADD_WRITER_PUBLIC_KEY.c_str(), po::value<std::string>(), "writer's public key");
         description.add(add_writer);
 
-        po::options_description remove_writer("remove-writer (Remove database writer)");
+        po::options_description remove_writer(REMOVE_WRITER_CMD + " (Remove database writer)");
         remove_writer.add_options()
             (REMOVE_WRITER_PUBLIC_KEY.c_str(), po::value<std::string>(), "writer's public key");
         description.add(remove_writer);
 
-        po::options_description create("create (Create k/v)");
+        po::options_description create(CREATE_CMD + " (Create k/v)");
         create.add_options()
             (CREATE_KEY.c_str(), po::value<std::string>(), "create to key")
             (CREATE_VALUE.c_str(), po::value<std::string>(), "created key value")
             (CREATE_EXPIRE.c_str(), po::value<uint64_t>()->default_value(0), "key's expiration in seconds");
         description.add(create);
 
-        po::options_description read("read (Read k/v)");
+        po::options_description read(READ_CMD + " (Read k/v)");
         read.add_options()
             (READ_KEY.c_str(), po::value<std::string>(), "key to read");
         description.add(read);
 
-        po::options_description qread("qread (Quick read k/v)");
+        po::options_description qread(QREAD_CMD + " (Quick read k/v)");
         qread.add_options()
             (QREAD_KEY.c_str(), po::value<std::string>(), "key to quick read");
         description.add(qread);
 
-        po::options_description update("update (Update k/v)");
+        po::options_description update(UPDATE_CMD + " (Update k/v)");
         update.add_options()
             (UPDATE_KEY.c_str(), po::value<std::string>(), "key to update")
             (UPDATE_VALUE.c_str(), po::value<std::string>(), "key's new value");
         description.add(update);
 
-        po::options_description remove("delete (Delete k/v)");
+        po::options_description remove(DELETE_CMD + " (Delete k/v)");
         remove.add_options()
             (DELETE_KEY.c_str(), po::value<std::string>(), "key to delete");
         description.add(remove);
 
-        po::options_description has("has (Determine whether a key exists within a database by uuid)");
+        po::options_description has(HAS_CMD + " (Determine whether a key exists within a database by uuid)");
         has.add_options()
             (HAS_KEY.c_str(), po::value<std::string>(), "key to check");
         description.add(has);
 
-        po::options_description ttl("ttl (Get ttl for a key within a db by uuid)");
+        po::options_description ttl(TTL_CMD + " (Get ttl for a key within a db by uuid)");
         ttl.add_options()
             (TTL_KEY.c_str(), po::value<std::string>(), "ttl for a key");
         description.add(ttl);
 
-        po::options_description persist("persis (Remove expiration for a key within a database by uuid)");
+        po::options_description persist(PERSIST_CMD + " (Remove expiration for a key within a database by uuid)");
         persist.add_options()
             (PERSIST_KEY.c_str(), po::value<std::string>(), "remove ttl for a key");
         description.add(persist);
 
-        po::options_description expire("expire (Set expire for a key within a database by uuid)");
+        po::options_description expire(EXPIRE_CMD + " (Set expire for a key within a database by uuid)");
         expire.add_options()
             (EXPIRE_KEY.c_str(), po::value<std::string>(), "key to add a ttl")
             (EXPIRE_TTL.c_str(), po::value<uint64_t>(), "set ttl for a key in seconds");
         description.add(expire);
 
-        po::options_description size("size (Determine the size of the database by uuid)");
+        po::options_description size(SIZE_CMD + " (Determine the size of the database by uuid)");
         description.add(size);
 
         po::store(po::command_line_parser(argc, argv).options(description).run(), vm);
