@@ -289,6 +289,7 @@ swarm::handle_status_response(const uuid_t& uuid, const bzn_envelope& response)
 void
 swarm::send_status_request(const uuid_t& node_uuid)
 {
+    LOG(debug) << "Sending status request to " << node_uuid;
     auto current_nodes = this->get_nodes();
     auto elem = current_nodes->find(node_uuid);
     if (elem == current_nodes->end())

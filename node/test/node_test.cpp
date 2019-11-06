@@ -92,7 +92,7 @@ TEST_F(node_test, test_send_and_receive_message)
                     lambda(boost::system::error_code{});
                 }));
 
-                EXPECT_CALL(*websocket, async_read(_, _)).Times(Exactly(1)).WillOnce(Invoke([&](auto& buffer, auto cb)
+                EXPECT_CALL(*websocket, async_read(_, _)).Times(AtLeast(1)).WillRepeatedly(Invoke([&](auto& buffer, auto cb)
                 {
                     // save the read info for later
                     read_buffer = &buffer;
@@ -130,7 +130,7 @@ TEST_F(node_test, test_send_and_receive_message)
                         }));
 
                     // don't close the socket - next write will be forced to fail
-                    EXPECT_CALL(*websocket, is_open()).WillOnce(Return(false));
+                    //EXPECT_CALL(*websocket, is_open()).WillOnce(Return(false));
                 }
 
                 return websocket;
@@ -177,8 +177,8 @@ TEST_F(node_test, test_send_and_receive_message)
         {
             response = data;
 
-            // force the connection to be closed
-            return true;
+            // force the connection to be closed?
+            return clean_close;
         });
 
         // fake the "response"

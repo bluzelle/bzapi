@@ -74,27 +74,27 @@ node::back_off(bool value)
 void
 node::send_message(const std::string& msg, completion_handler_t callback)
 {
-    if (!this->connected)
+    this->strand->post([msg, callback, weak_this = weak_from_this()]()
     {
-        this->connect([weak_this = weak_from_this(), callback, msg](auto ec)
+        if (auto strong_this = weak_this.lock())
         {
-            if (ec)
+            strong_this->queue_send(msg, callback);
+            if (strong_this->state == connect_state::connected)
             {
-                callback(ec);
-                return;
+                if (strong_this->send_queue.size() == 1)
+                {
+                    strong_this->schedule_send();
+                }
             }
-
-            if (auto strong_this = weak_this.lock())
+            else
             {
-                strong_this->send(msg, callback, true);
-                return;
+                if (strong_this->state != connect_state::connecting)
+                {
+                    strong_this->connect();
+                }
             }
-        });
-    }
-    else
-    {
-        this->send(msg, callback, false);
-    }
+        }
+    });
 }
 
 boost::asio::ip::tcp::endpoint
@@ -115,88 +115,80 @@ node::make_tcp_endpoint(const std::string& host, uint16_t port)
 }
 
 void
-node::connect(const completion_handler_t& callback)
+node::connect()
 {
-    this->strand->post([callback, weak_this = weak_from_this()]()
+    assert(this->state != connect_state::connecting);
+    assert(this->state != connect_state::connected);
+
+    LOG(info) << "Connecting to " << this->endpoint.address().to_string() << ":" << this->endpoint.port();
+    this->state = connect_state::connecting;
+    std::shared_ptr<bzn::asio::tcp_socket_base> socket = this->io_context->make_unique_tcp_socket();
+    socket->async_connect(this->endpoint, this->strand->wrap([weak_this =  weak_from_this(), socket](auto ec)
     {
+        // TODO: save connection latency - KEP-1382
+
         if (auto strong_this = weak_this.lock())
         {
-            std::shared_ptr<bzn::asio::tcp_socket_base> socket = strong_this->io_context->make_unique_tcp_socket();
-            socket->async_connect(strong_this->endpoint, strong_this->strand->wrap([weak_this, callback, socket](auto ec)
+            if (ec)
             {
-                // TODO: save connection latency - KEP-1382
+                // failed to connect
+                strong_this->state = connect_state::disconnected;
+                return;
+            }
 
-                if (ec)
+            // set tcp_nodelay option
+            boost::system::error_code option_ec;
+            socket->get_tcp_socket().set_option(boost::asio::ip::tcp::no_delay(true), option_ec);
+            if (option_ec)
+            {
+                LOG(warning) << "failed to set no_delay socket option: " << option_ec.message();
+            }
+
+            // use ssl?
+            if (strong_this->client_ctx)
+            {
+                strong_this->websocket = strong_this->ws_factory->make_websocket_secure_stream(
+                    socket->get_tcp_socket(), *strong_this->client_ctx);
+            }
+            else
+            {
+                strong_this->websocket = strong_this->ws_factory->make_websocket_stream(
+                    socket->get_tcp_socket());
+            }
+
+            strong_this->websocket->async_handshake(strong_this->endpoint.address().to_string(), "/"
+                , strong_this->strand->wrap([weak_this](auto ec)
                 {
-                    // failed to connect
-                    callback(ec);
-                    return;
-                }
-
-                if (auto strong_this = weak_this.lock())
-                {
-                    strong_this->connected = true;
-
-                    // set tcp_nodelay option
-                    boost::system::error_code option_ec;
-                    socket->get_tcp_socket().set_option(boost::asio::ip::tcp::no_delay(true), option_ec);
-                    if (option_ec)
+                    try
                     {
-                        LOG(warning) << "failed to set no_delay socket option: " << option_ec.message();
-                    }
-
-                    // use ssl?
-                    if (strong_this->client_ctx)
-                    {
-                        strong_this->websocket = strong_this->ws_factory->make_websocket_secure_stream(
-                            socket->get_tcp_socket(), *strong_this->client_ctx);
-                    }
-                    else
-                    {
-                        strong_this->websocket = strong_this->ws_factory->make_websocket_stream(
-                            socket->get_tcp_socket());
-                    }
-
-                    strong_this->websocket->async_handshake(strong_this->endpoint.address().to_string(), "/"
-                        , strong_this->strand->wrap([weak_this, callback](auto ec)
+                        if (auto strong_this = weak_this.lock())
                         {
-                            try
+                            if (ec)
                             {
-                                if (auto strong_this = weak_this.lock())
-                                {
-                                    if (ec)
-                                    {
-                                        LOG(warning) << "websocket handshake failure: " << ec.message();
-                                        callback(ec);
-                                        return;
-                                    }
-
-                                    callback(ec);
-                                    strong_this->receive();
-                                }
+                                LOG(warning) << "websocket handshake failure: " << ec.message();
+                                strong_this->state = connect_state::disconnected;
+                                return;
                             }
-                            CATCHALL();
-                        }));
-                }
-            }));
+
+                            strong_this->state = connect_state::connected;
+                            if (!strong_this->send_queue.empty())
+                            {
+                                strong_this->schedule_send();
+                            }
+
+                            strong_this->receive();
+                        }
+                    }
+                    CATCHALL();
+                }));
         }
-    });
+    }));
 }
 
 void
-node::queued_send(const std::string& msg, bzn::asio::write_handler callback)
+node::queue_send(const std::string& msg, const completion_handler_t& callback)
 {
-    this->strand->post([msg, callback, weak_this = weak_from_this()]()
-    {
-        if (auto strong_this = weak_this.lock())
-        {
-            strong_this->send_queue.push_back(std::make_shared<queued_message>(std::make_pair(msg, callback)));
-            if (strong_this->send_queue.size() == 1)
-            {
-                strong_this->schedule_send();
-            }
-        }
-    });
+    this->send_queue.push_back(std::make_shared<queued_message>(std::make_pair(msg, callback)));
 }
 
 void
@@ -207,10 +199,19 @@ node::do_send()
     this->websocket->binary(true);
     this->websocket->async_write(buffer, this->strand->wrap(
         [weak_this = weak_from_this(), callback = msg->second]
-            (const boost::system::error_code& ec, unsigned long bytes)
+            (const boost::system::error_code& ec, unsigned long /*bytes*/)
         {
             if (auto strong_this = weak_this.lock())
             {
+                if (ec == boost::beast::websocket::error::closed || ec == boost::asio::error::eof
+                    || ec == boost::asio::error::operation_aborted)
+                {
+                    // try to reconnect
+                    strong_this->state = connect_state::disconnected;
+                    strong_this->connect();
+                    return;
+                }
+
                 strong_this->send_queue.pop_front();
                 if (!strong_this->send_queue.empty())
                 {
@@ -218,7 +219,7 @@ node::do_send()
                 }
             }
 
-            callback(ec, bytes);
+            callback(ec);
         }));
 
 }
@@ -244,49 +245,6 @@ node::schedule_send()
         assert(!this->send_queue.empty());
         this->do_send();
     }
-}
-
-void
-node::send(const std::string& msg, const completion_handler_t& callback, bool is_retry)
-{
-    this->queued_send(msg, [weak_this = weak_from_this(), callback, is_retry, msg](auto ec, auto /*bytes*/)
-    {
-        try
-        {
-            if (ec == boost::beast::websocket::error::closed || ec == boost::asio::error::eof
-                || ec == boost::asio::error::operation_aborted)
-            {
-                if (auto strong_this = weak_this.lock())
-                {
-                    strong_this->connected = false;
-
-                    // try to reconnect once
-                    if (!is_retry)
-                    {
-                        strong_this->connect([weak_this, callback, msg](auto ec)
-                        {
-                            if (ec)
-                            {
-                                callback(ec);
-                                return;
-                            }
-
-                            if (auto strong_this = weak_this.lock())
-                            {
-                                strong_this->send(msg, callback, true);
-                                return;
-                            }
-                        });
-                    }
-                }
-            }
-            else
-            {
-                callback(ec);
-            }
-        }
-        CATCHALL();
-    });
 }
 
 void
@@ -329,13 +287,24 @@ node::close()
 {
     if (this->websocket && this->websocket->is_open())
     {
-        this->connected = false;
-
-        // hold onto reference to websocket to prevent boost exception if node is gone
-        this->websocket->async_close(boost::beast::websocket::close_code::normal
-            , this->strand->wrap([ws = this->websocket](auto)
+        if (this->state != connect_state::disconnecting)
         {
-            // ignore close errors
-        }));
+            this->state = connect_state::disconnecting;
+
+            // hold onto reference to websocket to prevent boost exception if node is gone
+            this->websocket->async_close(boost::beast::websocket::close_code::normal
+                , this->strand->wrap([weak_this = weak_from_this(), ws = this->websocket](auto)
+                {
+                    // ignore close errors
+                    if (auto strong_this = weak_this.lock())
+                    {
+                        strong_this->state = connect_state::disconnected;
+                    }
+                }));
+        }
+    }
+    else
+    {
+        this->state = connect_state::disconnected;
     }
 }

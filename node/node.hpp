@@ -48,26 +48,23 @@ namespace bzapi
         void initialize_ssl_context();
 
         node_message_handler handler;
-        bool connected = false;
+        enum class connect_state{ disconnected, connecting, connected, disconnecting } state{connect_state::disconnected};
         std::shared_ptr<bzn::beast::websocket_stream_base> websocket;
         std::mutex send_mutex;
         std::shared_ptr<bzn::asio::steady_timer_base> backoff_timer;
         uint64_t backoff_time{0};
 
-
-        using queued_message = std::pair<std::string, bzn::asio::write_handler>;
+        using queued_message = std::pair<std::string, completion_handler_t>;
         std::deque<std::shared_ptr<queued_message>> send_queue;
 
         boost::asio::ip::tcp::endpoint make_tcp_endpoint(const std::string& host, uint16_t port);
-        void connect(const completion_handler_t& callback);
-        void send(const std::string& msg, const completion_handler_t& callback, bool is_retry = false);
+        void connect();
         void receive();
         void close();
 
-        void queued_send(const std::string& msg, bzn::asio::write_handler callback);
+        void queue_send(const std::string& msg, const completion_handler_t& callback);
         void schedule_send();
         void do_send();
-        void send_func();
 
         std::unique_ptr<boost::asio::ssl::context> client_ctx;
     };
