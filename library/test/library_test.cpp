@@ -912,28 +912,27 @@ TEST_F(integration_test, blocking_response_test)
     thr.join();
 }
 
-#if 0 // these tests need to be run manually with an active swarm
-      // and need the node id to be set below to the first swarm member
-#if 0
+// these tests need to be run manually with an active swarm
+// and need the node id to be set below to the first swarm member
+
+#if 0 // local swarm
 namespace
 {
-//    std::string NODE_ID{"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEL3k8nUN1dTFl+i0nzSD/T7FacZNy4dxppo610GjCujKVWFCDKoA19lErjjXX9XhFHLdJpjN/puY4ZfIqryLhvA=="};
-
     std::string NODE_ID{"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEDx3+Pop6RsWWUGCM519/SieCJqq7C/FP1DiXTAV1qpI4VUqrfIPm+ONTyMVspVA6I7ZyW+PExzKJmQom66mp2g=="};
     std::string endpoint{"ws://localhost:50000"};
 }
 
-#else
+#else // remote swarm
 namespace
 {
-    std::string NODE_ID{"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEiTbQpq2Wv/FCyCnnGyHpDLByojWtKGe1jLMa4+9qPy7YwSq16GKnfEuaErha7M9Zmu8ExrDcUqUUjO4jRwcWEg=="};
+    std::string NODE_ID{
+        "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEiTbQpq2Wv/FCyCnnGyHpDLByojWtKGe1jLMa4+9qPy7YwSq16GKnfEuaErha7M9Zmu8ExrDcUqUUjO4jRwcWEg=="};
     std::string endpoint{"ws://54.208.32.57:51010"};
-
-//    std::string NODE_ID{"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE4BgXMBvFKErsLF7jaZDxCVugKByYw9FJsrBkGq1qu/9g8QfhQ7no7qdiKvRmfidGpRky2LaGXIaTkDXGSxOjlA=="};
-//    std::string endpoint{"ws://99.79.48.29:51010"};
 }
 #endif
-TEST_F(integration_test, perf_test)
+
+
+TEST_F(integration_test, DISABLED_perf_test)
 {
     bzapi::set_logger(&mylogger);
 
@@ -958,7 +957,7 @@ TEST_F(integration_test, perf_test)
     bzapi::terminate();
 }
 
-TEST_F(integration_test, para_perf_test)
+TEST_F(integration_test, DISABLED_para_perf_test)
 {
     bzapi::set_logger(&mylogger);
 
@@ -1004,7 +1003,7 @@ TEST_F(integration_test, para_perf_test)
     bzapi::terminate();
 }
 
-TEST_F(integration_test, viewchange_test)
+TEST_F(integration_test, DISABLED_viewchange_test)
 {
     auto rand = generate_random_number(0, 100000);
     std::string db_name = "testdb_" + std::to_string(rand);
@@ -1057,7 +1056,7 @@ TEST_F(integration_test, viewchange_test)
     bzapi::terminate();
 }
 
-TEST_F(integration_test, live_test)
+TEST_F(integration_test, DISABLED_live_test)
 {
     uint16_t my_id = 0;
     int sock = create_socket(my_id);
@@ -1153,7 +1152,7 @@ TEST_F(integration_test, live_test)
     bzapi::terminate();
 }
 
-TEST_F(integration_test, blocking_live_test)
+TEST_F(integration_test, DISABLED_blocking_live_test)
 {
     auto rand = generate_random_number(0, 100000);
     std::string db_name = "testdb_" + std::to_string(rand);
@@ -1219,7 +1218,7 @@ TEST_F(integration_test, blocking_live_test)
     bzapi::terminate();
 }
 
-TEST_F(integration_test, sync_live_test)
+TEST_F(integration_test, DISABLED_sync_live_test)
 {
     bzapi::set_timeout(10000);
     auto rand = generate_random_number(0, 100000);
@@ -1292,7 +1291,7 @@ TEST_F(integration_test, sync_live_test)
 const std::string DEFAULT_SWARM_INFO_ESR_ADDRESS{"D5B3d7C061F817ab05aF9Fab3b61EEe036e4f4fc"};
 const std::string ROPSTEN_URL{"https://ropsten.infura.io"};
 
-TEST_F(integration_test, get_swarms_test)
+TEST_F(integration_test, DISABLED_get_swarms_test)
 {
     auto swarms = bzn::utils::esr::get_swarm_ids(DEFAULT_SWARM_INFO_ESR_ADDRESS, ROPSTEN_URL);
     for (auto sw : swarms)
@@ -1306,5 +1305,3 @@ TEST_F(integration_test, get_swarms_test)
     }
     EXPECT_TRUE(swarms.size() > 0);
 }
-
-#endif // these tests need to be run manually with an active swarm
