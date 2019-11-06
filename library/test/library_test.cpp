@@ -912,22 +912,34 @@ TEST_F(integration_test, blocking_response_test)
     thr.join();
 }
 
-#if 0 // these tests need to be run manually with an active swarm
-      // and need the node id to be set below to the first swarm member
+// these tests need to be run manually with an active swarm
+// and need the node id to be set below to the first swarm member
 
+#if 0 // local swarm
 namespace
 {
-    std::string NODE_ID{"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEdXYT8cPZ20OeAW0Ip96HSI06obDyu+mZPmnHPf48qcK0xE+bF7kkL+dBD+FlygYNWqmfOTylJYcFBsI9SwTAmg=="};
+    std::string NODE_ID{"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEDx3+Pop6RsWWUGCM519/SieCJqq7C/FP1DiXTAV1qpI4VUqrfIPm+ONTyMVspVA6I7ZyW+PExzKJmQom66mp2g=="};
+    std::string endpoint{"ws://localhost:50000"};
 }
 
-TEST_F(integration_test, perf_test)
+#else // remote swarm
+namespace
+{
+    std::string NODE_ID{
+        "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEiTbQpq2Wv/FCyCnnGyHpDLByojWtKGe1jLMa4+9qPy7YwSq16GKnfEuaErha7M9Zmu8ExrDcUqUUjO4jRwcWEg=="};
+    std::string endpoint{"ws://54.208.32.57:51010"};
+}
+#endif
+
+
+TEST_F(integration_test, DISABLED_perf_test)
 {
     bzapi::set_logger(&mylogger);
 
     auto rand = generate_random_number(0, 100000);
     std::string db_name = "testdb_" + std::to_string(rand);
 
-    bool res = bzapi::initialize(pub_key, priv_key, "ws://localhost:50000", NODE_ID, "my_swarm");
+    bool res = bzapi::initialize(pub_key, priv_key, endpoint, NODE_ID, "my_swarm");
     EXPECT_TRUE(res);
 
     auto db = bzapi::create_db(db_name.data(), 0, false);
@@ -945,14 +957,14 @@ TEST_F(integration_test, perf_test)
     bzapi::terminate();
 }
 
-TEST_F(integration_test, para_perf_test)
+TEST_F(integration_test, DISABLED_para_perf_test)
 {
     bzapi::set_logger(&mylogger);
 
     auto rand = generate_random_number(0, 100000);
     std::string db_name = "testdb_" + std::to_string(rand);
 
-    bool res = bzapi::initialize(pub_key, priv_key, "ws://localhost:50000", NODE_ID, "my_swarm");
+    bool res = bzapi::initialize(pub_key, priv_key, endpoint, NODE_ID, "my_swarm");
     EXPECT_TRUE(res);
 
     auto resp = bzapi::async_create_db(db_name.data(), 0, false);
@@ -961,28 +973,37 @@ TEST_F(integration_test, para_perf_test)
     std::vector<std::shared_ptr<bzapi::response>> responses;
     auto start = now();
     uint64_t num_errors = 0;
+    std::vector<uint64_t> failures;
 
     for (size_t i = 0; i < 1000; i++)
     {
         responses.push_back(db->create("key_" + std::to_string(i), "value_" + std::to_string(i), 0));
     }
-    for (auto& r : responses)
+    for (size_t i = 0; i < 1000; i++)
     {
-        r->get_result();
-        if (r->get_error())
+        responses[i]->get_result();
+        if (responses[i]->get_error())
         {
             num_errors++;
+            failures.push_back(i);
         }
     }
 
     auto end = now();
     auto ms = end - start;
     std::cout << "test took " << ms << " milliseconds and had " << num_errors << " errors" << std::endl;
+    if (num_errors)
+    {
+        for (auto& e : failures)
+        {
+            std::cout << "request " << e << " failed" << std::endl;
+        }
+    }
 
     bzapi::terminate();
 }
 
-TEST_F(integration_test, viewchange_test)
+TEST_F(integration_test, DISABLED_viewchange_test)
 {
     auto rand = generate_random_number(0, 100000);
     std::string db_name = "testdb_" + std::to_string(rand);
@@ -1035,7 +1056,7 @@ TEST_F(integration_test, viewchange_test)
     bzapi::terminate();
 }
 
-TEST_F(integration_test, live_test)
+TEST_F(integration_test, DISABLED_live_test)
 {
     uint16_t my_id = 0;
     int sock = create_socket(my_id);
@@ -1131,7 +1152,7 @@ TEST_F(integration_test, live_test)
     bzapi::terminate();
 }
 
-TEST_F(integration_test, blocking_live_test)
+TEST_F(integration_test, DISABLED_blocking_live_test)
 {
     auto rand = generate_random_number(0, 100000);
     std::string db_name = "testdb_" + std::to_string(rand);
@@ -1197,7 +1218,7 @@ TEST_F(integration_test, blocking_live_test)
     bzapi::terminate();
 }
 
-TEST_F(integration_test, sync_live_test)
+TEST_F(integration_test, DISABLED_sync_live_test)
 {
     bzapi::set_timeout(10000);
     auto rand = generate_random_number(0, 100000);
@@ -1270,7 +1291,7 @@ TEST_F(integration_test, sync_live_test)
 const std::string DEFAULT_SWARM_INFO_ESR_ADDRESS{"D5B3d7C061F817ab05aF9Fab3b61EEe036e4f4fc"};
 const std::string ROPSTEN_URL{"https://ropsten.infura.io"};
 
-TEST_F(integration_test, get_swarms_test)
+TEST_F(integration_test, DISABLED_get_swarms_test)
 {
     auto swarms = bzn::utils::esr::get_swarm_ids(DEFAULT_SWARM_INFO_ESR_ADDRESS, ROPSTEN_URL);
     for (auto sw : swarms)
@@ -1284,5 +1305,3 @@ TEST_F(integration_test, get_swarms_test)
     }
     EXPECT_TRUE(swarms.size() > 0);
 }
-
-#endif // these tests need to be run manually with an active swarm
