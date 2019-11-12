@@ -157,10 +157,6 @@ crypto::sign(bzn_envelope& msg)
     if (result)
     {
         msg.set_signature(signature.get(), signature_length);
-        if (!this->verify(msg))
-        {
-            LOG(error) << "Can't verify own message";
-        }
     }
     else
     {

@@ -373,18 +373,18 @@ TEST_F(swarm_test, test_send_policy)
 TEST_F(swarm_test, test_bad_status)
 {
     this->init(200, 1);
-    auto meta = this->nodes[0];
+    auto node = this->nodes[0].node;
 
-    EXPECT_CALL(*meta.node, send_message(_, _)).Times(AtLeast(1))
-        .WillRepeatedly(Invoke([&meta](auto /*msg*/, auto /*callback*/)
+    EXPECT_CALL(*node, send_message(_, _)).Times(AtLeast(1))
+        .WillRepeatedly(Invoke([this](auto /*msg*/, auto /*callback*/)
         {
             // schedule status response
-            auto node = meta.node;
+            auto node = this->nodes[0].node;
 
             bzn_envelope env;
             env.set_status_response("A bunch of garbage");
             auto env_str = env.SerializeAsString();
-            EXPECT_EQ(meta.handler(env_str), true);
+            EXPECT_EQ(this->nodes[0].handler(env_str), true);
         }));
 
     auto l = [](auto& /*ec*/){};

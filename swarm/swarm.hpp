@@ -72,6 +72,7 @@ namespace bzapi
         const uuid_t my_uuid;
 
         bool init_called = false;
+        std::vector<std::pair<node_id_t, bzn::peer_address_t>> initial_nodes;
         completion_handler_t init_handler = nullptr;
         std::unordered_map<payload_t, swarm_response_handler_t> response_handlers;
 
@@ -81,6 +82,7 @@ namespace bzapi
         status_response last_status;
         std::mutex info_mutex;
 
+        void init_nodes();
         void add_nodes(const std::vector<std::pair<node_id_t, bzn::peer_address_t>>& node_list);
         void send_status_request(const uuid_t& node_uuid);
         void send_node_request(const std::shared_ptr<node_base>& node, const bzn_envelope& request);

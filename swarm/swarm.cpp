@@ -36,14 +36,27 @@ swarm::swarm(std::shared_ptr<node_factory_base> node_factory
     , uuid_t uuid
     , const std::vector<std::pair<node_id_t, bzn::peer_address_t>>& node_list)
 : node_factory(std::move(node_factory)), ws_factory(std::move(ws_factory)), io_context(std::move(io_context))
-    , crypto(std::move(crypto)), swarm_id(std::move(swarm_id)), my_uuid(std::move(uuid))
+    , crypto(std::move(crypto)), swarm_id(std::move(swarm_id)), my_uuid(std::move(uuid)), initial_nodes(node_list)
 {
-    this->add_nodes(node_list);
+}
+
+void
+swarm::init_nodes()
+{
+    // this is done here rather than on construction because during construction we can't create
+    // a weak pointer to this yet.
+    if (!this->initial_nodes.empty())
+    {
+        this->add_nodes(this->initial_nodes);
+        this->initial_nodes.clear();
+    }
 }
 
 void
 swarm::initialize(completion_handler_t handler)
 {
+    this->init_nodes();
+
     if (this->init_called)
     {
         handler(boost::system::error_code{boost::system::errc::operation_in_progress, boost::system::system_category()});
@@ -104,6 +117,8 @@ swarm::sign_and_date_request(bzn_envelope& request, send_policy policy)
 int
 swarm::send_request(const bzn_envelope& request, send_policy policy)
 {
+    this->init_nodes();
+
     // cache the current swarm info
     std::shared_ptr<node_map> current_nodes;
     std::string primary;
@@ -405,6 +420,7 @@ size_t
 swarm::honest_majority_size()
 {
     std::scoped_lock<std::mutex> lock(this->info_mutex);
+    this->init_nodes();
     return (((this->nodes->size() - 1) / 3) * 2) + 1;
 }
 
@@ -438,9 +454,14 @@ swarm::add_node(const node_id_t& node_id, const bzn::peer_address_t& addr)
 
     LOG(debug) << "adding node: " << info.host << ":" << info.port;
 
-    info.node->register_message_handler([this, node_id](const std::string& data)
+    info.node->register_message_handler([weak_this = weak_from_this(), node_id](const std::string& data)
     {
-        return this->handle_node_message(node_id, data);
+        if (auto strong_this = weak_this.lock())
+        {
+            return strong_this->handle_node_message(node_id, data);
+        }
+
+        return true;
     });
 
     return info;
