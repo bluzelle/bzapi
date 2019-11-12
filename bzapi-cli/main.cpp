@@ -20,7 +20,10 @@
 #include <boost/program_options.hpp>
 #include <json/json.h>
 #include <iostream>
+#include <iomanip>
 #include <unordered_map>
+#include <chrono>
+#include <mutex>
 
 
 namespace
@@ -51,6 +54,7 @@ namespace
     const std::string HELP = "help";
     const std::string VERBOSE = "verbose";
     const std::string COMMAND = "command";
+    const std::string TIMING = "timing";
     const std::string UUID = "uuid";
     const std::string CONFIG = "config";
 
@@ -101,16 +105,58 @@ namespace
     const std::string ETHEREUM_URL = "ethereum_url";
     const std::string TIMEOUT      = "timeout";
 
-
     class my_logger : public bzapi::logger
     {
+    public:
         void log(const std::string& severity, const std::string& message)
         {
-            std::cout << severity << ": " << message << std::endl;
+            std::lock_guard<std::mutex> lock(this->output_lock);
+
+            std::cout << std::setw(6) << severity << ": " << message << std::endl;
         }
+
+        void log(const std::string& message)
+        {
+            std::lock_guard<std::mutex> lock(this->output_lock);
+
+            std::cout << message << std::endl;
+        }
+
+        std::mutex output_lock;
     };
 
     my_logger logger;
+
+    // time operations
+    struct scoped_timer
+    {
+        scoped_timer(const std::string& op_name)
+            : op_name(op_name)
+            , start(std::chrono::system_clock::now())
+        {
+        }
+
+        ~scoped_timer()
+        {
+            const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - this->start).count();
+
+            ::logger.log("time", this->op_name + " " + std::to_string(duration) + "ms");
+        }
+
+        const std::string op_name;
+        const std::chrono::time_point<std::chrono::system_clock> start;
+    };
+
+    std::unique_ptr<scoped_timer>
+    do_timing(boost::program_options::variables_map& vm, const std::string& op_name)
+    {
+        if (vm.count(TIMING))
+        {
+            return std::make_unique<scoped_timer>(op_name);
+        }
+
+        return {};
+    }
 }
 
 
@@ -120,7 +166,7 @@ load_config(const std::string& filename, Json::Value& config)
     std::ifstream file(filename);
     if (file.fail())
     {
-        std::cerr << "Failed to read config file:  " << filename << " (" << strerror(errno) << ")\n";
+        std::cerr << "Failed to read config file:  " << filename << " (" << strerror(errno) << ")" << std::endl;
 
         return false;
     }
@@ -131,7 +177,7 @@ load_config(const std::string& filename, Json::Value& config)
     }
     catch (const std::exception& e)
     {
-        std::cerr << "Failed to parse config! (" << e.what() << ")";
+        std::cerr << "Failed to parse config! (" << e.what() << ")" << std::endl;
 
         return false;
     }
@@ -141,16 +187,17 @@ load_config(const std::string& filename, Json::Value& config)
 
 
 bool
-initialize_bzapi(const Json::Value& config)
+initialize_bzapi(boost::program_options::variables_map& vm, const Json::Value& config)
 {
     if (config.isMember(TIMEOUT))
     {
         bzapi::set_timeout(config[TIMEOUT].asUInt64());
     }
 
+    auto st_init = do_timing(vm, "initialize");
     if (!bzapi::initialize(config[PUBLIC_KEY].asString(), config[PRIVATE_KEY].asString(), config[ESR_ADDRESS].asString(), config[ETHEREUM_URL].asString()))
     {
-        std::cerr << "initialize failed: " << bzapi::get_error_str() << '\n';
+        std::cerr << "initialize failed: " << bzapi::get_error_str() << std::endl;
 
         return false;
     }
@@ -164,13 +211,14 @@ open_db(boost::program_options::variables_map& vm, const Json::Value& config)
 {
     std::shared_ptr<bzapi::database> db;
 
-    if (initialize_bzapi(config))
+    if (initialize_bzapi(vm, config))
     {
+        auto st = do_timing(vm, "open_db");
         db = bzapi::open_db(vm[UUID].as<std::string>());
 
         if (!db)
         {
-            std::cerr << bzapi::get_error_str() << '\n';
+            std::cerr << bzapi::get_error_str() << std::endl;
         }
     }
 
@@ -183,7 +231,8 @@ handle_status(boost::program_options::variables_map& vm, const Json::Value& conf
 {
     if (auto db = open_db(vm, config); db)
     {
-        std::cout << db->swarm_status() << "\n";
+        auto st = do_timing(vm, "status");
+        logger.log(db->swarm_status());
 
         return true;
     }
@@ -195,16 +244,23 @@ handle_status(boost::program_options::variables_map& vm, const Json::Value& conf
 bool
 handle_create_db(boost::program_options::variables_map& vm, const Json::Value& config)
 {
-    if (initialize_bzapi(config))
+    if (initialize_bzapi(vm, config))
     {
+        auto st = do_timing(vm, "create_db");
         if (auto db = bzapi::create_db(vm[UUID].as<std::string>(), vm[CREATE_DB_MAX_SIZE].as<uint64_t>(),
                 vm[CREATE_DB_RANDOM_EVICT].as<bool>()); db)
         {
+            logger.log("Database: " + vm[UUID].as<std::string>() + " created");
+
             return true;
+        }
+        else
+        {
+            logger.log("Database: " + vm[UUID].as<std::string>() + " creation failed");
         }
     }
 
-    std::cerr << bzapi::get_error_str() << '\n';
+    std::cerr << bzapi::get_error_str() << std::endl;
 
     return false;
 }
@@ -213,17 +269,22 @@ handle_create_db(boost::program_options::variables_map& vm, const Json::Value& c
 bool
 handle_has_db(boost::program_options::variables_map& vm, const Json::Value& config)
 {
-    if (initialize_bzapi(config))
+    if (initialize_bzapi(vm, config))
     {
+        auto st = do_timing(vm, "has_db");
         if (bzapi::has_db(vm[UUID].as<std::string>()))
         {
-            std::cout << "database: " << vm[UUID].as<std::string>() << " exists\n";
+            logger.log("Database: " + vm[UUID].as<std::string>() + " exists");
 
             return true;
         }
+        else
+        {
+            logger.log("Database: " + vm[UUID].as<std::string>() + " does not exist");
+        }
     }
 
-    std::cerr << bzapi::get_error_str() << '\n';
+    std::cerr << bzapi::get_error_str() << std::endl;
 
     return false;
 }
@@ -234,7 +295,8 @@ handle_writer(boost::program_options::variables_map& vm, const Json::Value& conf
 {
     if (auto db = open_db(vm, config); db)
     {
-        std::cout << db->writers() << '\n';
+        auto st = do_timing(vm, "writers");
+        logger.log(db->writers());
 
         return true;
     }
@@ -250,14 +312,15 @@ handle_add_writer(boost::program_options::variables_map& vm, const Json::Value& 
     {
         if (auto db = open_db(vm, config); db)
         {
-            std::cout << db->add_writer(vm[ADD_WRITER_PUBLIC_KEY].as<std::string>()) << '\n';
+            auto st = do_timing(vm, "add_writer");
+            logger.log(db->add_writer(vm[ADD_WRITER_PUBLIC_KEY].as<std::string>()));
 
             return true;
         }
     }
     else
     {
-        std::cerr << ADD_WRITER_PUBLIC_KEY << " not specified\n";
+        std::cerr << ADD_WRITER_PUBLIC_KEY << " not specified" << std::endl;
     }
 
     return false;
@@ -271,14 +334,15 @@ handle_remove_writer(boost::program_options::variables_map& vm, const Json::Valu
     {
         if (auto db = open_db(vm, config); db)
         {
-            std::cout << db->remove_writer(vm[REMOVE_WRITER_PUBLIC_KEY].as<std::string>()) << '\n';
+            auto st = do_timing(vm, "remove_writer");
+            logger.log(db->remove_writer(vm[REMOVE_WRITER_PUBLIC_KEY].as<std::string>()));
 
             return true;
         }
     }
     else
     {
-        std::cerr << REMOVE_WRITER_PUBLIC_KEY << " not specified\n";
+        std::cerr << REMOVE_WRITER_PUBLIC_KEY << " not specified" << std::endl;
     }
 
     return false;
@@ -292,14 +356,15 @@ handle_create(boost::program_options::variables_map& vm, const Json::Value& conf
     {
         if (auto db = open_db(vm, config); db)
         {
-            std::cout << db->create(vm[CREATE_KEY].as<std::string>(), vm[CREATE_VALUE].as<std::string>(), vm[CREATE_EXPIRE].as<uint64_t >()) << '\n';
+            auto st = do_timing(vm, "create");
+            logger.log(db->create(vm[CREATE_KEY].as<std::string>(), vm[CREATE_VALUE].as<std::string>(), vm[CREATE_EXPIRE].as<uint64_t >()));
 
             return true;
         }
     }
     else
     {
-        std::cerr << CREATE_KEY << " & " << CREATE_VALUE << " must be specified\n";
+        std::cerr << CREATE_KEY << " & " << CREATE_VALUE << " must be specified" << std::endl;
     }
 
     return false;
@@ -313,14 +378,15 @@ handle_read(boost::program_options::variables_map& vm, const Json::Value& config
     {
         if (auto db = open_db(vm, config); db)
         {
-            std::cout << db->read(vm[READ_KEY].as<std::string>()) << '\n';
+            auto st = do_timing(vm, "read");
+            logger.log(db->read(vm[READ_KEY].as<std::string>()));
 
             return true;
         }
     }
     else
     {
-        std::cerr << READ_KEY << " must be specified\n";
+        std::cerr << READ_KEY << " must be specified" << std::endl;
     }
 
     return false;
@@ -334,14 +400,15 @@ handle_qread(boost::program_options::variables_map& vm, const Json::Value& confi
     {
         if (auto db = open_db(vm, config); db)
         {
-            std::cout << db->quick_read(vm[QREAD_KEY].as<std::string>()) << '\n';
+            auto st = do_timing(vm, "qread");
+            logger.log(db->quick_read(vm[QREAD_KEY].as<std::string>()));
 
             return true;
         }
     }
     else
     {
-        std::cerr << QREAD_KEY << " must be specified\n";
+        std::cerr << QREAD_KEY << " must be specified" << std::endl;
     }
 
     return false;
@@ -355,14 +422,15 @@ handle_update(boost::program_options::variables_map& vm, const Json::Value& conf
     {
         if (auto db = open_db(vm, config); db)
         {
-            std::cout << db->update(vm[UPDATE_KEY].as<std::string>(), vm[UPDATE_VALUE].as<std::string>()) << '\n';
+            auto st = do_timing(vm, "update");
+            logger.log(db->update(vm[UPDATE_KEY].as<std::string>(), vm[UPDATE_VALUE].as<std::string>()));
 
             return true;
         }
     }
     else
     {
-        std::cerr << UPDATE_KEY << " & " << UPDATE_VALUE << " must be specified\n";
+        std::cerr << UPDATE_KEY << " & " << UPDATE_VALUE << " must be specified" << std::endl;
     }
 
     return false;
@@ -376,14 +444,15 @@ handle_delete(boost::program_options::variables_map& vm, const Json::Value& conf
     {
         if (auto db = open_db(vm, config); db)
         {
-            std::cout << db->remove(vm[DELETE_KEY].as<std::string>()) << '\n';
+            auto st = do_timing(vm, "delete");
+            logger.log(db->remove(vm[DELETE_KEY].as<std::string>()));
 
             return true;
         }
     }
     else
     {
-        std::cerr << DELETE_KEY << " must be specified\n";
+        std::cerr << DELETE_KEY << " must be specified" << std::endl;
     }
 
     return false;
@@ -397,14 +466,15 @@ handle_has(boost::program_options::variables_map& vm, const Json::Value& config)
     {
         if (auto db = open_db(vm, config); db)
         {
-            std::cout << db->has(vm[HAS_KEY].as<std::string>()) << '\n';
+            auto st = do_timing(vm, "has");
+            logger.log(db->has(vm[HAS_KEY].as<std::string>()));
 
             return true;
         }
     }
     else
     {
-        std::cerr << HAS_KEY << " must be specified\n";
+        std::cerr << HAS_KEY << " must be specified" << std::endl;
     }
 
     return false;
@@ -418,14 +488,15 @@ handle_ttl(boost::program_options::variables_map& vm, const Json::Value& config)
     {
         if (auto db = open_db(vm, config); db)
         {
-            std::cout << db->ttl(vm[TTL_KEY].as<std::string>()) << '\n';
+            auto st = do_timing(vm, "ttl");
+            logger.log(db->ttl(vm[TTL_KEY].as<std::string>()));
 
             return true;
         }
     }
     else
     {
-        std::cerr << TTL_KEY << " must be specified\n";
+        std::cerr << TTL_KEY << " must be specified" << std::endl;
     }
 
     return false;
@@ -439,14 +510,15 @@ handle_persist(boost::program_options::variables_map& vm, const Json::Value& con
     {
         if (auto db = open_db(vm, config); db)
         {
-            std::cout << db->persist(vm[PERSIST_KEY].as<std::string>()) << '\n';
+            auto st = do_timing(vm, "persist");
+            logger.log(db->persist(vm[PERSIST_KEY].as<std::string>()));
 
             return true;
         }
     }
     else
     {
-        std::cerr << PERSIST_KEY << " must be specified\n";
+        std::cerr << PERSIST_KEY << " must be specified" << std::endl;
     }
 
     return false;
@@ -460,14 +532,15 @@ handle_expire(boost::program_options::variables_map& vm, const Json::Value& conf
     {
         if (auto db = open_db(vm, config); db)
         {
-            std::cout << db->expire(vm[EXPIRE_KEY].as<std::string>(), vm[EXPIRE_TTL].as<uint64_t>()) << '\n';
+            auto st = do_timing(vm, "expire");
+            logger.log(db->expire(vm[EXPIRE_KEY].as<std::string>(), vm[EXPIRE_TTL].as<uint64_t>()));
 
             return true;
         }
     }
     else
     {
-        std::cerr << EXPIRE_KEY << " & " << EXPIRE_TTL << " must be specified\n";
+        std::cerr << EXPIRE_KEY << " & " << EXPIRE_TTL << " must be specified" << std::endl;
     }
 
     return false;
@@ -479,7 +552,8 @@ handle_keys(boost::program_options::variables_map& vm, const Json::Value& config
 {
     if (auto db = open_db(vm, config); db)
     {
-        std::cout << db->keys() << '\n';
+        auto st = do_timing(vm, "keys");
+        logger.log(db->keys());
 
         return true;
     }
@@ -488,12 +562,14 @@ handle_keys(boost::program_options::variables_map& vm, const Json::Value& config
 }
 
 
+
 bool
 handle_size(boost::program_options::variables_map& vm, const Json::Value& config)
 {
     if (auto db = open_db(vm, config); db)
     {
-        std::cout << db->size() << '\n';
+        auto st = do_timing(vm, "size");
+        logger.log(db->size());
 
         return true;
     }
@@ -535,7 +611,7 @@ process_program_options(boost::program_options::variables_map& vm, const Json::V
         return (*(handler_it->second))(vm, config);
     }
 
-    std::cerr << "Unknown command: " << vm[COMMAND].as<std::string>() << '\n';
+    std::cerr << "Unknown command: " << vm[COMMAND].as<std::string>() << std::endl;
 
     return false;
 }
@@ -556,6 +632,7 @@ main(int argc, const char* argv[])
             ("verbose,v","verbose logging")
             ("config,c", po::value<std::string>()->default_value("bzapi-cli.json"), "configuration file")
             ("command",  po::value<std::string>(), BZAPI_CMDS.c_str())
+            ("timing,t", "display operation times")
             ("uuid,u",   po::value<std::string>(), "database uuid");
 
         // some help as subparsers don't exists ("easily") in boost::program_options...
@@ -654,13 +731,13 @@ main(int argc, const char* argv[])
 
         if (!vm.count(UUID))
         {
-            std::cerr << "Error: uuid not specified\n" << description << '\n';
+            std::cerr << "Error: uuid not specified\n" << description << std::endl;
             return ERROR_IN_COMMAND_LINE;
         }
 
         if (!vm.count(COMMAND))
         {
-            std::cerr << "Error: command not specified\n" << description << '\n';
+            std::cerr << "Error: command not specified\n" << description << std::endl;
             return ERROR_IN_COMMAND_LINE;
         }
 
