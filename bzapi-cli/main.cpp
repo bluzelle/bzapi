@@ -20,6 +20,7 @@
 #include <boost/program_options.hpp>
 #include <json/json.h>
 #include <iostream>
+#include <iomanip>
 #include <unordered_map>
 #include <chrono>
 #include <mutex>
@@ -104,6 +105,28 @@ namespace
     const std::string ETHEREUM_URL = "ethereum_url";
     const std::string TIMEOUT      = "timeout";
 
+    class my_logger : public bzapi::logger
+    {
+    public:
+        void log(const std::string& severity, const std::string& message)
+        {
+            std::lock_guard<std::mutex> lock(this->output_lock);
+
+            std::cout << std::setw(6) << severity << ": " << message << std::endl;
+        }
+
+        void log(const std::string& message)
+        {
+            std::lock_guard<std::mutex> lock(this->output_lock);
+
+            std::cout << message << std::endl;
+        }
+
+        std::mutex output_lock;
+    };
+
+    my_logger logger;
+
     // time operations
     struct scoped_timer
     {
@@ -117,7 +140,7 @@ namespace
         {
             const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - this->start).count();
 
-            std::cout << "'" << this->op_name << "' completed in " << duration << "ms" << std::endl;
+            ::logger.log("time", this->op_name + " " + std::to_string(duration) + "ms");
         }
 
         const std::string op_name;
@@ -134,29 +157,6 @@ namespace
 
         return {};
     }
-
-    class my_logger : public bzapi::logger
-    {
-    public:
-        void log(const std::string& severity, const std::string& message)
-        {
-            std::lock_guard<std::mutex> lock(this->output_lock);
-
-            std::cout << severity << ": " << message << std::endl;
-        }
-
-        void log(const std::string& message)
-        {
-            std::lock_guard<std::mutex> lock(this->output_lock);
-
-            std::cout << message << std::endl;
-        }
-
-        std::mutex output_lock;
-    };
-
-    my_logger logger;
-
 }
 
 
