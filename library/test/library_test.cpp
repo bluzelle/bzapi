@@ -915,11 +915,11 @@ TEST_F(integration_test, blocking_response_test)
 // these tests need to be run manually with an active swarm
 // and need the node id to be set below to the first swarm member
 
-#if 0 // local swarm
+#if 1 // local swarm
 namespace
 {
-    std::string NODE_ID{"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEDx3+Pop6RsWWUGCM519/SieCJqq7C/FP1DiXTAV1qpI4VUqrfIPm+ONTyMVspVA6I7ZyW+PExzKJmQom66mp2g=="};
-    std::string endpoint{"ws://localhost:50000"};
+    std::string NODE_ID{"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEhplzg8Cv+6WhfhEArLMrSaHxYJCfb71kDpDW4OkLfAPYsXgq9YwbpCfeHkoGdQhtPrm6l0RRcoZQUuCKjaKLug=="};
+    std::string endpoint{"ws://localhost:50003"};
 }
 
 #else // remote swarm
