@@ -41,6 +41,8 @@ namespace
     int error_val = -1;
     const uint64_t DEFAULT_TIMEOUT = 30;
     uint64_t api_timeout = DEFAULT_TIMEOUT;
+    const char *EMPTY_URL_MESSAGE{"unable to initialize bzapi with an empty ethereum network URL"};
+    const char *EMPTY_ESR_ADDRESS_MESSAGE{"unable to initialize bzapi with an empty Ethereum swarm registry address"};
 }
 
 namespace bzapi
@@ -96,6 +98,26 @@ namespace bzapi
         CATCHALL(do_bad_endpoint(endpoint));
 
         return std::make_pair(addr, port);
+    }
+
+    static bool
+    check_for_empty_addresses(const std::string& esr_address, const std::string& url)
+    {
+        if (url.empty())
+        {
+            error_val = -1;
+            error_str = EMPTY_URL_MESSAGE;
+            return false;
+        }
+
+        if (esr_address.empty())
+        {
+            error_val = -1;
+            error_str = EMPTY_ESR_ADDRESS_MESSAGE;
+            return false;
+        }
+        
+        return true;
     }
 
     static void
@@ -156,6 +178,11 @@ namespace bzapi
     initialize(const std::string& public_key, const std::string& private_key
         , const std::string& esr_address, const std::string& url)
     {
+        if (!check_for_empty_addresses(esr_address, url))
+        {
+            return false;
+        }
+        
         if (!initialized)
         {
             try

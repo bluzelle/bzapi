@@ -569,6 +569,24 @@ TEST_F(integration_test, test_initialize_fails_with_bad_endpoint)
     EXPECT_EQ(bzapi::get_error_str(), std::string{"Bad Endpoint"});
 }
 
+TEST_F(integration_test, test_initialize_fails_with_empty_esr_address)
+{
+    const std::string EMPTY_ESR_ADDRESS{""};
+    const std::string VALID_URL{"127.0.0.1"};
+    EXPECT_FALSE(bzapi::initialize(pub_key, priv_key, EMPTY_ESR_ADDRESS, VALID_URL));
+    EXPECT_EQ(-1,bzapi::get_error());
+    EXPECT_EQ("unable to initialize bzapi with an empty Ethereum swarm registry address", bzapi::get_error_str());
+}
+
+TEST_F(integration_test, test_initialize_fails_with_empty_URL)
+{
+    const std::string VALID_ESR_ADDRESS{"D5B3d7C061F817ab05aF9Fab3b61EEe036e4f4fc"};
+    const std::string EMPTY_URL{""};
+    EXPECT_FALSE(bzapi::initialize(pub_key, priv_key, VALID_ESR_ADDRESS, EMPTY_URL));
+    EXPECT_EQ(-1,bzapi::get_error());
+    EXPECT_EQ("unable to initialize bzapi with an empty ethereum network URL", bzapi::get_error_str());
+}
+
 TEST_F(integration_test, test_initialize_esr)
 {
     auto esr = std::make_shared<mock_esr>();
