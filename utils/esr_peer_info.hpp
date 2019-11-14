@@ -23,7 +23,13 @@ using namespace bzapi;
 
 namespace bzn::utils::esr
 {
-    std::vector<std::string> get_swarm_ids(const std::string& esr_address, const std::string& url);
-    std::vector<std::string> get_peer_ids(const bzapi::uuid_t& swarm_id, const std::string& esr_address, const std::string& url);
-    bzn::peer_address_t get_peer_info(const bzapi::uuid_t& swarm_id, const std::string& peer_id, const std::string& esr_address, const std::string& url);
+    std::vector<std::string> get_swarm_ids(const std::string &url);
+
+    std::vector<std::string> get_peer_ids(const bzapi::uuid_t &swarm_id, const std::string &url);
+
+    bzn::peer_address_t get_peer_info(const bzapi::uuid_t &swarm_id, const std::string &peer_id, const std::string &url);
+
+    // This method is used to make unit testing possible. It allows us to fake the output of a server.
+    // To reset the sync method call this method with nullptr, or no parameter.
+    void set_sync_method(std::string (*f)(const std::string&, const std::string&));
 }

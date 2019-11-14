@@ -25,21 +25,19 @@ namespace bzapi
     class esr : public esr_base
     {
     public:
-        std::vector<std::string> get_swarm_ids(const std::string& esr_address, const std::string& url) override
+        std::vector<std::string> get_swarm_ids(const std::string &url) override
         {
-            return bzn::utils::esr::get_swarm_ids(esr_address, url);
+            return bzn::utils::esr::get_swarm_ids(url);
         }
 
-        std::vector<std::string> get_peer_ids(const uuid_t& swarm_id, const std::string& esr_address
-            , const std::string& url) override
+        std::vector<std::string> get_peer_ids(const uuid_t& swarm_id, const std::string& url) override
         {
-            return bzn::utils::esr::get_peer_ids(swarm_id, esr_address, url);
+            return bzn::utils::esr::get_peer_ids(swarm_id, url);
         }
 
-        bzn::peer_address_t get_peer_info(const uuid_t& swarm_id, const std::string& peer_id
-            , const std::string& esr_address, const std::string& url) override
+        bzn::peer_address_t get_peer_info(const uuid_t &swarm_id, const std::string &peer_id, const std::string &url) override
         {
-            return bzn::utils::esr::get_peer_info(swarm_id, peer_id, esr_address, url);
+            return bzn::utils::esr::get_peer_info(swarm_id, peer_id, url);
         }
     };
 }

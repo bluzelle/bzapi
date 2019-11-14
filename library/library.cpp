@@ -174,12 +174,17 @@ namespace bzapi
     void
     terminate()
     {
+        std::cout << "terminate" << std::endl;
         try
         {
             if (initialized)
             {
+
                 io_context->stop();
+                LOG(info) << "Before join.";
                 io_thread->join();
+
+                LOG(info) << "After join.";
 
                 initialized = false;
                 error_str = "Not Initialized";

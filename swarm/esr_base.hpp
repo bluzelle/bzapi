@@ -27,10 +27,9 @@ namespace bzapi
     public:
         virtual ~esr_base() = default;
 
-        virtual std::vector<std::string> get_swarm_ids(const std::string& esr_address, const std::string& url) = 0;
-        virtual std::vector<std::string> get_peer_ids(const uuid_t& swarm_id, const std::string& esr_address
-            , const std::string& url) = 0;
-        virtual bzn::peer_address_t get_peer_info(const uuid_t& swarm_id, const std::string& peer_id
-            , const std::string& esr_address, const std::string& url) = 0;
+        virtual std::vector<std::string> get_swarm_ids(const std::string &url) = 0;
+        virtual std::vector<std::string> get_peer_ids(const uuid_t& swarm_id, const std::string& url) = 0;
+        virtual bzn::peer_address_t
+        get_peer_info(const uuid_t &swarm_id, const std::string &peer_id, const std::string &url) = 0;
     };
 }

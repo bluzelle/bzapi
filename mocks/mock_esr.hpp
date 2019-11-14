@@ -24,8 +24,8 @@ namespace bzapi
     class mock_esr : public esr_base
     {
     public:
-        MOCK_METHOD2(get_swarm_ids, std::vector<std::string>(const std::string&, const std::string&));
-        MOCK_METHOD3(get_peer_ids, std::vector<std::string>(const std::string&, const std::string&, const std::string&));
-        MOCK_METHOD4(get_peer_info, bzn::peer_address_t(const std::string&, const std::string&, const std::string&, const std::string&));
+        MOCK_METHOD1(get_swarm_ids, std::vector<std::string>(const std::string &));
+        MOCK_METHOD2(get_peer_ids, std::vector<std::string>(const std::string&, const std::string&));
+        MOCK_METHOD3(get_peer_info,bzn::peer_address_t(const uuid_t&, const std::string&, const std::string&));
     };
 }

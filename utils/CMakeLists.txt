@@ -8,3 +8,7 @@ add_library(utils
 
 target_include_directories(utils PRIVATE ${BLUZELLE_STD_INCLUDES})
 add_dependencies(utils boost openssl)
+
+if (BUILD_TESTS)
+    add_subdirectory(test)
+endif()

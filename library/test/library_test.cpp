@@ -573,17 +573,17 @@ TEST_F(integration_test, test_initialize_esr)
 {
     auto esr = std::make_shared<mock_esr>();
     bzapi::the_esr = esr;
-    EXPECT_CALL(*esr, get_swarm_ids(_, _)).WillOnce(Invoke([](auto, auto)
+    EXPECT_CALL(*esr, get_swarm_ids(_)).WillOnce(Invoke([](auto)
     {
         return std::vector<std::string>{"swarm_1", "swarm_2"};
     }));
-    EXPECT_CALL(*esr, get_peer_ids(_, _, _)).Times(Exactly(2))
-        .WillRepeatedly(Invoke([](auto, auto, auto)
+    EXPECT_CALL(*esr, get_peer_ids(_, _)).Times(Exactly(2))
+        .WillRepeatedly(Invoke([](auto, auto)
     {
         return std::vector<std::string>{"node_1", "node_2"};
     }));
-    EXPECT_CALL(*esr, get_peer_info(_, _, _, _)).Times(Exactly(4))
-        .WillRepeatedly(Invoke([](auto, auto, auto, auto)
+    EXPECT_CALL(*esr, get_peer_info(_, _, _)).Times(Exactly(4))
+        .WillRepeatedly(Invoke([](auto, auto, auto)
         {
             static uint16_t id = 1;
             return bzn::peer_address_t{"127.0.0.1", id, 0, "", std::string{"node_"} + std::to_string(id)};

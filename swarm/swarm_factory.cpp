@@ -185,13 +185,13 @@ swarm_factory::update_swarm_registry()
     if (!this->esr_address.empty() && !this->esr_url.empty())
     {
         auto sw_reg = std::make_shared<swarm_registry>();
-        auto swarm_list = this->esr->get_swarm_ids(esr_address, esr_url);
+        auto swarm_list = this->esr->get_swarm_ids(esr_url);
         for (const auto& sw_id : swarm_list)
         {
-            auto node_list = this->esr->get_peer_ids(sw_id, esr_address, esr_url);
+            auto node_list = this->esr->get_peer_ids(sw_id, esr_address);
             for (const auto& node : node_list)
             {
-                auto ep = this->esr->get_peer_info(sw_id, node, esr_address, esr_url);
+                auto ep = this->esr->get_peer_info(sw_id, node, esr_url);
                 sw_reg->add_node(sw_id, node, ep);
                 auto strong_sw = this->swarm_reg->get_swarm(sw_id).lock();
                 if (strong_sw)
